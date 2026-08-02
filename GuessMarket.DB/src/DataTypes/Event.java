@@ -2,9 +2,10 @@ package DataTypes;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 public class Event {
-    private int eventId;
+    private UUID eventId;
     private String eventName;
     private String eventDescription;
     private final double eventCommission;
@@ -15,16 +16,20 @@ public class Event {
     private double commissionChargedSum;
     private List<Purchase> purchasesList;
 
-    public Event(int eventId, String eventName, String eventDescription, float eventCommission, boolean isEventActive) {
+    public Event(UUID eventId, String eventName, String eventDescription, float eventCommission, boolean isEventActive) {
         this.eventId = eventId;
         this.eventName = eventName;
         this.eventDescription = eventDescription;
         this.eventCommission = eventCommission;
-        this.eventOption1.setOptionTitle(eventName + "will Happen");
-        this.getEventOption2.setOptionTitle(eventName + "won't Happen");
+        this.eventOption1 = new Option(eventName + "will Happen");
+        this.getEventOption2 = new Option(eventName + "won't Happen");
         this.isEventActive = isEventActive;
         this.eventAccount = new Account();
         this.commissionChargedSum = 0;
         this.purchasesList = new ArrayList<>();
+    }
+
+    public UUID getId() {
+        return this.eventId;
     }
 }

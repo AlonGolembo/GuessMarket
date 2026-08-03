@@ -14,13 +14,13 @@ public class EventDTO implements Serializable {
     public EventDTO() {
     }
 
-    public EventDTO(UUID eventId, String eventName, String eventDescription, double eventCommission, boolean isEventActive) {
+    public EventDTO(UUID eventId, String eventName, String eventDescription, double eventCommission, boolean isEventActive, double commissionChargedSum) {
         this.eventId = eventId;
         this.eventName = eventName;
         this.eventDescription = eventDescription;
         this.eventCommission = eventCommission;
         this.isEventActive = isEventActive;
-        this.commissionChargedSum =0;
+        this.commissionChargedSum = commissionChargedSum;
     }
 
     public UUID getEventId() {
@@ -65,5 +65,9 @@ public class EventDTO implements Serializable {
 
     public double getCommissionChargedSum() {
         return commissionChargedSum;
+    }
+
+    public void setCommissionChargedSum(double commissionChargedSum) {
+        this.commissionChargedSum = commissionChargedSum;
     }
 }

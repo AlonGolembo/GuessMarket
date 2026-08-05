@@ -1,4 +1,4 @@
-package CallDB;
+package Services;
 
 import DataBase.IEventRepository;
 import dto.EventDTO;
@@ -6,10 +6,10 @@ import dto.EventDTO;
 import java.util.List;
 import java.util.UUID;
 
-public class EventService {
+public class CallDB {
     private final IEventRepository repository;
 
-    public EventService(IEventRepository repository){
+    public CallDB(IEventRepository repository){
         this.repository = repository;
     }
 

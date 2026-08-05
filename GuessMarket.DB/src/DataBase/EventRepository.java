@@ -9,7 +9,7 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
-public class EventRepository implements IEventRepository{
+class EventRepository implements IEventRepository{
     private final Map<UUID, Event> events = new ConcurrentHashMap<>();
 
     public void Save(Event event){
@@ -21,7 +21,7 @@ public class EventRepository implements IEventRepository{
     }
 
     @Override
-    public void save(EventDTO dto) {
+    public void save(EventDTO dto) throws IllegalArgumentException {
         events.put(dto.getEventId(), Event.DTOtoEvent(dto));
     }
 

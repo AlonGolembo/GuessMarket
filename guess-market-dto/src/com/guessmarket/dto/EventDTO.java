@@ -1,6 +1,7 @@
 package com.guessmarket.dto;
 
 import java.util.List;
+import java.util.Map;
 
 public record EventDTO(
         int id,
@@ -9,5 +10,4 @@ public record EventDTO(
         int commissionPercentage,
         String commissionType,   // "on-purchase" or "on-close"[cite: 1]
         List<String> options,
-        boolean isActive
-) {}
+        boolean isActive) {}

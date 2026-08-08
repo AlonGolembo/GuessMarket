@@ -6,22 +6,6 @@ import java.util.List;
 
 public class Event {
 
-    public enum CommissionType {
-        ON_PURCHASE,
-        ON_CLOSE;
-
-        public static CommissionType fromXmlString(String value) {
-            if (value == null) {
-                throw new IllegalArgumentException("Commission type cannot be null");
-            }
-            return switch (value.trim().toLowerCase()) {
-                case "on-purchase" -> ON_PURCHASE;
-                case "on-close" -> ON_CLOSE;
-                default -> throw new IllegalArgumentException("Unknown commission type: " + value);
-            };
-        }
-    }
-
     private final int id;
     private final String name;
     private final String description;

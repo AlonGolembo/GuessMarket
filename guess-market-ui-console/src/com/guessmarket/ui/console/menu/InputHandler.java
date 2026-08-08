@@ -56,4 +56,24 @@ public class InputHandler {
             System.out.println("Input cannot be empty! Please try again.");
         }
     }
+
+    public String readFilePath(String prompt) {
+        while (true) {
+            System.out.print(prompt);
+            String input = scanner.nextLine().trim();
+
+            // Strip leading and trailing double quotes if present
+            if (input.startsWith("\"") && input.endsWith("\"")) {
+                input = input.substring(1, input.length() - 1).trim();
+            } else {
+                // Remove any leftover standalone quotes just in case
+                input = input.replace("\"", "").trim();
+            }
+
+            if (!input.isEmpty()) {
+                return input;
+            }
+            System.out.println("File path cannot be empty. Please try again.");
+        }
+    }
 }

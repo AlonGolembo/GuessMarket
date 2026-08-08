@@ -77,5 +77,12 @@ public class ConsoleApp {
     }
 
     private void handleLoadXml() {
+        String xmlFilePath = this.inputHandler.readFilePath("Please insert XML file path: ");
+
+        try{
+            this.engine.loadXmlFile(xmlFilePath);
+        }catch(MarketException e){
+            System.out.println(e.getMessage() + "\nPlease insert a valid file path.");
+        }
     }
 }

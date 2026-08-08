@@ -22,8 +22,8 @@ public class ConsolePrinter {
         System.out.println("3. Display Event Trading Details");
         System.out.println("4. Buy Option Shares");
         System.out.println("5. Close Event & Declare Winner");
-        System.out.println("6. Save System State (Bonus)");
-        System.out.println("7. Load System State (Bonus)");
+        System.out.println("6. Save System State");
+        System.out.println("7. Load System State");
         System.out.println("8. Exit");
         System.out.println("========================================");
     }

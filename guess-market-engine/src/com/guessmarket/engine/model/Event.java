@@ -24,6 +24,7 @@ public class Event implements java.io.Serializable {
                  CommissionType commissionType, List<Option> options, int b) {
 
         validateCommission(commissionPercentage);
+        validateOptions(options);
 
         this.id = id;
         this.name = name;
@@ -37,6 +38,12 @@ public class Event implements java.io.Serializable {
         this.totalCommissionCollected = 0.0;
         this.tradeHistory = new ArrayList<>();
         this.winningOption = null;
+    }
+
+    private void validateOptions(List<Option> options) {
+        if(options == null || options.size() != 2){
+            throw new IllegalArgumentException("The event should have exactly two options! Provided: " + (options == null ? 0 : options.size()));
+        }
     }
 
     private static void validateCommission(int commission) {
@@ -70,17 +77,43 @@ public class Event implements java.io.Serializable {
 
     // --- Getters ---
 
-    public int getId() { return id; }
-    public String getName() { return name; }
-    public String getDescription() { return description; }
-    public int getCommissionPercentage() { return commissionPercentage; }
-    public CommissionType getCommissionType() { return commissionType; }
-    public List<Option> getOptions() { return Collections.unmodifiableList(options); }
-    public int getB() { return b; }
-    public boolean isActive() { return active; }
-    public double getEventAccountBalance() { return eventAccountBalance; }
-    public void setEventAccountBalance(double balance) { this.eventAccountBalance = balance; }
-    public double getTotalCommissionCollected() { return totalCommissionCollected; }
-    public List<TradeRecord> getTradeHistory() { return Collections.unmodifiableList(tradeHistory); }
-    public Option getWinningOption() { return winningOption; }
+    public int getId() {
+        return id;
+    }
+    public String getName() {
+        return name;
+    }
+    public String getDescription() {
+        return description;
+    }
+    public int getCommissionPercentage() {
+        return commissionPercentage;
+    }
+    public CommissionType getCommissionType() {
+        return commissionType;
+    }
+    public List<Option> getOptions() {
+        return Collections.unmodifiableList(options);
+    }
+    public int getB() {
+        return b;
+    }
+    public boolean isActive() {
+        return active;
+    }
+    public double getEventAccountBalance() {
+        return eventAccountBalance;
+    }
+    public void setEventAccountBalance(double balance) {
+        this.eventAccountBalance = balance;
+    }
+    public double getTotalCommissionCollected() {
+        return totalCommissionCollected;
+    }
+    public List<TradeRecord> getTradeHistory() {
+        return Collections.unmodifiableList(tradeHistory);
+    }
+    public Option getWinningOption() {
+        return winningOption;
+    }
 }

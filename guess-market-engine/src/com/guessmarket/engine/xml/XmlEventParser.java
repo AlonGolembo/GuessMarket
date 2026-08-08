@@ -12,14 +12,11 @@ import org.w3c.dom.NodeList;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import java.io.File;
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 
 public class XmlEventParser {
 
-    public static List<Event> parseAndValidateXml(String filePath) throws XmlValidationException {
+    public static Map<Integer, Event> parseAndValidateXml(String filePath) throws XmlValidationException {
         if (filePath == null || filePath.isBlank()) {
             throw new XmlValidationException("File path cannot be empty.");
         }
@@ -53,19 +50,17 @@ public class XmlEventParser {
                 throw new XmlValidationException("XML file contains no events (<GM-event> tags).");
             }
 
-            List<Event> parsedEvents = new ArrayList<>();
+            Map<Integer, Event> parsedEvents = new LinkedHashMap<>();
             Set<Integer> usedIds = new HashSet<>();
 
             for (int i = 0; i < eventsList.getLength(); i++) {
                 Element eventElement = (Element) eventsList.item(i);
                 Event event = parseSingleEvent(eventElement, usedIds);
-                parsedEvents.add(event);
+                parsedEvents.put(event.getId(), event);
             }
 
             return parsedEvents;
 
-        } catch (XmlValidationException e) {
-            throw e;
         } catch (Exception e) {
             throw new XmlValidationException("Failed to parse XML file: " + e.getMessage(), e);
         }

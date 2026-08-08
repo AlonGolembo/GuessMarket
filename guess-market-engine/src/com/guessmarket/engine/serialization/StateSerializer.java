@@ -5,10 +5,11 @@ import com.guessmarket.engine.model.Event;
 
 import java.io.*;
 import java.util.List;
+import java.util.Map;
 
 public class StateSerializer {
 
-    public static void saveEngineState(List<Event> events, String filePath) throws MarketException {
+    public static void saveEngineState(Map<Integer, Event> events, String filePath) throws MarketException {
         if (filePath == null || filePath.isBlank()) {
             throw new MarketException("Save file path cannot be empty.");
         }
@@ -22,7 +23,7 @@ public class StateSerializer {
     }
 
     @SuppressWarnings("unchecked")
-    public static List<Event> loadEngineState(String filePath) throws MarketException {
+    public static Map<Integer, Event> loadEngineState(String filePath) throws MarketException {
         if (filePath == null || filePath.isBlank()) {
             throw new MarketException("Load file path cannot be empty.");
         }
@@ -33,7 +34,7 @@ public class StateSerializer {
         }
 
         try (ObjectInputStream ois = new ObjectInputStream(new FileInputStream(file))) {
-            return (List<Event>) ois.readObject();
+            return (Map<Integer, Event>) ois.readObject();
         } catch (IOException | ClassNotFoundException e) {
             throw new MarketException("Failed to load saved state from file [" + filePath + "]: " + e.getMessage(), e);
         }

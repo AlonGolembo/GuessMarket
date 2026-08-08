@@ -1,10 +1,12 @@
 package com.guessmarket.engine.exception;
 
-public class XmlValidationException extends Throwable {
+public class XmlValidationException extends MarketException {
+
     public XmlValidationException(String message) {
-        super();
+        super(message);
     }
-    public XmlValidationException(String message, Throwable cause){
-        super();
+
+    public XmlValidationException(String message, Throwable cause) {
+        super(message, cause);
     }
 }

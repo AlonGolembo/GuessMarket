@@ -9,8 +9,12 @@ public class Option implements java.io.Serializable {
         this.sharesBought = 0;
     }
 
-    public String getName() { return name; }
-    public int getSharesBought() { return sharesBought; }
+    public String getName() {
+        return name;
+    }
+    public int getSharesBought() {
+        return sharesBought;
+    }
 
     public void addShares(int count) {
         if (count <= 0) {

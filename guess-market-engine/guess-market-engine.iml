@@ -2,11 +2,11 @@
 <module type="JAVA_MODULE" version="4">
   <component name="NewModuleRootManager" inherit-compiler-output="true">
     <exclude-output />
-    <content url="file://$MODULE_DIR$">
-      <sourceFolder url="file://$MODULE_DIR$/src" isTestSource="false" />
+    <content url="file://$MODULE_DIR$/../guess-market-engine">
+      <sourceFolder url="file://$MODULE_DIR$/../guess-market-engine/src" isTestSource="false" />
     </content>
     <orderEntry type="inheritedJdk" />
-    <orderEntry type="module" module-name="GuessMarket.DTO" />
+    <orderEntry type="module" module-name="guess-market-dto" />
     <orderEntry type="module" module-name="GuessMarket.DB" />
     <orderEntry type="sourceFolder" forTests="false" />
   </component>

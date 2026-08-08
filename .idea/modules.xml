@@ -3,10 +3,10 @@
   <component name="ProjectModuleManager">
     <modules>
       <module fileurl="file://$PROJECT_DIR$/GuessMarket.iml" filepath="$PROJECT_DIR$/GuessMarket.iml" />
-      <module fileurl="file://$PROJECT_DIR$/GuessMarket.BE/GuessMarket.BE.iml" filepath="$PROJECT_DIR$/GuessMarket.BE/GuessMarket.BE.iml" />
       <module fileurl="file://$PROJECT_DIR$/GuessMarket.DB/GuessMarket.DB.iml" filepath="$PROJECT_DIR$/GuessMarket.DB/GuessMarket.DB.iml" />
-      <module fileurl="file://$PROJECT_DIR$/GuessMarket.DTO/GuessMarket.DTO.iml" filepath="$PROJECT_DIR$/GuessMarket.DTO/GuessMarket.DTO.iml" />
-      <module fileurl="file://$PROJECT_DIR$/GuessMarket.FE/GuessMarket.FE.iml" filepath="$PROJECT_DIR$/GuessMarket.FE/GuessMarket.FE.iml" />
+      <module fileurl="file://$PROJECT_DIR$/guess-market-dto/guess-market-dto.iml" filepath="$PROJECT_DIR$/guess-market-dto/guess-market-dto.iml" />
+      <module fileurl="file://$PROJECT_DIR$/guess-market-engine/guess-market-engine.iml" filepath="$PROJECT_DIR$/guess-market-engine/guess-market-engine.iml" />
+      <module fileurl="file://$PROJECT_DIR$/guess-market-ui-console/guess-market-ui-console.iml" filepath="$PROJECT_DIR$/guess-market-ui-console/guess-market-ui-console.iml" />
     </modules>
   </component>
 </project>

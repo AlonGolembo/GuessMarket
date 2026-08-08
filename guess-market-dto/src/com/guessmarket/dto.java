@@ -1,9 +1,9 @@
-package dto;
+package com.guessmarket;
 
 import java.io.Serializable;
 import java.util.UUID;
 
-public class EventDTO implements Serializable {
+public class dto implements Serializable {
     private UUID eventId;
     private String eventName;
     private String eventDescription;
@@ -14,10 +14,10 @@ public class EventDTO implements Serializable {
     private boolean isEventActive;
     private double commissionChargedSum;
 
-    public EventDTO() {
+    public dto() {
     }
 
-    public EventDTO(UUID eventId, String eventName, String eventDescription, double eventCommission, String eventChargingMethod, String eventOption1, String eventOption2, boolean isEventActive, double commissionChargedSum) {
+    public dto(UUID eventId, String eventName, String eventDescription, double eventCommission, String eventChargingMethod, String eventOption1, String eventOption2, boolean isEventActive, double commissionChargedSum) {
         this.eventId = eventId;
         this.eventName = eventName;
         this.eventDescription = eventDescription;

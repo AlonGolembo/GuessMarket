@@ -4,7 +4,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-public class Event {
+public class Event implements java.io.Serializable {
 
     private final int id;
     private final String name;

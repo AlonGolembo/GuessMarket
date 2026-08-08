@@ -1,6 +1,6 @@
 package com.guessmarket.engine.model;
 
-public enum CommissionType {
+public enum CommissionType implements java.io.Serializable {
     ON_PURCHASE,
     ON_CLOSE;
 

@@ -2,7 +2,7 @@ package com.guessmarket.engine.model;
 
 import java.time.LocalDateTime;
 
-public class TradeRecord {
+public class TradeRecord implements java.io.Serializable {
     private final String optionName;
     private final int quantity;
     private final double pricePaid;

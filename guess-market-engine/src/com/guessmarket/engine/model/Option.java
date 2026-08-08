@@ -1,6 +1,6 @@
 package com.guessmarket.engine.model;
 
-public class Option {
+public class Option implements java.io.Serializable {
     private final String name;
     private int sharesBought;
 

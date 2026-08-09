@@ -130,8 +130,11 @@ public class ConsoleApp {
     }
 
     private void handleDisplayEventDetails() {
-        int eventId = inputHandler.readPositiveInt("Please insert event ID: ");
         try{
+            List<EventDTO> eventsList = this.engine.getAllEvents();
+            ConsolePrinter.printEventList(eventsList);
+
+            int eventId = inputHandler.readPositiveInt("Please insert event ID: ");
             EventDetailsDTO eventDetails = this.engine.getEventDetails(eventId);
             ConsolePrinter.printEventDetails(eventDetails);
         }catch (Exception e){

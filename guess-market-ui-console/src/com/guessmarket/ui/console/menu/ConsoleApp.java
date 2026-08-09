@@ -14,19 +14,11 @@ public class ConsoleApp {
     private final MarketEngine engine;
     private final InputHandler inputHandler;
     private boolean isRunning;
-    private List<EventDTO> eventsList;
-    private List<EventDTO> activeEventsList;
 
     public ConsoleApp() {
         this.engine = new MarketEngineImpl();
         this.inputHandler = new InputHandler();
         this.isRunning = true;
-        try{
-            this.eventsList = this.engine.getAllEvents();
-            this.activeEventsList = this.engine.getActiveEvents();
-        }catch (Exception e){
-            System.out.println(e.getMessage());
-        }
     }
 
     public static void main(String[] args){
@@ -56,7 +48,7 @@ public class ConsoleApp {
                 case 2 -> handleDisplayAllEvents(); // Done
                 case 3 -> handleDisplayEventDetails(); // Done
                 case 4 -> handleBuyShares(); // Done
-                case 5 -> handleCloseEvent();
+                case 5 -> handleCloseEvent(); // Done
                 case 6 -> handleSaveState();
                 case 7 -> handleLoadState();
                 case 8 -> isRunning = false;
@@ -74,7 +66,8 @@ public class ConsoleApp {
 
     private void handleCloseEvent() {
         try{
-            ConsolePrinter.printEventList(this.activeEventsList);
+            List<EventDTO> activeEventsList = this.engine.getActiveEvents();
+            ConsolePrinter.printEventList(activeEventsList);
 
             int eventId = inputHandler.readPositiveInt("Please insert event ID you wish to close: ");
 
@@ -83,9 +76,10 @@ public class ConsoleApp {
 
             int optionIndex = inputHandler.readIntRange("Please insert winning option index: ", 1, 2);
             this.engine.closeEvent(eventId, optionIndex);
+            System.out.println("Event ID " + eventId + " closed and paid out");
 
-
-
+            selectedEvent = this.engine.getEventDetails(eventId);
+            ConsolePrinter.printEventDetails(selectedEvent);
         }catch (Exception e){
             System.out.println(e.getMessage());
         }
@@ -93,7 +87,8 @@ public class ConsoleApp {
 
     private void handleBuyShares() {
         try{
-            ConsolePrinter.printEventList(this.activeEventsList);
+            List<EventDTO> activeEventsList = this.engine.getActiveEvents();
+            ConsolePrinter.printEventList(activeEventsList);
 
             int eventId = inputHandler.readPositiveInt("Please insert event ID: ");
 
@@ -129,7 +124,12 @@ public class ConsoleApp {
     }
 
     private void handleDisplayAllEvents() {
-        ConsolePrinter.printEventList(this.eventsList);
+        try{
+            List<EventDTO> eventsList = this.engine.getAllEvents();
+            ConsolePrinter.printEventList(eventsList);
+        }catch (Exception e){
+            System.out.println(e.getMessage());
+        }
     }
 
     private void handleLoadXml() {

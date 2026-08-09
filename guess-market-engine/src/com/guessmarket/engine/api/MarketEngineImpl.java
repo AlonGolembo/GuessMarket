@@ -4,7 +4,6 @@ import com.guessmarket.dto.EventDTO;
 import com.guessmarket.dto.EventDetailsDTO;
 import com.guessmarket.dto.TradeResultDTO;
 import com.guessmarket.engine.exception.MarketException;
-import com.guessmarket.engine.exception.XmlValidationException;
 import com.guessmarket.engine.lmsr.LmsrCalculator;
 import com.guessmarket.engine.mapper.EventMapper;
 import com.guessmarket.engine.model.CommissionType;
@@ -121,7 +120,7 @@ public class MarketEngineImpl implements MarketEngine{
     }
 
     @Override
-    public EventDetailsDTO closeEvent(int eventId, int winningOptionIndex1Based) throws MarketException {
+    public void closeEvent(int eventId, int winningOptionIndex1Based) throws MarketException {
         ensureLoaded();
         Event event = findEventById(eventId);
 
@@ -134,8 +133,6 @@ public class MarketEngineImpl implements MarketEngine{
 
         // Delegate settlement, commission calculation, payout distribution, and closing to Event
         event.settleAndClose(winningOption);
-
-        return EventMapper.toEventDetailsDTO(event);
     }
 
     @Override

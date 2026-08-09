@@ -32,7 +32,7 @@ public interface MarketEngine {
     TradeResultDTO buyShares(int eventId, int optionIndex1Based, int quantity) throws MarketException;
 
     // Closes an event and declares the winning option
-    EventDetailsDTO closeEvent(int eventId, int winningOptionIndex1Based) throws MarketException;
+    void closeEvent(int eventId, int winningOptionIndex1Based) throws MarketException;
 
     // saves the current market system state
     void saveState(String filePath) throws MarketException;

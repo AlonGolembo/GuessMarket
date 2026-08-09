@@ -1,6 +1,5 @@
 package com.guessmarket.ui.console.menu;
 
-import java.sql.SQLOutput;
 import java.util.Scanner;
 
 public class InputHandler {
@@ -20,7 +19,7 @@ public class InputHandler {
                     return choice;
                 }
 
-                System.out.println("Choice out of range! Please enter a number between" + min + " and" + max + ".");
+                System.out.println("Choice out of range! Please enter a number between " + min + " and " + max + ".");
             } catch(NumberFormatException e){
                 System.out.println("Invalid input! Please enter a valid integer.");
             }

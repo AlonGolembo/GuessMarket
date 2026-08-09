@@ -44,7 +44,7 @@ public class ConsoleApp {
     private void handleMenuChoice(int choice) {
         try {
             switch (choice) {
-                case 1 -> handleLoadXml();
+                case 1 -> handleLoadXml(); // Done
                 case 2 -> handleDisplayAllEvents();
                 case 3 -> handleDisplayEventDetails();
                 case 4 -> handleBuyShares();
@@ -74,6 +74,12 @@ public class ConsoleApp {
     }
 
     private void handleDisplayAllEvents() {
+        try{
+            List<EventDTO> eventsList = engine.getAllEvents();
+            ConsolePrinter.printEventList(eventsList);
+        }catch (MarketException e){
+            System.out.println(e.getMessage());
+        }
     }
 
     private void handleLoadXml() {

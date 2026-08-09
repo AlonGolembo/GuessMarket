@@ -67,14 +67,19 @@ GuessMarket/
 [x] Command 4: Buy Option Shares & Output Receipt
 [x] Application Exit Sequence (Command 8)
 [x] Command 5: Close Event & Declare Winner Logic in MarketEngine
+[x] Command 6: Save System State (File Serialization Output)
+[x] Command 7: Load System State (File Deserialization Recovery)
 
 
 --------------------------------------------------------------------------------
 4. REMAINING WORK
 --------------------------------------------------------------------------------
 
-[ ] Command 6: Save System State (File Serialization Output)
-[ ] Command 7: Load System State (File Deserialization Recovery)
+[ ] Add verifications for overriding data (load an xml when one is already loaded,
+    load saved state when there is an xml loaded, etc).
+[ ] Complete remaining work when I get answers to the questions below.
+[ ] Test and improve. Check if there should be more printing and if there are any stages
+    that aren't clear.
 
 --------------------------------------------------------------------------------
 5. OPEN QUESTIONS & DECISIONS

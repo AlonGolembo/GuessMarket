@@ -1,37 +1,78 @@
-Project layout and Design:
+================================================================================
+                           GUESS MARKET ENGINE & UI
+================================================================================
+
+--------------------------------------------------------------------------------
+1. PROJECT STRUCTURE
+--------------------------------------------------------------------------------
 
 GuessMarket/
-├── guess-market-engine/                    # Module 1: Core Engine JAR
-│   └── src/
-│       └── main/
-│           └── java/
-│               └── com/
-│                   └── guessmarket/
-│                       └── engine/
-│                           ├── api/         # MarketEngine interface & EngineImpl
-│                           ├── exception/   # Custom domain exceptions (e.g., InvalidXmlException)
-│                           ├── model/       # Event, Option, Account, MarketMaker, Order
-│                           ├── lmsr/        # LMSR Math & Calculator engine
-│                           ├── serialization/# Bonus 1: Save/Load state mechanics
-│                           └── xml/         # JAXB / DOM Parsers & Schema validation
+├── guess-market-dto/                  [Data Transfer Objects Module]
+│   └── src/com/guessmarket/dto/
+│       ├── EventDTO.java              (Summary info for event listing)
+│       ├── EventDetailsDTO.java       (Full trading state & history)
+│       ├── TradeHistoryDTO.java       (Individual trade audit log record)
+│       └── TradeResultDTO.java        (Purchase receipt data)
 │
-├── guess-market-dto/                       # Module 2: Shared DTOs JAR
-│   └── src/
-│       └── main/
-│           └── java/
-│               └── com/
-│                   └── guessmarket/
-│                       └── dto/             # EventDTO, AccountDTO, TradeResultDTO, etc.
+├── guess-market-engine/               [Core Domain & Logic Module]
+│   └── src/com/guessmarket/engine/
+│       ├── api/                       (MarketEngine & MarketEngineImpl)
+│       ├── exception/                 (MarketException, XmlValidationException)
+│       ├── lmsr/                      (LmsrCalculator - cost & pricing math)
+│       ├── mapper/                    (EventMapper - entity to DTO converters)
+│       ├── model/                     (Event, Option, TradeRecord, Commission)
+│       ├── serialization/             (StateSerializer - save/load state)
+│       └── xml/                       (XmlEventParser - DOM parsing & validation)
 │
-└── guess-market-ui-console/                # Module 3: Console UI Application (Main)
-    └── src/
-        └── main/
-            └── java/
-                └── com/
-                    └── guessmarket/
-                        └── ui/
-                            └── console/
-                                ├── Main.java         # Entry point (main method)
-                                ├── ConsoleApp.java   # Main loop & state coordinator
-                                ├── menu/             # Menu options (Command pattern or Enum)
-                                └── view/             # Formatting & System.out printers
+└── guess-market-ui-console/           [Console Presentation Module]
+    └── src/com/guessmarket/ui/console/
+        ├── menu/                      (ConsoleApp main loop, InputHandler)
+        └── view/                      (ConsolePrinter - text table views)
+
+
+--------------------------------------------------------------------------------
+2. MAIN DESIGN DECISIONS
+--------------------------------------------------------------------------------
+
+* Multi-Module Architecture: Decouples domain logic (engine) from data transfer
+  contracts (dto) and user interface views (ui-console).
+
+* Read-Only DTOs: Domain models (Event, Option) never leak into the presentation 
+  layer. The UI receives only immutable Record DTOs.
+
+* Numerical Protection in LMSR Math: Option pricing using the softmax 
+  exponential formula uses a max-shift subtraction trick inside LmsrCalculator 
+  to prevent Double.POSITIVE_INFINITY floating-point overflow and NaN errors.
+
+* Centralized Dynamic View Formatting: ConsolePrinter auto-calculates border
+  lengths and formats columns based on configurable width constants, preventing
+  terminal layout misalignments.
+
+* Robust Input Parsing: InputHandler consumes entire input lines via 
+  scanner.nextLine() to prevent standard Scanner bugs and strips Windows double 
+  quotes from pasted file paths automatically.
+
+
+--------------------------------------------------------------------------------
+3. COMPLETED COMPONENTS
+--------------------------------------------------------------------------------
+
+[x] LMSR Math Engine (cost functions, trade pricing, probability calculations)
+[x] XML Parser & Schema Validation (loads and constructs market events)
+[x] DTO Mapping Infrastructure (EventMapper)
+[x] Interactive Console Menu & Safe Input Processing (InputHandler)
+[x] Command 1: Load System XML File
+[x] Command 2: Display All Events Summary
+[x] Command 3: Display Event Trading Details & Audit Log
+[x] Command 4: Buy Option Shares & Output Receipt
+[x] Application Exit Sequence (Command 8)
+
+
+--------------------------------------------------------------------------------
+4. REMAINING WORK
+--------------------------------------------------------------------------------
+
+[ ] Command 5: Close Event & Declare Winner Logic in MarketEngine
+[ ] Command 6: Save System State (File Serialization Output)
+[ ] Command 7: Load System State (File Deserialization Recovery)
+================================================================================

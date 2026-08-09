@@ -47,7 +47,7 @@ public class ConsoleApp {
                 case 1 -> handleLoadXml(); // Done
                 case 2 -> handleDisplayAllEvents(); // Done
                 case 3 -> handleDisplayEventDetails(); // Done
-                case 4 -> handleBuyShares();
+                case 4 -> handleBuyShares(); // Done
                 case 5 -> handleCloseEvent();
                 case 6 -> handleSaveState();
                 case 7 -> handleLoadState();

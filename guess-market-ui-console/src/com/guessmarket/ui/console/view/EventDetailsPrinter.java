@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.Map;
 
 class EventDetailsPrinter {
+    private static final int COL_PRICE_INDEX_WIDTH = 5;
     private static final int COL_PRICE_OPTION_WIDTH = 20;
     private static final int COL_PRICE_PROB_WIDTH = 20;
     private static final int COL_PRICE_SHARES_WIDTH = 18;
@@ -55,28 +56,37 @@ class EventDetailsPrinter {
                                                 Map<String, Double> prices,
                                                 Map<String, Integer> sharesBought) {
 
-        int totalWidth = COL_PRICE_OPTION_WIDTH + COL_PRICE_PROB_WIDTH + COL_PRICE_SHARES_WIDTH + (2 * 3);
+        // Total width = sum of 4 columns + 3 separators (" | " -> 3 chars each)
+        int totalWidth = COL_PRICE_INDEX_WIDTH + COL_PRICE_OPTION_WIDTH
+                + COL_PRICE_PROB_WIDTH + COL_PRICE_SHARES_WIDTH + (3 * 3);
+
         String border = "-".repeat(totalWidth);
-        String format = String.format("%%-%ds | %%-%ds | %%-%ds%%n",
-                COL_PRICE_OPTION_WIDTH, COL_PRICE_PROB_WIDTH, COL_PRICE_SHARES_WIDTH);
+
+        // Dynamic format string for 4 columns
+        String format = String.format("%%-%ds | %%-%ds | %%-%ds | %%-%ds%%n",
+                COL_PRICE_INDEX_WIDTH, COL_PRICE_OPTION_WIDTH, COL_PRICE_PROB_WIDTH, COL_PRICE_SHARES_WIDTH);
 
         System.out.println("\n--- Current Option Pricing & Distribution ---");
         System.out.println(border);
-        System.out.printf(format, "Option", "Price (Prob %)", "Shares Bought");
+        System.out.printf(format, "#", "Option", "Price (Prob %)", "Shares Bought");
         System.out.println(border);
 
+        int optionIndex = 1;
         for (String optionName : options) {
             double price = prices != null ? prices.getOrDefault(optionName, 0.0) : 0.0;
             int totalShares = sharesBought != null ? sharesBought.getOrDefault(optionName, 0) : 0;
             double probabilityPct = price * 100.0;
 
-            String priceFormatted = String.format("$%.2f (%.1f%%)", price, probabilityPct);
+            String priceFormatted = String.format("$%.2f (%.2f%%)", price, probabilityPct);
 
             System.out.printf(format,
+                    ConsolePrinter.padOrTruncate(String.valueOf(optionIndex), COL_PRICE_INDEX_WIDTH),
                     ConsolePrinter.padOrTruncate(optionName, COL_PRICE_OPTION_WIDTH),
                     ConsolePrinter.padOrTruncate(priceFormatted, COL_PRICE_PROB_WIDTH),
                     ConsolePrinter.padOrTruncate(String.valueOf(totalShares), COL_PRICE_SHARES_WIDTH)
             );
+
+            optionIndex++;
         }
         System.out.println(border);
     }

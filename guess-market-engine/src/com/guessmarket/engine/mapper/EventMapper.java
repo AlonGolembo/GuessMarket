@@ -51,7 +51,7 @@ public class EventMapper {
             int b = event.getB();
 
             double pYes = LmsrCalculator.calculateOptionPrice(qYes, qNo, b);
-            double pNo = LmsrCalculator.calculateOptionPrice(qYes, qNo, b);
+            double pNo = LmsrCalculator.calculateOptionPrice(qNo, qYes, b);
 
             pricesMap.put(options.get(0).getName(), pYes);
             pricesMap.put(options.get(1).getName(), pNo);

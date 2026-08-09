@@ -23,9 +23,21 @@ public class LmsrCalculator {
         if (b <= 0) {
             throw new IllegalArgumentException("Liquidity parameter b must be strictly positive. Got: " + b);
         }
-        double expTarget = Math.exp((double) qTarget / b);
-        double expOther = Math.exp((double) qOther / b);
-        return expTarget / (expTarget + expOther);
+
+        // Find max share count to prevent numerical overflow in Math.exp()
+        int maxQ = Math.max(qTarget, qOther);
+
+        double expTarget = Math.exp((double) ((qTarget - maxQ) / b));
+        double expOther = Math.exp((double) ((qOther - maxQ) / b));
+
+        double sum = expTarget + expOther;
+
+        // Safety check against zero division
+        if (sum == 0.0) {
+            return 0.0;
+        }
+
+        return expTarget / sum;
     }
 
     /**

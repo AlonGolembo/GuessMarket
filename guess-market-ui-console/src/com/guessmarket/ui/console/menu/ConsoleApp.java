@@ -46,7 +46,7 @@ public class ConsoleApp {
             switch (choice) {
                 case 1 -> handleLoadXml(); // Done
                 case 2 -> handleDisplayAllEvents(); // Done
-                case 3 -> handleDisplayEventDetails();
+                case 3 -> handleDisplayEventDetails(); // Done
                 case 4 -> handleBuyShares();
                 case 5 -> handleCloseEvent();
                 case 6 -> handleSaveState();
@@ -68,6 +68,32 @@ public class ConsoleApp {
     }
 
     private void handleBuyShares() {
+        try{
+            List<EventDTO> activeEvents = this.engine.getActiveEvents();
+
+            ConsolePrinter.printEventList(activeEvents);
+
+            int eventId = inputHandler.readPositiveInt("Please insert event ID: ");
+
+            EventDetailsDTO selectedEvent = this.engine.getEventDetails(eventId);
+            ConsolePrinter.printEventDetails(selectedEvent);
+
+            int optionIndex = inputHandler.readIntRange("Please insert option index: ", 1, 2);
+            int numberOfShares = inputHandler.readPositiveInt("Please insert number of shares to purchase: ");
+            TradeResultDTO tradeResult = this.engine.buyShares(eventId, optionIndex, numberOfShares);
+
+            System.out.println("Purchase successful!\n");
+            System.out.println("Total amount payed: " + tradeResult.totalPaid());
+            if(tradeResult.commissionCost() > 0){
+                System.out.println("Commission payed: " +tradeResult.commissionCost());
+            }
+
+            selectedEvent = this.engine.getEventDetails(eventId);
+            ConsolePrinter.printEventDetails(selectedEvent);
+
+        }catch (Exception e){
+            System.out.println(e.getMessage());
+        }
     }
 
     private void handleDisplayEventDetails() {

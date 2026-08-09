@@ -44,11 +44,11 @@ public class ConsoleApp {
     private void handleMenuChoice(int choice) {
         try {
             switch (choice) {
-                case 1 -> handleLoadXml(); // Done
-                case 2 -> handleDisplayAllEvents(); // Done
-                case 3 -> handleDisplayEventDetails(); // Done
-                case 4 -> handleBuyShares(); // Done
-                case 5 -> handleCloseEvent(); // Done
+                case 1 -> handleLoadXml();
+                case 2 -> handleDisplayAllEvents();
+                case 3 -> handleDisplayEventDetails();
+                case 4 -> handleBuyShares();
+                case 5 -> handleCloseEvent();
                 case 6 -> handleSaveState();
                 case 7 -> handleLoadState();
                 case 8 -> isRunning = false;
@@ -59,9 +59,25 @@ public class ConsoleApp {
     }
 
     private void handleLoadState() {
+        try {
+            String filePath = inputHandler.readFilePath("Please enter the path to the file you want to load: ");
+            this.engine.loadState(filePath);
+            System.out.println("System state successfully restored from: " + filePath);
+        } catch (MarketException e) {
+            System.out.println("\nFailed to load state: " + e.getMessage());
+        } catch (Exception e) {
+            System.out.println("\nAn unexpected error occurred: " + e.getMessage());
+        }
     }
 
     private void handleSaveState() {
+        try{
+            String filePath = inputHandler.readFilePath("Please enter the path where you want to save the file: ");
+            this.engine.saveState(filePath);
+            System.out.println("File saved correctly at: " + filePath);
+        }catch (Exception e){
+            System.out.println(e.getMessage());
+        }
     }
 
     private void handleCloseEvent() {

@@ -35,7 +35,16 @@ public class StateSerializer {
 
         try (ObjectInputStream ois = new ObjectInputStream(new FileInputStream(file))) {
             return (Map<Integer, Event>) ois.readObject();
-        } catch (IOException | ClassNotFoundException e) {
+        } catch (StreamCorruptedException e) {
+            throw new MarketException(
+                    "The selected file exists, but it is not a valid Guess Market saved state file " +
+                            "(e.g., you may have selected an XML file instead)."
+            );
+        } catch (ClassNotFoundException | java.io.InvalidClassException e) {
+            throw new MarketException(
+                    "The state file format is incompatible with the current version of the system."
+            );
+        } catch (IOException e) {
             throw new MarketException("Failed to load saved state from file [" + filePath + "]: " + e.getMessage(), e);
         }
     }

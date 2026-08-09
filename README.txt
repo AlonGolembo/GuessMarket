@@ -66,13 +66,24 @@ GuessMarket/
 [x] Command 3: Display Event Trading Details & Audit Log
 [x] Command 4: Buy Option Shares & Output Receipt
 [x] Application Exit Sequence (Command 8)
+[x] Command 5: Close Event & Declare Winner Logic in MarketEngine
 
 
 --------------------------------------------------------------------------------
 4. REMAINING WORK
 --------------------------------------------------------------------------------
 
-[ ] Command 5: Close Event & Declare Winner Logic in MarketEngine
 [ ] Command 6: Save System State (File Serialization Output)
 [ ] Command 7: Load System State (File Deserialization Recovery)
+
+--------------------------------------------------------------------------------
+5. OPEN QUESTIONS & DECISIONS
+--------------------------------------------------------------------------------
+[ ] When there is a big difference between the amount of shares bought of each option,
+    the event details print out share price 0.00 (for the share that was bought less)
+    since there is a requirement for displaying only 2 digits after the decimal point.
+    Should I keep this this way or treat this case differently?
+[ ] When closing an event, should I print how much money was paid out? How many winners
+    where paid? Maybe I should create another EventResultDTO (similar to TradeResultDTO)
+    for closing an event?
 ================================================================================

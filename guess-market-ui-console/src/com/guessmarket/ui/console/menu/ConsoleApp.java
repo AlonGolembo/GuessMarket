@@ -45,7 +45,7 @@ public class ConsoleApp {
         try {
             switch (choice) {
                 case 1 -> handleLoadXml(); // Done
-                case 2 -> handleDisplayAllEvents();
+                case 2 -> handleDisplayAllEvents(); // Done
                 case 3 -> handleDisplayEventDetails();
                 case 4 -> handleBuyShares();
                 case 5 -> handleCloseEvent();
@@ -71,6 +71,13 @@ public class ConsoleApp {
     }
 
     private void handleDisplayEventDetails() {
+        int eventId = inputHandler.readPositiveInt("Please insert event ID: ");
+        try{
+            EventDetailsDTO eventDetails = this.engine.getEventDetails(eventId);
+            ConsolePrinter.printEventDetails(eventDetails);
+        }catch (Exception e){
+            System.out.println(e.getMessage());
+        }
     }
 
     private void handleDisplayAllEvents() {
@@ -88,7 +95,7 @@ public class ConsoleApp {
         try{
             this.engine.loadXmlFile(xmlFilePath);
             int numberOfLoadedEvents = this.engine.getNumOfLoadedEvents();
-            System.out.println("Successfully loaded" + numberOfLoadedEvents + " events in the system.");
+            System.out.println("Successfully loaded " + numberOfLoadedEvents + " events in the system.");
         }catch(MarketException e){
             System.out.println(e.getMessage() + "\nPlease insert a valid file path.");
         }

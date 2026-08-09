@@ -80,6 +80,7 @@ GuessMarket/
 [ ] Complete remaining work when I get answers to the questions below.
 [ ] Test and improve. Check if there should be more printing and if there are any stages
     that aren't clear.
+[ ] Fix message printed to user when an xml file has errors in it (com/guessmarket/ui/console/menu/ConsoleApp.java:162)
 
 --------------------------------------------------------------------------------
 5. OPEN QUESTIONS & DECISIONS

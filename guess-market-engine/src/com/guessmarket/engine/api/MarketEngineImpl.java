@@ -176,4 +176,9 @@ public class MarketEngineImpl implements MarketEngine{
 
         return this.loadedEvents.get(eventId);
     }
+
+    @Override
+    public int getNumOfLoadedEvents() {
+        return this.loadedEvents.keySet().size();
+    }
 }

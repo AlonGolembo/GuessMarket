@@ -1,16 +1,18 @@
 package com.guessmarket.ui.console.view;
 
 import com.guessmarket.dto.EventDTO;
-import com.guessmarket.dto.EventDetailsDTO;
-import com.guessmarket.dto.TradeHistoryDTO;
-import com.guessmarket.dto.TradeResultDTO;
 
 import java.util.List;
-import java.util.Map;
-
-import static com.sun.tools.javac.jvm.Code.truncate;
 
 public class ConsolePrinter {
+
+    // Define column widths in one central place
+    private static final int COL_ID_WIDTH = 5;
+    private static final int COL_NAME_WIDTH = 25;
+    private static final int COL_COMM_WIDTH = 12;
+    private static final int COL_COMM_TYPE_WIDTH = 14;
+    private static final int COL_STATUS_WIDTH = 10;
+    private static final int COL_OPTIONS_WIDTH = 20;
 
     public static void printMenu() {
         System.out.println();
@@ -28,36 +30,55 @@ public class ConsolePrinter {
         System.out.println("========================================");
     }
 
+    /**
+     * Prints a summary table of all loaded events (Command 2).
+     */
     public static void printEventList(List<EventDTO> events) {
         if (events == null || events.isEmpty()) {
             System.out.println("\nNo events found in the system.");
             return;
         }
 
-        System.out.println("\n----------------------------------------------------------------------------------");
-        System.out.printf("%-5s | %-20s | %-12s | %-12s | %-8s | %-15s%n",
-                "ID", "Name", "Commission", "Comm. Type", "Status", "Options");
-        System.out.println("----------------------------------------------------------------------------------");
+        // Calculate total row width: sum of column widths + separator lengths (" | ")
+        // 6 columns separated by 5 " | " bars (each 3 chars long)
+        int totalWidth = COL_ID_WIDTH + COL_NAME_WIDTH + COL_COMM_WIDTH
+                + COL_COMM_TYPE_WIDTH + COL_STATUS_WIDTH + COL_OPTIONS_WIDTH + (5 * 3);
+
+        String borderRow = "-".repeat(totalWidth);
+
+        // Build dynamic format string for header and rows: e.g. "%-5s | %-25s | %-12s | ..."
+        String rowFormat = String.format("%%-%ds | %%-%ds | %%-%ds | %%-%ds | %%-%ds | %%-%ds%%n",
+                COL_ID_WIDTH, COL_NAME_WIDTH, COL_COMM_WIDTH,
+                COL_COMM_TYPE_WIDTH, COL_STATUS_WIDTH, COL_OPTIONS_WIDTH);
+
+        System.out.println("\n" + borderRow);
+        System.out.printf(rowFormat, "ID", "Name", "Commission", "Comm. Type", "Status", "Options");
+        System.out.println(borderRow);
 
         for (EventDTO e : events) {
             String status = e.isActive() ? "ACTIVE" : "CLOSED";
             String optionsStr = String.join(" / ", e.options());
 
-            System.out.printf("%-5d | %-20s | %-12s | %-12s | %-8s | %-15s%n",
+            System.out.printf(rowFormat,
                     e.id(),
-                    truncate(e.name(), 20),
+                    padOrTruncate(e.name(), COL_NAME_WIDTH),
                     e.commissionPercentage() + "%",
                     e.commissionType(),
                     status,
-                    truncate(optionsStr, 15)
+                    padOrTruncate(optionsStr, COL_OPTIONS_WIDTH)
             );
         }
-        System.out.println("----------------------------------------------------------------------------------");
+
+        System.out.println(borderRow);
     }
 
-    private static String truncate(String text, int maxLength) {
-        if (text == null) return "";
-        if (text.length() <= maxLength) return text;
-        return text.substring(0, maxLength - 3) + "...";
+    private static String padOrTruncate(String text, int maxLength) {
+        if (text == null) {
+            text = "";
+        }
+        if (text.length() > maxLength) {
+            return text.substring(0, maxLength - 3) + "...";
+        }
+        return text;
     }
 }

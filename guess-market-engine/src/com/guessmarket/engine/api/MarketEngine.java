@@ -39,4 +39,7 @@ public interface MarketEngine {
 
     // loads a save market system state
     void loadState(String filePath) throws MarketException;
+
+    // get number of loaded events
+    int getNumOfLoadedEvents();
 }

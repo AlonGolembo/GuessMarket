@@ -87,6 +87,8 @@ public class ConsoleApp {
 
         try{
             this.engine.loadXmlFile(xmlFilePath);
+            int numberOfLoadedEvents = this.engine.getNumOfLoadedEvents();
+            System.out.println("Successfully loaded" + numberOfLoadedEvents + " events in the system.");
         }catch(MarketException e){
             System.out.println(e.getMessage() + "\nPlease insert a valid file path.");
         }

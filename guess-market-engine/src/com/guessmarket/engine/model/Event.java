@@ -1,5 +1,7 @@
 package com.guessmarket.engine.model;
 
+import com.guessmarket.engine.exception.MarketException;
+
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -73,6 +75,44 @@ public class Event implements java.io.Serializable {
         }
         this.winningOption = winningOption;
         this.active = false;
+    }
+
+    /**
+     * Settles the market by declaring a winning option, processing applicable on-close commissions,
+     * distributing payouts to winning shareholders, and closing the event.
+     */
+    public void settleAndClose(Option winningOption) throws MarketException {
+        if (!this.isActive()) {
+            throw new MarketException("Event ID " + this.getId() + " is already closed.");
+        }
+
+        if (winningOption == null || !this.getOptions().contains(winningOption)) {
+            throw new MarketException("Invalid winning option provided for event: " + this.getName());
+        }
+
+        int winningShares = winningOption.getSharesBought();
+
+        // 1. Calculate 'on-close' commission if applicable
+        if (this.getCommissionType() == CommissionType.ON_CLOSE) {
+            double totalWinningPayout = winningShares * 1.0; // $1.00 base payout per winning share
+            double commissionDeduction = totalWinningPayout * (this.getCommissionPercentage() / 100.0);
+            this.addCommission(commissionDeduction);
+        }
+
+        // 2. Distribute payouts to shareholders holding the winning option
+        distributeWinningPayouts(winningOption, winningShares);
+
+        // 3. Update event lifecycle state
+        this.closeEvent(winningOption);
+    }
+
+    /**
+     * Placeholder method to handle financial distribution ($1.00 per share minus fees)
+     * to users who purchased shares of the winning option.
+     */
+    private void distributeWinningPayouts(Option winningOption, int winningShares) {
+        // TODO: When User/Portfolio tracking is introduced, iterate through
+        // user balances and credit ($1.00 - commission) per winning share.
     }
 
     // --- Getters ---

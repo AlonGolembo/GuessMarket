@@ -125,27 +125,15 @@ public class MarketEngineImpl implements MarketEngine{
         ensureLoaded();
         Event event = findEventById(eventId);
 
-        if (!event.isActive()) {
-            throw new MarketException("Event ID " + eventId + " is already closed.");
-        }
-
         List<Option> options = event.getOptions();
         if (winningOptionIndex1Based < 1 || winningOptionIndex1Based > options.size()) {
             throw new MarketException("Invalid winning option choice: " + winningOptionIndex1Based);
         }
 
         Option winningOption = options.get(winningOptionIndex1Based - 1);
-        int winningShares = winningOption.getSharesBought();
 
-        // Handle 'on-close' commission deduction
-        if (event.getCommissionType() == CommissionType.ON_CLOSE) {
-            double totalWinningPayout = winningShares * 1.0; // $1.00 base payout per winning share
-            double commissionDeduction = totalWinningPayout * (event.getCommissionPercentage() / 100.0);
-            event.addCommission(commissionDeduction);
-        }
-
-        // Close event
-        event.closeEvent(winningOption);
+        // Delegate settlement, commission calculation, payout distribution, and closing to Event
+        event.settleAndClose(winningOption);
 
         return EventMapper.toEventDetailsDTO(event);
     }

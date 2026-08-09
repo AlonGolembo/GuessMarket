@@ -14,11 +14,19 @@ public class ConsoleApp {
     private final MarketEngine engine;
     private final InputHandler inputHandler;
     private boolean isRunning;
+    private List<EventDTO> eventsList;
+    private List<EventDTO> activeEventsList;
 
     public ConsoleApp() {
         this.engine = new MarketEngineImpl();
         this.inputHandler = new InputHandler();
         this.isRunning = true;
+        try{
+            this.eventsList = this.engine.getAllEvents();
+            this.activeEventsList = this.engine.getActiveEvents();
+        }catch (Exception e){
+            System.out.println(e.getMessage());
+        }
     }
 
     public static void main(String[] args){
@@ -65,13 +73,27 @@ public class ConsoleApp {
     }
 
     private void handleCloseEvent() {
+        try{
+            ConsolePrinter.printEventList(this.activeEventsList);
+
+            int eventId = inputHandler.readPositiveInt("Please insert event ID you wish to close: ");
+
+            EventDetailsDTO selectedEvent = this.engine.getEventDetails(eventId);
+            ConsolePrinter.printEventDetails(selectedEvent);
+
+            int optionIndex = inputHandler.readIntRange("Please insert winning option index: ", 1, 2);
+            this.engine.closeEvent(eventId, optionIndex);
+
+
+
+        }catch (Exception e){
+            System.out.println(e.getMessage());
+        }
     }
 
     private void handleBuyShares() {
         try{
-            List<EventDTO> activeEvents = this.engine.getActiveEvents();
-
-            ConsolePrinter.printEventList(activeEvents);
+            ConsolePrinter.printEventList(this.activeEventsList);
 
             int eventId = inputHandler.readPositiveInt("Please insert event ID: ");
 
@@ -107,12 +129,7 @@ public class ConsoleApp {
     }
 
     private void handleDisplayAllEvents() {
-        try{
-            List<EventDTO> eventsList = engine.getAllEvents();
-            ConsolePrinter.printEventList(eventsList);
-        }catch (MarketException e){
-            System.out.println(e.getMessage());
-        }
+        ConsolePrinter.printEventList(this.eventsList);
     }
 
     private void handleLoadXml() {

@@ -69,6 +69,7 @@ GuessMarket/
 [x] Command 5: Close Event & Declare Winner Logic in MarketEngine
 [x] Command 6: Save System State (File Serialization Output)
 [x] Command 7: Load System State (File Deserialization Recovery)
+[x] Refactor XML Parser to use JAXB instead of DOM
 
 
 --------------------------------------------------------------------------------

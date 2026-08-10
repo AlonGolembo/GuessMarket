@@ -4,19 +4,22 @@ import com.guessmarket.engine.exception.XmlValidationException;
 import com.guessmarket.engine.model.CommissionType;
 import com.guessmarket.engine.model.Event;
 import com.guessmarket.engine.model.Option;
+import com.guessmarket.engine.xml.jaxb.*;
 
-import org.w3c.dom.Document;
-import org.w3c.dom.Element;
-import org.w3c.dom.NodeList;
+import jakarta.xml.bind.JAXBContext;
+import jakarta.xml.bind.JAXBElement;
+import jakarta.xml.bind.Unmarshaller;
+import org.jetbrains.annotations.Contract;
+import org.jetbrains.annotations.NotNull;
+import javax.xml.transform.stream.StreamSource;
 
-import javax.xml.parsers.DocumentBuilder;
-import javax.xml.parsers.DocumentBuilderFactory;
 import java.io.File;
 import java.util.*;
 
 public class XmlEventParser {
 
-    public static Map<Integer, Event> parseAndValidateXml(String filePath) throws XmlValidationException {
+    @Contract("null -> fail")
+    public static @NotNull Map<Integer, Event> parseAndValidateXml(String filePath) throws XmlValidationException {
         if (filePath == null || filePath.isBlank()) {
             throw new XmlValidationException("File path cannot be empty.");
         }
@@ -32,127 +35,100 @@ public class XmlEventParser {
         }
 
         try {
-            DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
-            // Prevent XML External Entity (XXE) vulnerabilities
-            factory.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
+            // 1. Initialize JAXB Unmarshaller
+            JAXBContext context = JAXBContext.newInstance(GuessMarketXml.class);
+            Unmarshaller unmarshaller = context.createUnmarshaller();
 
-            DocumentBuilder builder = factory.newDocumentBuilder();
-            Document doc = builder.parse(file);
-            doc.getDocumentElement().normalize();
+            // 2. Unmarshall XML into Java Object Graph
+            JAXBElement<GuessMarketXml> jaxbElement = unmarshaller.unmarshal(
+                    new StreamSource(file),
+                    GuessMarketXml.class
+            );
+            GuessMarketXml root = jaxbElement.getValue();
 
-            Element root = doc.getDocumentElement();
-            if (!"Guess-Market".equalsIgnoreCase(root.getNodeName())) {
-                throw new XmlValidationException("Invalid root element. Expected <Guess-Market>, got <" + root.getNodeName() + ">");
-            }
-
-            NodeList eventsList = doc.getElementsByTagName("GM-event");
-            if (eventsList.getLength() == 0) {
+            if (root == null || root.getEvents() == null || root.getEvents().isEmpty()) {
                 throw new XmlValidationException("XML file contains no events (<GM-event> tags).");
             }
 
+            // 3. Map & Validate Events
             Map<Integer, Event> parsedEvents = new LinkedHashMap<>();
             Set<Integer> usedIds = new HashSet<>();
 
-            for (int i = 0; i < eventsList.getLength(); i++) {
-                Element eventElement = (Element) eventsList.item(i);
-                Event event = parseSingleEvent(eventElement, usedIds);
+            for (EventXml eventXml : root.getEvents()) {
+                Event event = validateAndConvert(eventXml, usedIds);
                 parsedEvents.put(event.getId(), event);
             }
 
             return parsedEvents;
 
+        } catch (XmlValidationException e) {
+            throw e;
         } catch (Exception e) {
             throw new XmlValidationException("Failed to parse XML file: " + e.getMessage(), e);
         }
     }
 
-    private static Event parseSingleEvent(Element element, Set<Integer> usedIds) throws XmlValidationException {
-        // 1. Name attribute
-        String name = element.getAttribute("name");
-        if (name == null || name.isBlank()) {
+    private static Event validateAndConvert(EventXml xml, Set<Integer> usedIds) throws XmlValidationException {
+        // 1. Validate Name
+        if (xml.getName() == null || xml.getName().isBlank()) {
             throw new XmlValidationException("Event is missing a valid 'name' attribute.");
         }
-        name = name.trim();
+        String name = xml.getName().trim();
 
-        // 2. Event ID
-        int id = parseIntegerTag(element, "id", "Event ID");
+        // 2. Validate ID
+        if (xml.getId() == null) {
+            throw new XmlValidationException("Event '" + name + "' is missing required <id> tag.");
+        }
+        int id = xml.getId();
         if (usedIds.contains(id)) {
             throw new XmlValidationException("Duplicate Event ID found: " + id + ". Event IDs must be unique.");
         }
         usedIds.add(id);
 
-        // 3. Description
-        String description = getTagContent(element, "description");
-        if (description == null || description.isBlank()) {
+        // 3. Validate Description
+        if (xml.getDescription() == null || xml.getDescription().isBlank()) {
             throw new XmlValidationException("Event ID " + id + " (" + name + ") is missing a description.");
         }
+        String description = xml.getDescription().trim();
 
-        // 4. Commission & Commission Type
-        Element commissionElement = getSingleElementByTagName(element, "comision");
-        int commission = parseInteger(commissionElement.getTextContent(), "Commission percentage for event ID " + id);
+        // 4. Validate Commission
+        if (xml.getCommission() == null || xml.getCommission().getValue() == null) {
+            throw new XmlValidationException("Event ID " + id + ": Missing required <comision> tag.");
+        }
+        int commission = xml.getCommission().getValue();
         if (commission < 0 || commission > 90) {
             throw new XmlValidationException("Event ID " + id + ": Commission must be between 0 and 90. Got: " + commission);
         }
 
-        String commissionTypeAttr = commissionElement.getAttribute("type");
         CommissionType commissionType;
         try {
-            commissionType = CommissionType.fromXmlString(commissionTypeAttr);
+            commissionType = CommissionType.fromXmlString(xml.getCommission().getType());
         } catch (IllegalArgumentException e) {
             throw new XmlValidationException("Event ID " + id + ": " + e.getMessage());
         }
 
-        // 5. Options
-        NodeList optionNodes = element.getElementsByTagName("GM-option");
-        if (optionNodes.getLength() < 2) {
+        // 5. Validate Options
+        if (xml.getOptions() == null || xml.getOptions().size() < 2) {
             throw new XmlValidationException("Event ID " + id + ": Must contain at least 2 options (<GM-option>).");
         }
 
         List<Option> options = new ArrayList<>();
-        for (int i = 0; i < optionNodes.getLength(); i++) {
-            String optName = optionNodes.item(i).getTextContent();
+        for (String optName : xml.getOptions()) {
             if (optName == null || optName.isBlank()) {
                 throw new XmlValidationException("Event ID " + id + ": Option name cannot be empty.");
             }
             options.add(new Option(optName.trim()));
         }
 
-        // 6. LMSR Liquidity Parameter (b)
-        Element methodElement = getSingleElementByTagName(element, "GM-method");
-        Element lmsrElement = getSingleElementByTagName(methodElement, "GM-LMSR");
-        int b = parseIntegerTag(lmsrElement, "b", "LMSR liquidity parameter 'b' for event ID " + id);
+        // 6. Validate LMSR Liquidity Parameter 'b'
+        if (xml.getMethod() == null || xml.getMethod().getLmsr() == null || xml.getMethod().getLmsr().getB() == null) {
+            throw new XmlValidationException("Event ID " + id + ": Missing LMSR method configuration (<GM-method>/<GM-LMSR>/<b>).");
+        }
+        int b = xml.getMethod().getLmsr().getB();
         if (b <= 0) {
             throw new XmlValidationException("Event ID " + id + ": LMSR parameter 'b' must be strictly positive (> 0). Got: " + b);
         }
 
         return new Event(id, name, description, commission, commissionType, options, b);
-    }
-
-    // --- Helper Parsing Utilities ---
-
-    private static String getTagContent(Element parent, String tagName) throws XmlValidationException {
-        Element el = getSingleElementByTagName(parent, tagName);
-        return el.getTextContent() != null ? el.getTextContent().trim() : "";
-    }
-
-    private static int parseIntegerTag(Element parent, String tagName, String fieldName) throws XmlValidationException {
-        String content = getTagContent(parent, tagName);
-        return parseInteger(content, fieldName);
-    }
-
-    private static int parseInteger(String value, String fieldName) throws XmlValidationException {
-        try {
-            return Integer.parseInt(value.trim());
-        } catch (NumberFormatException e) {
-            throw new XmlValidationException(fieldName + " must be a valid integer. Got: '" + value + "'");
-        }
-    }
-
-    private static Element getSingleElementByTagName(Element parent, String tagName) throws XmlValidationException {
-        NodeList list = parent.getElementsByTagName(tagName);
-        if (list.getLength() == 0) {
-            throw new XmlValidationException("Missing required XML tag: <" + tagName + "> inside <" + parent.getNodeName() + ">.");
-        }
-        return (Element) list.item(0);
     }
 }

@@ -86,7 +86,7 @@ GuessMarket/
 --------------------------------------------------------------------------------
 5. OPEN QUESTIONS & DECISIONS
 --------------------------------------------------------------------------------
-[ ] When there is a big difference between the amount of shares bought of each option,
+[X] When there is a big difference between the amount of shares bought of each option,
     the event details print out share price 0.00 (for the share that was bought less)
     since there is a requirement for displaying only 2 digits after the decimal point.
     Should I keep this this way or treat this case differently?

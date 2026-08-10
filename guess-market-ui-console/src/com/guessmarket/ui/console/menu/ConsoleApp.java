@@ -152,8 +152,15 @@ public class ConsoleApp {
     }
 
     private void handleLoadXml() {
-        String xmlFilePath = this.inputHandler.readFilePath("Please insert XML file path: ");
+        if (this.engine.isFileLoaded()) {
+            String warning = "An XML file is already loaded. This action may override the loaded data.";
+            if (!confirmAction(warning)) {
+                return; // Abort if user chose No
+            }
+        }
 
+// Proceed with loading the file...
+        String xmlFilePath = this.inputHandler.readFilePath("Please insert XML file path: ");
         try{
             this.engine.loadXmlFile(xmlFilePath);
             int numberOfLoadedEvents = this.engine.getNumOfLoadedEvents();
@@ -161,5 +168,11 @@ public class ConsoleApp {
         }catch(MarketException e){
             System.out.println(e.getMessage() + "\nPlease insert a valid file path.");
         }
+    }
+
+    private boolean confirmAction(String warningMessage) {
+        System.out.println(warningMessage);
+        int choice = inputHandler.readIntRange("1. Yes\n2. No", 1, 2);
+        return choice == 1;
     }
 }

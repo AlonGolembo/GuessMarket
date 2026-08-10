@@ -159,7 +159,7 @@ public class ConsoleApp {
             }
         }
 
-// Proceed with loading the file...
+        // Proceed with loading the file...
         String xmlFilePath = this.inputHandler.readFilePath("Please insert XML file path: ");
         try{
             this.engine.loadXmlFile(xmlFilePath);

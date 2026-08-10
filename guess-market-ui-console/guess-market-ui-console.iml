@@ -6,8 +6,8 @@
       <sourceFolder url="file://$MODULE_DIR$/../guess-market-ui-console/src" isTestSource="false" />
     </content>
     <orderEntry type="inheritedJdk" />
-    <orderEntry type="module" module-name="guess-market-dto" />
-    <orderEntry type="module" module-name="guess-market-engine" />
+    <orderEntry type="module" module-name="guess-market-dto" exported="" />
+    <orderEntry type="module" module-name="guess-market-engine" exported="" />
     <orderEntry type="sourceFolder" forTests="false" />
   </component>
 </module>

@@ -2,10 +2,8 @@ package com.guessmarket.ui.console.view;
 
 import com.guessmarket.dto.EventDTO;
 import com.guessmarket.dto.EventDetailsDTO;
-import com.guessmarket.dto.TradeHistoryDTO;
 
 import java.util.List;
-import java.util.Map;
 
 public class ConsolePrinter {
 
@@ -48,4 +46,6 @@ public class ConsolePrinter {
         }
         return text;
     }
+
+
 }

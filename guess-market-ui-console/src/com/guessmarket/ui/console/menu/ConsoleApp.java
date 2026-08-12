@@ -29,10 +29,16 @@ public class ConsoleApp {
     private void run() {
         System.out.println("Welcome to Guess Market!");
         while(isRunning){
+            int choice = 0;
             try{
-                ConsolePrinter.printMenu();
-                int choice = inputHandler.readIntRange("Select an option (1-8)", 1, 8);
-                handleMenuChoice(choice);
+                ConsolePrinter.printMenu(this.engine.isFileLoaded());
+                if(this.engine.isFileLoaded()){
+                    choice = inputHandler.readIntRange("Select an option (1-8)", 1, 8);
+                }
+                else{
+                    choice = inputHandler.readIntRange("Select an option (1-3)", 1, 3);
+                }
+                handleMenuChoice(this.engine.isFileLoaded(), choice);
             }catch (Exception e){
                 System.out.println("Unexpected Error: " + e.getMessage());
             }
@@ -41,17 +47,26 @@ public class ConsoleApp {
         System.out.println("Thank you for using Guess Market. Goodbye!");
     }
 
-    private void handleMenuChoice(int choice) {
+    private void handleMenuChoice(boolean isFileLoaded, int choice) {
         try {
-            switch (choice) {
-                case 1 -> handleLoadXml();
-                case 2 -> handleDisplayAllEvents();
-                case 3 -> handleDisplayEventDetails();
-                case 4 -> handleBuyShares();
-                case 5 -> handleCloseEvent();
-                case 6 -> handleSaveState();
-                case 7 -> handleLoadState();
-                case 8 -> isRunning = false;
+            if(isFileLoaded){
+                switch (choice) {
+                    case 1 -> handleLoadXml();
+                    case 2 -> handleDisplayAllEvents();
+                    case 3 -> handleDisplayEventDetails();
+                    case 4 -> handleBuyShares();
+                    case 5 -> handleCloseEvent();
+                    case 6 -> handleSaveState();
+                    case 7 -> handleLoadState();
+                    case 8 -> isRunning = false;
+                }
+            }
+            else{
+                switch (choice) {
+                    case 1 -> handleLoadXml();
+                    case 2 -> handleLoadState();
+                    case 3 -> isRunning = false;
+                }
             }
         } catch (Exception e) {
             System.out.println("\nEngine Error: " + e.getMessage());
@@ -166,6 +181,7 @@ public class ConsoleApp {
             int numberOfLoadedEvents = this.engine.getNumOfLoadedEvents();
             System.out.println("\nSuccessfully loaded " + numberOfLoadedEvents + " events in the system.");
         }catch(MarketException e){
+            System.out.println("New file wasn't loaded!");
             System.out.println(e.getMessage() + "\nPlease insert a valid file path.");
         }
     }

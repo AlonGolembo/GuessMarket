@@ -13,20 +13,34 @@ public class ConsolePrinter {
     // Event details columns
 
 
-    public static void printMenu() {
-        System.out.println();
-        System.out.println("========================================");
-        System.out.println("           GUESS MARKET MENU            ");
-        System.out.println("========================================");
-        System.out.println("1. Load System XML File");
-        System.out.println("2. Display All Events Summary");
-        System.out.println("3. Display Event Trading Details");
-        System.out.println("4. Buy Option Shares");
-        System.out.println("5. Close Event & Declare Winner");
-        System.out.println("6. Save System State");
-        System.out.println("7. Load System State");
-        System.out.println("8. Exit");
-        System.out.println("========================================");
+    public static void printMenu(boolean isFileLoaded) {
+        if(isFileLoaded){
+            System.out.println();
+            System.out.println("========================================");
+            System.out.println("           GUESS MARKET MENU            ");
+            System.out.println("========================================");
+            System.out.println("1. Load System XML File");
+            System.out.println("2. Display All Events Summary");
+            System.out.println("3. Display Event Trading Details");
+            System.out.println("4. Buy Option Shares");
+            System.out.println("5. Close Event & Declare Winner");
+            System.out.println("6. Save System State");
+            System.out.println("7. Load System State");
+            System.out.println("8. Exit");
+            System.out.println("========================================");
+        }
+        else{
+            System.out.println();
+            System.out.println("========================================");
+            System.out.println("           GUESS MARKET MENU            ");
+            System.out.println("========================================");
+            System.out.println("1. Load System XML File");
+            System.out.println("2. Load System State");
+            System.out.println("3. Exit");
+            System.out.println("========================================");
+        }
+
+
     }
 
     public static void printEventList(List<EventDTO> events){

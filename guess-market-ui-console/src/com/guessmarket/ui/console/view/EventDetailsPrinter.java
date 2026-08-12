@@ -7,7 +7,7 @@ import com.guessmarket.dto.TradeHistoryDTO;
 import java.util.List;
 import java.util.Map;
 
-class EventDetailsPrinter {
+public class EventDetailsPrinter {
     private static final int COL_PRICE_INDEX_WIDTH = 5;
     private static final int COL_PRICE_OPTION_WIDTH = 20;
     private static final int COL_PRICE_PROB_WIDTH = 20;
@@ -19,7 +19,7 @@ class EventDetailsPrinter {
     /**
      * Prints full trading status and audit details for a specific event (Command 3).
      */
-    static void printEventDetails(EventDetailsDTO details) {
+    public static void printEventDetails(EventDetailsDTO details) {
         if (details == null) {
             System.out.println("\nNo details available for this event.");
             return;

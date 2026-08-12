@@ -10,9 +10,13 @@ public class LmsrCalculator {
         if (b <= 0) {
             throw new IllegalArgumentException("Liquidity parameter b must be strictly positive. Got: " + b);
         }
-        double expYes = Math.exp((double) qYes / b);
-        double expNo = Math.exp((double) qNo / b);
-        return b * Math.log(expYes + expNo);
+
+        int maxQ = Math.max(qYes, qNo);
+        double expYes = Math.exp((double) (qYes - maxQ) / b);
+        double expNo  = Math.exp((double) (qNo - maxQ) / b);
+
+        // b * (ln(e^(qYes/b) + e^(qNo/b))) = maxQ + b * ln(e^((qYes-maxQ)/b) + e^((qNo-maxQ)/b))
+        return maxQ + b * Math.log(expYes + expNo);
     }
 
     /**
@@ -27,8 +31,8 @@ public class LmsrCalculator {
         // Find max share count to prevent numerical overflow in Math.exp()
         int maxQ = Math.max(qTarget, qOther);
 
-        double expTarget = Math.exp((double) ((qTarget - maxQ) / b));
-        double expOther = Math.exp((double) ((qOther - maxQ) / b));
+        double expTarget = Math.exp(((double) (qTarget - maxQ)) / b);
+        double expOther = Math.exp(((double) (qOther - maxQ)) / b);
 
         double sum = expTarget + expOther;
 

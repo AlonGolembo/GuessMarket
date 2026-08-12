@@ -10,4 +10,9 @@ module guess.market.engine {
     requires guess.market.dto;
     requires jakarta.xml.bind;
     requires org.jetbrains.annotations;
+    requires org.junit.jupiter.api;
+    requires org.junit.jupiter.params;
+
+    opens com.guessmarket.engine.lmsr to org.junit.platform.commons;
+    opens com.guessmarket.engine.xml to org.junit.platform.commons;
 }

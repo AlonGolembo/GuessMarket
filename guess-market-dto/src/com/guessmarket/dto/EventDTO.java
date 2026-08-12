@@ -8,6 +8,6 @@ public record EventDTO(
         String name,
         String description,
         int commissionPercentage,
-        String commissionType,   // "on-purchase" or "on-close"[cite: 1]
+        String commissionType,
         List<String> options,
         boolean isActive) {}

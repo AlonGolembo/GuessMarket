@@ -20,7 +20,6 @@ public class ConsoleApp {
         this.inputHandler = new InputHandler();
         this.isRunning = true;
     }
-
     public static void main(String[] args){
         ConsoleApp app = new ConsoleApp();
         app.run();

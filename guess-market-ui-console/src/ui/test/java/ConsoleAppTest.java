@@ -33,12 +33,12 @@ class ConsoleAppTest {
     @DisplayName("Console should successfully load XML")
     void loadXmlFlow(){
         String filePath = "C:\\Users\\Alon Golembo\\Downloads\\multiple.xml";
-        try(ConsoleTestHelper console = new ConsoleTestHelper("admin\n1\n" + filePath + "\n")){
+        try(ConsoleTestHelper console = new ConsoleTestHelper("admin\n1\n" + filePath + "\n8\n")){
             String[] args = {"--config", "test.json"};
             ConsoleApp.main(args);
 
             String output = console.getCapturedOutput();
-            assertTrue(output.contains("XML successfully loaded"));
+            assertTrue(output.contains("XML Successfully loaded"));
         }
     }
 }

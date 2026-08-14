@@ -22,8 +22,8 @@ class ConsolePrinterTest {
             ConsolePrinter.printMenu(true);
             String output = console.getCapturedOutput();
 
-            assertTrue(output.contains("Welcome to Guess Market!"));
-            assertTrue(output.contains("Select an option"));
+            assertTrue(output.contains("GUESS MARKET MENU"));
+            assertTrue(output.contains("8. Exit"));
         }
     }
 

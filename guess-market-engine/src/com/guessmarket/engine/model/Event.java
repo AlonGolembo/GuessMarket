@@ -5,6 +5,7 @@ import com.guessmarket.engine.exception.MarketException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 
 public class Event implements java.io.Serializable {
 
@@ -113,6 +114,18 @@ public class Event implements java.io.Serializable {
     private void distributeWinningPayouts(Option winningOption, int winningShares) {
         // TODO: When User/Portfolio tracking is introduced, iterate through
         // user balances and credit ($1.00 - commission) per winning share.
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (o == null || getClass() != o.getClass()) return false;
+        Event event = (Event) o;
+        return id == event.id;
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hashCode(id);
     }
 
     // --- Getters ---

@@ -8,19 +8,25 @@ public class InputHandler {
         this.scanner = new Scanner(System.in);
     }
 
-    public int readIntRange(String prompt, int min, int max){
-        while(true){
+    public int readIntRange(String prompt, int min, int max) {
+        while (true) {
             System.out.println(prompt);
+
+            if (!scanner.hasNextLine()) {
+                // Stream exhausted (EOF during automated testing)
+                throw new IllegalStateException("Input stream exhausted (EOF reached).");
+            }
+
             String input = scanner.nextLine().trim();
 
-            try{
+            try {
                 int choice = Integer.parseInt(input);
-                if(choice >= min && choice <= max){
+                if (choice >= min && choice <= max) {
                     return choice;
                 }
 
                 System.out.println("Choice out of range! Please enter a number between " + min + " and " + max + ".");
-            } catch(NumberFormatException e){
+            } catch (NumberFormatException e) {
                 System.out.println("Invalid input! Please enter a valid integer.");
             }
         }

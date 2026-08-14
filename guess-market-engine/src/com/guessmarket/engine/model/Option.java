@@ -1,5 +1,7 @@
 package com.guessmarket.engine.model;
 
+import java.util.Objects;
+
 public class Option implements java.io.Serializable {
     private final String name;
     private int sharesBought;
@@ -21,5 +23,17 @@ public class Option implements java.io.Serializable {
             throw new IllegalArgumentException("Share count must be positive");
         }
         this.sharesBought += count;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (o == null || getClass() != o.getClass()) return false;
+        Option option = (Option) o;
+        return sharesBought == option.sharesBought && Objects.equals(name, option.name);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(name, sharesBought);
     }
 }

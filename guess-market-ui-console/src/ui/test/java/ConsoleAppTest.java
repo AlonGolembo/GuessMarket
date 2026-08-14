@@ -14,10 +14,11 @@ class ConsoleAppTest {
 
     @Test
     @Timeout(value = 2, unit = TimeUnit.SECONDS)
-    @DisplayName("ConsoleApp should gracefully handle exit command (Option 8)")
+    @DisplayName("ConsoleApp should gracefully handle exit command (Option 3)")
     void testExitFlow() {
-        // User selects option '8' to exit immediately
-        String simulatedInput = "admin\n8\nY\n";
+        String nl = System.lineSeparator();
+        // Ensure all prompts are answered and trailing newline is included
+        String simulatedInput = "admin" + nl + "3" + nl + "Y" + nl;
 
         try (ConsoleTestHelper console = new ConsoleTestHelper(simulatedInput)) {
             String[] args = {"--config", "test.json"};
@@ -25,6 +26,19 @@ class ConsoleAppTest {
 
             String output = console.getCapturedOutput();
             assertTrue(output.contains("Welcome to Guess Market!"));
+        }
+    }
+
+    @Test
+    @DisplayName("Console should successfully load XML")
+    void loadXmlFlow(){
+        String filePath = "C:\\Users\\Alon Golembo\\Downloads\\multiple.xml";
+        try(ConsoleTestHelper console = new ConsoleTestHelper("admin\n1\n" + filePath + "\n")){
+            String[] args = {"--config", "test.json"};
+            ConsoleApp.main(args);
+
+            String output = console.getCapturedOutput();
+            assertTrue(output.contains("XML successfully loaded"));
         }
     }
 }

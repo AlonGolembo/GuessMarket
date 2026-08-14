@@ -73,6 +73,12 @@ public class ConsoleApp {
     }
 
     private void handleLoadState() {
+        if (this.engine.isFileLoaded()) {
+            String warning = "An XML file is already loaded. This action may override the loaded data.";
+            if (!confirmAction(warning)) {
+                return; // Abort if user chose No
+            }
+        }
         try {
             String filePath = inputHandler.readFilePath("Please enter the path to the file you want to load: ");
             this.engine.loadState(filePath);

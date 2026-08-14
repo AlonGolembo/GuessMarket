@@ -1,0 +1,8 @@
+<component name="ArtifactManager">
+  <artifact type="jar" name="guess-market-ui-console">
+    <output-path>$PROJECT_DIR$/out/artifacts/submission</output-path>
+    <root id="archive" name="guess-market-ui-console.jar">
+      <element id="module-output" name="guess-market-ui-console" />
+    </root>
+  </artifact>
+</component>

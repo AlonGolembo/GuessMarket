@@ -6,6 +6,7 @@ import com.guessmarket.dto.TradeResultDTO;
 import com.guessmarket.engine.exception.MarketException;
 import com.guessmarket.engine.exception.XmlValidationException;
 
+
 import java.util.List;
 
 public interface MarketEngine {

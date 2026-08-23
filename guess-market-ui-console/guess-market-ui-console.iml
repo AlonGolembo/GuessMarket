@@ -10,5 +10,6 @@
     <orderEntry type="module" module-name="guess-market-dto" exported="" />
     <orderEntry type="module" module-name="guess-market-engine" exported="" />
     <orderEntry type="sourceFolder" forTests="false" />
+    <orderEntry type="library" name="apache.logging.log4j.core" level="project" />
   </component>
 </module>

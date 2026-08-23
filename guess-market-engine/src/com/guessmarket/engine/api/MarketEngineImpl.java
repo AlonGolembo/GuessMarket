@@ -12,6 +12,8 @@ import com.guessmarket.engine.model.Option;
 import com.guessmarket.engine.model.TradeRecord;
 import com.guessmarket.engine.serialization.StateSerializer;
 import com.guessmarket.engine.xml.XmlEventParser;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -19,6 +21,7 @@ import java.util.Map;
 
 public class MarketEngineImpl implements MarketEngine{
 
+    private static final Logger logger = LogManager.getLogger(MarketEngineImpl.class);
     private Map<Integer, Event> loadedEvents;
     private boolean isLoaded;
 
@@ -32,15 +35,19 @@ public class MarketEngineImpl implements MarketEngine{
 
         // Create a list to hold all new events coming from the xml file
         Map<Integer, Event> newEvents = XmlEventParser.parseAndValidateXml(filePath);
+        logger.info("XML File: {} parsed successfully", filePath);
 
         // Create initial subsidy for each event
         for(Event event : newEvents.values()){
             double initialSubsidy = LmsrCalculator.calculateInitialSubsidy(event.getB());
             event.setEventAccountBalance(initialSubsidy);
+            logger.debug("Event {} balance was successfully subsidised", event.getId());
         }
 
         this.loadedEvents = newEvents;
+        logger.debug("{} new events were loaded", newEvents.size());
         this.isLoaded = true;
+        logger.debug("isLoaded flag was set to true");
     }
 
     @Override

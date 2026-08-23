@@ -1,18 +1,16 @@
 module guess.market.engine {
-    // 1. Export ONLY the API package to external modules
+    // 1. Export API and exceptions to consumers (javafx-ui, console, etc.)
     exports com.guessmarket.engine.api;
-    exports com.guessmarket.engine.exception; // If UI needs to catch MarketException
+    exports com.guessmarket.engine.exception;
 
-    // 2. Open JAXB package to the JAXB runtime for reflection
+    // 2. Open JAXB package to JAXB runtime for XML unmarshalling
     opens com.guessmarket.engine.xml.jaxb to jakarta.xml.bind;
 
-    // 3. Require external module dependencies (e.g., DTO module)
+    // 3. Module dependencies
     requires guess.market.dto;
     requires jakarta.xml.bind;
-    requires org.jetbrains.annotations;
-    requires org.junit.jupiter.api;
-    requires org.junit.jupiter.params;
+    requires static org.jetbrains.annotations;
 
-    opens com.guessmarket.engine.lmsr to org.junit.platform.commons;
-    opens com.guessmarket.engine.xml to org.junit.platform.commons;
+    requires org.apache.logging.log4j;
+    requires org.apache.logging.log4j.core;
 }

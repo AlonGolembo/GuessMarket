@@ -1,4 +1,4 @@
-package engine.test.java;
+package java;
 
 import com.guessmarket.engine.exception.MarketException;
 import com.guessmarket.engine.model.Event;

@@ -10,24 +10,32 @@ import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
+import javafx.concurrent.Task;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
+import javafx.scene.control.ProgressBar;
 import javafx.scene.control.TextField;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
+import javafx.scene.layout.GridPane;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.RowConstraints;
 import javafx.stage.FileChooser;
 import javafx.util.Duration;
 
 import java.io.File;
 import java.io.InputStream;
+import java.util.List;
 
 public class MainController {
     @FXML public Label fileLoadMessage;
     @FXML private Button loadFileButton;
     @FXML private TextField filePathTextField;
     @FXML private ImageView fileStatusIcon;
+    @FXML private ProgressBar fileLoadProgress;
+    @FXML private HBox progressRowContainer;
 
     // Injected child controllers (fx:id + "Controller")
     @FXML private EventsController eventsTabController;
@@ -36,7 +44,7 @@ public class MainController {
     private final ObservableList<EventDTO> eventsList = FXCollections.observableArrayList();
 
     // Transitions
-    private final PauseTransition loadMessageDismissTimer = new PauseTransition(Duration.seconds(5));
+    private final PauseTransition loadMessageDismissTimer = new PauseTransition(Duration.seconds(2));
 
     // Set controller properties
     private MarketEngine engine;
@@ -54,8 +62,10 @@ public class MainController {
         if (errorStream != null) errorImage = new Image(errorStream);
 
         fileLoadMessage.textProperty().bind(loadMessage);
-        fileLoadMessage.visibleProperty().bind(loadMessage.isNotEmpty());
-        fileLoadMessage.managedProperty().bind(loadMessage.isNotEmpty());
+//        fileLoadMessage.visibleProperty().bind(loadMessage.isNotEmpty());
+//        fileLoadMessage.managedProperty().bind(loadMessage.isNotEmpty());
+        progressRowContainer.visibleProperty().bind(loadMessage.isNotEmpty());
+        progressRowContainer.managedProperty().bind(loadMessage.isNotEmpty());
 
         // Configure timer action: clear error and reset status
         loadMessageDismissTimer.setOnFinished(e -> {
@@ -87,24 +97,43 @@ public class MainController {
         if (selectedFile != null) {
             loadMessageDismissTimer.stop();
             filePathTextField.setText(selectedFile.getAbsolutePath());
-            try{
-                // Load XML file with engine
-                engine.loadXmlFile(selectedFile.toString());
+            loadFileButton.setDisable(true);
 
-                // Populate eventsList
-                eventsList.setAll(engine.getAllEvents());
+            // Load XML file with engine
+            Task<List<EventDTO>> loadTask = new Task<>() {
+                @Override
+                protected List<EventDTO> call() throws Exception {
+                    engine.loadXmlFile(selectedFile.getAbsolutePath());
+                    return engine.getAllEvents();
+                }
+            };
 
-                // Update UI states
+            // Handle Success
+            loadTask.setOnSucceeded(e -> {
+                List<EventDTO> loadedEvents = loadTask.getValue();
+                eventsList.setAll(loadedEvents);
+
                 loadMessage.set("XML loaded successfully!");
                 loadStatus.set(FileLoadStatus.SUCCESS);
                 loadMessageDismissTimer.playFromStart();
+                loadFileButton.setDisable(false);
+            });
 
-            }catch(Exception e){
-                loadMessage.set(e.getMessage() != null ? e.getMessage() : "Unknown error occurred.");
+            // Handle Failure
+            loadTask.setOnFailed(e -> {
+                Throwable ex = loadTask.getException();
+                String error = (ex != null && ex.getMessage() != null) ? ex.getMessage() : "Unknown error occurred.";
+
+                loadMessage.set(error);
                 loadStatus.set(FileLoadStatus.ERROR);
-
                 loadMessageDismissTimer.playFromStart();
-            }
+                loadFileButton.setDisable(false);
+            });
+
+            Thread thread = new Thread(loadTask);
+            thread.setDaemon(true);
+            thread.start();
+
         }
     }
 

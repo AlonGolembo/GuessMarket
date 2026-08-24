@@ -12,7 +12,7 @@
 <?import javafx.scene.layout.VBox?>
 <?import javafx.scene.text.Font?>
 
-<ScrollPane fitToHeight="true" fitToWidth="true" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.guessmarket.ui.controllers.EventsController">
+<ScrollPane fitToHeight="true" fitToWidth="true" xmlns="http://javafx.com/javafx/26" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.guessmarket.ui.controllers.EventsController">
     <content>
         <VBox spacing="8.0">
             <children>
@@ -35,7 +35,7 @@
                 <Separator />
 
                 <!-- Master-Detail Split Pane -->
-                <SplitPane dividerPositions="0.38" VBox.vgrow="ALWAYS">
+                <SplitPane dividerPositions="0.5" VBox.vgrow="ALWAYS">
                     <items>
                         <!-- Left: Events Overview -->
                         <VBox minWidth="260.0" spacing="8.0">
@@ -47,10 +47,11 @@
                                 </Label>
                                 <TableView fx:id="eventsTableView" VBox.vgrow="ALWAYS">
                                     <columns>
-                                        <TableColumn fx:id="eventIdCol" prefWidth="60.0" text="ID" />
-                                        <TableColumn fx:id="eventNameCol" prefWidth="170.0" text="Event Name" />
-                                        <TableColumn fx:id="eventStatusCol" prefWidth="90.0" text="Status" />
-                                        <TableColumn fx:id="eventMethodCol" prefWidth="90.0" text="Method" />
+                                        <TableColumn fx:id="eventIdCol" prefWidth="60.0" style="-fx-alignment: CENTER;" text="ID" />
+                                        <TableColumn fx:id="eventNameCol" prefWidth="95.0" style="-fx-alignment: CENTER;" text="Event Name" />
+                                        <TableColumn fx:id="eventStatusCol" prefWidth="99.0" style="-fx-alignment: CENTER;" text="Status" />
+                                        <TableColumn fx:id="eventMethodCol" prefWidth="90.0" style="-fx-alignment: CENTER;" text="Event Method" />
+                              <TableColumn fx:id="commissionMethodCol" prefWidth="90.0" style="-fx-alignment: CENTER;" text="Commission Method" />
                                     </columns>
                                     <columnResizePolicy>
                                         <TableView fx:constant="CONSTRAINED_RESIZE_POLICY" />
@@ -73,7 +74,6 @@
                                         <Font name="System Bold" size="14.0" />
                                     </font>
                                 </Label>
-                                <VBox fx:id="eventTradeDetailsContainer" minHeight="70.0" prefHeight="70.0" style="-fx-border-color: #cccccc; -fx-background-color: #fafafa; -fx-padding: 8;" />
 
                                 <!-- Side by Side Order Books -->
                                 <HBox spacing="10.0">

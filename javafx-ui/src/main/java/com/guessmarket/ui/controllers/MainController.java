@@ -1,5 +1,6 @@
 package com.guessmarket.ui.controllers;
 
+import com.guessmarket.dto.EventDTO;
 import com.guessmarket.engine.api.MarketEngine;
 import com.guessmarket.ui.common.FileLoadStatus;
 import javafx.animation.PauseTransition;
@@ -7,6 +8,8 @@ import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
+import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.scene.control.Button;
@@ -29,6 +32,8 @@ public class MainController {
     // Injected child controllers (fx:id + "Controller")
     @FXML private EventsController eventsTabController;
     @FXML private UsersController usersTabController;
+
+    private final ObservableList<EventDTO> eventsList = FXCollections.observableArrayList();
 
     // Transitions
     private final PauseTransition loadMessageDismissTimer = new PauseTransition(Duration.seconds(5));
@@ -64,6 +69,10 @@ public class MainController {
                 case NONE -> fileStatusIcon.setImage(null);
             }
         });
+
+        if (eventsTabController != null) {
+            eventsTabController.bindEventsList(eventsList);
+        }
     }
 
     @FXML
@@ -79,7 +88,13 @@ public class MainController {
             loadMessageDismissTimer.stop();
             filePathTextField.setText(selectedFile.getAbsolutePath());
             try{
+                // Load XML file with engine
                 engine.loadXmlFile(selectedFile.toString());
+
+                // Populate eventsList
+                eventsList.setAll(engine.getAllEvents());
+
+                // Update UI states
                 loadMessage.set("XML loaded successfully!");
                 loadStatus.set(FileLoadStatus.SUCCESS);
                 loadMessageDismissTimer.playFromStart();

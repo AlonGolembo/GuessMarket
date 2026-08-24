@@ -4,6 +4,7 @@ import com.guessmarket.dto.EventDTO;
 import com.guessmarket.engine.api.MarketEngine;
 import com.guessmarket.ui.common.FileLoadStatus;
 import javafx.animation.PauseTransition;
+import javafx.beans.binding.Bindings;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
@@ -42,6 +43,7 @@ public class MainController {
     @FXML private UsersController usersTabController;
 
     private final ObservableList<EventDTO> eventsList = FXCollections.observableArrayList();
+    private final ObjectProperty<Task<List<EventDTO>>> currentTaskProperty = new SimpleObjectProperty<>();
 
     // Transitions
     private final PauseTransition loadMessageDismissTimer = new PauseTransition(Duration.seconds(2));
@@ -67,6 +69,13 @@ public class MainController {
         progressRowContainer.visibleProperty().bind(loadMessage.isNotEmpty());
         progressRowContainer.managedProperty().bind(loadMessage.isNotEmpty());
 
+        fileLoadProgress.progressProperty().bind(
+                Bindings.createDoubleBinding(() -> {
+                    Task<?> task = currentTaskProperty.get();
+                    return task != null ? task.getProgress() : 0.0;
+                }, currentTaskProperty.flatMap(Task::progressProperty))
+        );
+
         // Configure timer action: clear error and reset status
         loadMessageDismissTimer.setOnFinished(e -> {
             loadMessage.set("");
@@ -89,52 +98,53 @@ public class MainController {
     private void handleLoadFile(ActionEvent event) {
         FileChooser fileChooser = new FileChooser();
         fileChooser.setTitle("Open XML Configuration");
-        fileChooser.getExtensionFilters().add(
-                new FileChooser.ExtensionFilter("XML Files", "*.xml")
-        );
+        fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("XML Files", "*.xml"));
         File selectedFile = fileChooser.showOpenDialog(loadFileButton.getScene().getWindow());
 
-        if (selectedFile != null) {
-            loadMessageDismissTimer.stop();
-            filePathTextField.setText(selectedFile.getAbsolutePath());
-            loadFileButton.setDisable(true);
+        if (selectedFile == null) return;
 
-            // Load XML file with engine
-            Task<List<EventDTO>> loadTask = new Task<>() {
-                @Override
-                protected List<EventDTO> call() throws Exception {
-                    engine.loadXmlFile(selectedFile.getAbsolutePath());
-                    return engine.getAllEvents();
-                }
-            };
+        loadMessageDismissTimer.stop();
+        filePathTextField.setText(selectedFile.getAbsolutePath());
 
-            // Handle Success
-            loadTask.setOnSucceeded(e -> {
-                List<EventDTO> loadedEvents = loadTask.getValue();
-                eventsList.setAll(loadedEvents);
+        // Create the task
+        Task<List<EventDTO>> task = createLoadTask(selectedFile.getAbsolutePath());
 
-                loadMessage.set("XML loaded successfully!");
-                loadStatus.set(FileLoadStatus.SUCCESS);
-                loadMessageDismissTimer.playFromStart();
-                loadFileButton.setDisable(false);
-            });
+        // Update the property: UI updates automatically via the bindings in initialize()
+        currentTaskProperty.set(task);
 
-            // Handle Failure
-            loadTask.setOnFailed(e -> {
-                Throwable ex = loadTask.getException();
-                String error = (ex != null && ex.getMessage() != null) ? ex.getMessage() : "Unknown error occurred.";
+        Thread thread = new Thread(task);
+        thread.setDaemon(true);
+        thread.start();
+    }
 
-                loadMessage.set(error);
-                loadStatus.set(FileLoadStatus.ERROR);
-                loadMessageDismissTimer.playFromStart();
-                loadFileButton.setDisable(false);
-            });
+    private Task<List<EventDTO>> createLoadTask(String path) {
+        Task<List<EventDTO>> task = new Task<>() {
+            @Override
+            protected List<EventDTO> call() throws Exception {
+                updateProgress(0.2, 1.0);
+                engine.loadXmlFile(path);
+                updateProgress(0.8, 1.0);
+                List<EventDTO> events = engine.getAllEvents();
+                updateProgress(1.0, 1.0);
+                return events;
+            }
+        };
 
-            Thread thread = new Thread(loadTask);
-            thread.setDaemon(true);
-            thread.start();
+        task.setOnSucceeded(e -> {
+            eventsList.setAll(task.getValue());
+            loadMessage.set("XML loaded successfully!");
+            loadStatus.set(FileLoadStatus.SUCCESS);
+            loadMessageDismissTimer.playFromStart();
+        });
 
-        }
+        task.setOnFailed(e -> {
+            Throwable ex = task.getException();
+            loadMessage.set(ex != null ? ex.getMessage() : "Failed to load XML file.");
+            loadStatus.set(FileLoadStatus.ERROR);
+            loadMessageDismissTimer.playFromStart();
+        });
+
+        return task;
     }
 
     public void setEngine(MarketEngine engine){

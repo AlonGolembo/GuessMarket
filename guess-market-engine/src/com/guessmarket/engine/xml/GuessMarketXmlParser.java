@@ -1,9 +1,7 @@
 package com.guessmarket.engine.xml;
 
 import com.guessmarket.engine.exception.XmlValidationException;
-import com.guessmarket.engine.model.CommissionType;
-import com.guessmarket.engine.model.Event;
-import com.guessmarket.engine.model.Option;
+import com.guessmarket.engine.model.*;
 import com.guessmarket.engine.xml.jaxb.*;
 
 import jakarta.xml.bind.JAXBContext;
@@ -16,7 +14,7 @@ import javax.xml.transform.stream.StreamSource;
 import java.io.File;
 import java.util.*;
 
-public class XmlEventParser {
+public class GuessMarketXmlParser {
 
     @Contract("null -> fail")
     public static @NotNull Map<Integer, Event> parseAndValidateXml(String filePath) throws XmlValidationException {
@@ -107,7 +105,7 @@ public class XmlEventParser {
             throw new XmlValidationException("Event ID " + id + ": " + e.getMessage());
         }
 
-        // 5. Validate Options
+        // Validate Options
         if (xml.getOptions() == null || xml.getOptions().size() < 2) {
             throw new XmlValidationException("Event ID " + id + ": Must contain at least 2 options (<GM-option>).");
         }
@@ -120,30 +118,49 @@ public class XmlEventParser {
             options.add(new Option(optName.trim()));
         }
 
-        // 6. Validate LMSR Liquidity Parameter 'b'
-        if (xml.getMethod() == null || xml.getMethod().getLmsr() == null || xml.getMethod().getLmsr().getB() == null) {
-            throw new XmlValidationException("Event ID " + id + ": Missing LMSR method configuration (<GM-method>/<GM-LMSR>/<b>).");
-        }
-        int b = xml.getMethod().getLmsr().getB();
-        if (b <= 0) {
-            throw new XmlValidationException("Event ID " + id + ": LMSR parameter 'b' must be strictly positive (> 0). Got: " + b);
+        // Validate Method
+        if(xml.getMethod() == null){
+            throw new XmlValidationException("Event ID " + id + ": Missing <GM-method> element.");
         }
 
-        // 7. Validate Order Book initial and d
-        if (xml.getMethod() == null || xml.getMethod().getOrderBook() == null
-                || xml.getMethod().getOrderBook().getD() == null || xml.getMethod().getOrderBook().getInitial() == null) {
-            throw new XmlValidationException("Event ID " + id + ": Missing Order Book method configuration (<GM-method>/<GM-order-book>/<d>/<initial>).");
-        }
-        int d = xml.getMethod().getOrderBook().getD();
-        if (d <= 0) {
-            throw new XmlValidationException("Event ID " + id + ": Order Book parameter 'd' must be strictly positive (> 0). Got: " + d);
+        TradingMethodType tradingMethodType = xml.getMethod().getType();
+        ITradingMethod tradingMethod = null;
+
+        if(tradingMethodType == TradingMethodType.NOTDEFINED){
+            throw new XmlValidationException("Event ID " + id + ": More than one trading method is defined.");
         }
 
-        int initial = xml.getMethod().getOrderBook().getInitial();
-        if (initial<0){
-           throw new XmlValidationException("Event ID " + id + ": Order Book paramater 'initial' must be positive (>=0). Got: " + initial);
+        // Validate LMSR Liquidity Parameter 'b'
+        if (tradingMethodType == TradingMethodType.LMSR){
+            if (xml.getMethod().getLmsr().getB() == null) {
+                throw new XmlValidationException("Event ID " + id + ": Missing LMSR method parameter b configuration.");
+            }
+            int b = xml.getMethod().getLmsr().getB();
+            if (b <= 0) {
+                throw new XmlValidationException("Event ID " + id + ": LMSR parameter 'b' must be strictly positive (> 0). Got: " + b);
+            }
         }
 
-        return new Event(id, name, description, commission, commissionType, options, b);
+        // Validate Order Book initial and d
+        if (tradingMethodType == TradingMethodType.ORDERBOOK){
+            if (xml.getMethod().getOrderBook().getD() == null || xml.getMethod().getOrderBook().getInitial() == null) {
+                throw new XmlValidationException("Event ID " + id + ": Missing Order Book method configuration <d> / <initial>.");
+            }
+            int d = xml.getMethod().getOrderBook().getD();
+            if (d <= 0) {
+                throw new XmlValidationException("Event ID " + id + ": Order Book parameter 'd' must be strictly positive (> 0). Got: " + d);
+            }
+            int initial = xml.getMethod().getOrderBook().getInitial();
+            if (initial < 0){
+                throw new XmlValidationException("Event ID " + id + ": Order Book paramater 'initial' must be positive (>=0). Got: " + initial);
+            }
+        }
+
+        switch (tradingMethodType){
+            case LMSR -> tradingMethod = new LmsrMethod(xml.getMethod().getLmsr().getB());
+            case ORDERBOOK-> tradingMethod = new OrderBookMethod();
+        }
+
+        return new Event(id, name, description, commission, commissionType, options, tradingMethod);
     }
 }

@@ -55,8 +55,9 @@ public class EventsController {
         eventStatusCol.setCellValueFactory(cellData ->
                 new javafx.beans.property.SimpleStringProperty(cellData.getValue().isActive() ? "Active" : "Not Active"));
 
-//        eventMethodCol.setCellValueFactory(cellData ->
-//                new javafx.beans.property.SimpleStringProperty(cellData.getValue().method().toString()));
+        eventMethodCol.setCellValueFactory(cellData ->
+                new javafx.beans.property.SimpleStringProperty(cellData.getValue().tradingMethod()));
+
         commissionMethodCol.setCellValueFactory(cellData ->
                 new javafx.beans.property.SimpleStringProperty(cellData.getValue().commissionType()));
     }

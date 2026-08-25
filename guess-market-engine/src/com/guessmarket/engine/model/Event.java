@@ -15,7 +15,7 @@ public class Event implements java.io.Serializable {
     private final int commissionPercentage; // Integer between 0 and 90
     private final CommissionType commissionType;
     private final List<Option> options;
-    private final int b;                     // LMSR liquidity parameter
+    private final ITradingMethod tradingMethod;
 
     private boolean active;
     private double eventAccountBalance;      // Subsidies / trades / mint funds
@@ -24,7 +24,7 @@ public class Event implements java.io.Serializable {
     private Option winningOption;             // Set when closed
 
     public Event(int id, String name, String description, int commissionPercentage,
-                 CommissionType commissionType, List<Option> options, int b) {
+                 CommissionType commissionType, List<Option> options, ITradingMethod tradingMethod) {
 
         validateCommission(commissionPercentage);
         validateOptions(options);
@@ -35,7 +35,7 @@ public class Event implements java.io.Serializable {
         this.commissionPercentage = commissionPercentage;
         this.commissionType = commissionType;
         this.options = new ArrayList<>(options);
-        this.b = b;
+        this.tradingMethod = tradingMethod;
         this.active = true;
         this.eventAccountBalance = 0.0;
         this.totalCommissionCollected = 0.0;
@@ -148,9 +148,7 @@ public class Event implements java.io.Serializable {
     public List<Option> getOptions() {
         return Collections.unmodifiableList(options);
     }
-    public int getB() {
-        return b;
-    }
+    public ITradingMethod getTradingMethod() {return tradingMethod;}
     public boolean isActive() {
         return active;
     }

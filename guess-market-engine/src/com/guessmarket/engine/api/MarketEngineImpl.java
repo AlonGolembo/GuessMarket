@@ -6,12 +6,9 @@ import com.guessmarket.dto.TradeResultDTO;
 import com.guessmarket.engine.exception.MarketException;
 import com.guessmarket.engine.lmsr.LmsrCalculator;
 import com.guessmarket.engine.mapper.EventMapper;
-import com.guessmarket.engine.model.CommissionType;
-import com.guessmarket.engine.model.Event;
-import com.guessmarket.engine.model.Option;
-import com.guessmarket.engine.model.TradeRecord;
+import com.guessmarket.engine.model.*;
 import com.guessmarket.engine.serialization.StateSerializer;
-import com.guessmarket.engine.xml.XmlEventParser;
+import com.guessmarket.engine.xml.GuessMarketXmlParser;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -34,12 +31,17 @@ public class MarketEngineImpl implements MarketEngine{
     public void loadXmlFile(String filePath) throws MarketException {
 
         // Create a list to hold all new events coming from the xml file
-        Map<Integer, Event> newEvents = XmlEventParser.parseAndValidateXml(filePath);
+        Map<Integer, Event> newEvents = GuessMarketXmlParser.parseAndValidateXml(filePath);
         logger.info("XML File: {} parsed successfully", filePath);
 
         // Create initial subsidy for each event
         for(Event event : newEvents.values()){
-            double initialSubsidy = LmsrCalculator.calculateInitialSubsidy(event.getB());
+            double initialSubsidy;
+            switch (event.getTradingMethod()) {
+                case LmsrMethod lmsr -> initialSubsidy = lmsr.getInitialSubsidy();
+                case OrderBookMethod ob -> initialSubsidy = ob.getInitialSubsidy();
+            };
+
             event.setEventAccountBalance(initialSubsidy);
             logger.debug("Event {} balance was successfully subsidised", event.getId());
         }
@@ -100,7 +102,13 @@ public class MarketEngineImpl implements MarketEngine{
 
         int qYes = options.get(0).getSharesBought();
         int qNo = options.get(1).getSharesBought();
-        int b = event.getB();
+
+        // HACK: Temporary use this switch case to continue only with LMSR method
+        // FIXME: Refactor when implement Order-Book method
+        int b = switch (event.getTradingMethod()) {
+            case LmsrMethod lmsr -> lmsr.getB();
+            case OrderBookMethod ob -> 0; // Order books don't have b
+        };
 
         // 1. Calculate LMSR cost
         double sharesCost = LmsrCalculator.calculateTradeCost(qYes, qNo, b, isYesOption, quantity);

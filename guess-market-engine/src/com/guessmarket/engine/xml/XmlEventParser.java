@@ -129,6 +129,21 @@ public class XmlEventParser {
             throw new XmlValidationException("Event ID " + id + ": LMSR parameter 'b' must be strictly positive (> 0). Got: " + b);
         }
 
+        // 7. Validate Order Book initial and d
+        if (xml.getMethod() == null || xml.getMethod().getOrderBook() == null
+                || xml.getMethod().getOrderBook().getD() == null || xml.getMethod().getOrderBook().getInitial() == null) {
+            throw new XmlValidationException("Event ID " + id + ": Missing Order Book method configuration (<GM-method>/<GM-order-book>/<d>/<initial>).");
+        }
+        int d = xml.getMethod().getOrderBook().getD();
+        if (d <= 0) {
+            throw new XmlValidationException("Event ID " + id + ": Order Book parameter 'd' must be strictly positive (> 0). Got: " + d);
+        }
+
+        int initial = xml.getMethod().getOrderBook().getInitial();
+        if (initial<0){
+           throw new XmlValidationException("Event ID " + id + ": Order Book paramater 'initial' must be positive (>=0). Got: " + initial);
+        }
+
         return new Event(id, name, description, commission, commissionType, options, b);
     }
 }

@@ -10,9 +10,15 @@ public class MethodXml {
     @XmlElement(name = "GM-LMSR")
     private LmsrXml lmsr;
 
+    @XmlElement(name = "GM-order-book")
+    private OrderBookXml orderBook;
+
     public MethodXml() {}
 
     public LmsrXml getLmsr() {
         return lmsr;
+    }
+    public OrderBookXml getOrderBook() {
+        return orderBook;
     }
 }

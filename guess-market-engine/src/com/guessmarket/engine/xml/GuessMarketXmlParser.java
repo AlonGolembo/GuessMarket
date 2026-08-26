@@ -54,8 +54,14 @@ public class GuessMarketXmlParser {
             Map<Integer, Event> parsedEvents = new LinkedHashMap<>();
             Set<Integer> usedIds = new HashSet<>();
 
+            double initialSubsidy;
             for (EventXml eventXml : root.getEvents()) {
                 Event event = validateAndConvertEvent(eventXml, usedIds);
+                switch (event.getTradingMethod()) {
+                    case LmsrMethod lmsr -> initialSubsidy = lmsr.getInitialSubsidy();
+                    case OrderBookMethod ob -> initialSubsidy = ob.getInitialSubsidy();
+                };
+                event.setEventAccountBalance(initialSubsidy);
                 parsedEvents.put(event.getId(), event);
             }
 

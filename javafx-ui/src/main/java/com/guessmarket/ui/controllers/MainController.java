@@ -1,6 +1,7 @@
 package com.guessmarket.ui.controllers;
 
 import com.guessmarket.dto.EventDTO;
+import com.guessmarket.dto.UserDTO;
 import com.guessmarket.engine.api.MarketEngine;
 import com.guessmarket.ui.common.FileLoadStatus;
 import javafx.animation.PauseTransition;
@@ -43,6 +44,7 @@ public class MainController {
     @FXML private UsersController usersTabController;
 
     private final ObservableList<EventDTO> eventsList = FXCollections.observableArrayList();
+    private final  ObservableList<UserDTO> usersList = FXCollections.observableArrayList();
     private final ObjectProperty<Task<List<EventDTO>>> currentTaskProperty = new SimpleObjectProperty<>();
 
     // Transitions
@@ -91,6 +93,10 @@ public class MainController {
 
         if (eventsTabController != null) {
             eventsTabController.bindEventsList(eventsList);
+        }
+
+        if(usersTabController != null) {
+            usersTabController.bindUsersList(usersList);
         }
     }
 

@@ -13,4 +13,12 @@ public class ParsedXmlWrapper {
         this.parsedEvents = parsedEvents;
         this.users = users;
     }
+
+    public Map<Integer, Event> getParsedEvents() {
+        return parsedEvents;
+    }
+
+    public Set<User> getUsers() {
+        return users;
+    }
 }

@@ -10,7 +10,7 @@
 <?import javafx.scene.layout.VBox?>
 <?import javafx.scene.text.Font?>
 
-<ScrollPane fitToHeight="true" fitToWidth="true" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.guessmarket.ui.controllers.UsersController">
+<ScrollPane fitToHeight="true" fitToWidth="true" xmlns="http://javafx.com/javafx/26" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.guessmarket.ui.controllers.UsersController">
     <content>
         <VBox spacing="8.0">
             <children>
@@ -26,9 +26,8 @@
                                 </Label>
                                 <TableView fx:id="usersTableView" VBox.vgrow="ALWAYS">
                                     <columns>
-                                        <TableColumn fx:id="userIdCol" prefWidth="70.0" text="User ID" />
-                                        <TableColumn fx:id="userNameCol" prefWidth="170.0" text="User Name" />
-                                        <TableColumn fx:id="userBalanceCol" prefWidth="100.0" text="Balance" />
+                                        <TableColumn fx:id="userNameCol" prefWidth="111.0" text="User Name" />
+                                        <TableColumn fx:id="userBalanceCol" prefWidth="131.0" text="Balance" />
                                     </columns>
                                     <columnResizePolicy>
                                         <TableView fx:constant="CONSTRAINED_RESIZE_POLICY" />

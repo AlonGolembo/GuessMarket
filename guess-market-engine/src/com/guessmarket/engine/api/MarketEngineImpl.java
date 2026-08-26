@@ -7,6 +7,7 @@ import com.guessmarket.dto.UserDTO;
 import com.guessmarket.engine.exception.MarketException;
 import com.guessmarket.engine.lmsr.LmsrCalculator;
 import com.guessmarket.engine.mapper.EventMapper;
+import com.guessmarket.engine.mapper.UserMapper;
 import com.guessmarket.engine.model.*;
 import com.guessmarket.engine.serialization.StateSerializer;
 import com.guessmarket.engine.xml.GuessMarketXmlParser;
@@ -14,18 +15,18 @@ import com.guessmarket.engine.xml.jaxb.ParsedXmlWrapper;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 public class MarketEngineImpl implements MarketEngine{
 
     private static final Logger logger = LogManager.getLogger(MarketEngineImpl.class);
     private Map<Integer, Event> loadedEvents;
+    private Set<User> users;
     private boolean isLoaded;
 
     public MarketEngineImpl(){
         this.loadedEvents = new LinkedHashMap<>();
+        this.users = new LinkedHashSet<>();
         this.isLoaded = false;
     }
 
@@ -36,20 +37,13 @@ public class MarketEngineImpl implements MarketEngine{
         ParsedXmlWrapper parsedXml = GuessMarketXmlParser.parseAndValidateXml(filePath);
         logger.info("XML File: {} parsed successfully", filePath);
 
-        // Create initial subsidy for each event
-        for(Event event : newEvents.values()){
-            double initialSubsidy;
-            switch (event.getTradingMethod()) {
-                case LmsrMethod lmsr -> initialSubsidy = lmsr.getInitialSubsidy();
-                case OrderBookMethod ob -> initialSubsidy = ob.getInitialSubsidy();
-            };
-
-            event.setEventAccountBalance(initialSubsidy);
-            logger.debug("Event {} balance was successfully subsidised", event.getId());
-        }
+        Map<Integer, Event> newEvents = parsedXml.getParsedEvents();
+        Set<User>  newUsers = parsedXml.getUsers();
 
         this.loadedEvents = newEvents;
         logger.debug("{} new events were loaded", newEvents.size());
+        this.users = newUsers;
+        logger.debug("{} new users were loaded", newUsers.size());
         this.isLoaded = true;
         logger.debug("isLoaded flag was set to true");
     }
@@ -69,7 +63,9 @@ public class MarketEngineImpl implements MarketEngine{
 
     @Override
     public List<UserDTO> getAllUsers() throws MarketException {
-        return List.of();
+        return this.users.stream()
+                .map(UserMapper::toUserDTO)
+                .toList();
     }
 
     @Override

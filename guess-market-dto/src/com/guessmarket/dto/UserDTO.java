@@ -1,4 +1,8 @@
 package com.guessmarket.dto;
 
-public record UserDTO() {
-}
+import java.util.Set;
+
+public record UserDTO(
+        String name,
+        int initialCash,
+        Set<Integer> eventsIdUserIsMM) {}

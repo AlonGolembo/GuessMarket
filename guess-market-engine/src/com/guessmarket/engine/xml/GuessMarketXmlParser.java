@@ -13,11 +13,13 @@ import javax.xml.transform.stream.StreamSource;
 
 import java.io.File;
 import java.util.*;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 public class GuessMarketXmlParser {
 
     @Contract("null -> fail")
-    public static @NotNull Map<Integer, Event> parseAndValidateXml(String filePath) throws XmlValidationException {
+    public static @NotNull ParsedXmlWrapper parseAndValidateXml(String filePath) throws XmlValidationException {
         if (filePath == null || filePath.isBlank()) {
             throw new XmlValidationException("File path cannot be empty.");
         }
@@ -53,11 +55,22 @@ public class GuessMarketXmlParser {
             Set<Integer> usedIds = new HashSet<>();
 
             for (EventXml eventXml : root.getEvents()) {
-                Event event = validateAndConvert(eventXml, usedIds);
+                Event event = validateAndConvertEvent(eventXml, usedIds);
                 parsedEvents.put(event.getId(), event);
             }
 
-            return parsedEvents;
+            // 4. Validate users
+            Set<User> parsedUsers = new LinkedHashSet<>();
+            Set<String> usedNames = new HashSet<>();
+            for (UserXml userXml : root.getUsers()) {
+                User user = validateAndConvertUser(userXml, usedNames);
+                parsedUsers.add(user);
+            }
+
+            // 5. Validate market maker to event mapping
+            validateMarketMakerToEventMapping(parsedEvents, parsedUsers);
+
+            return new  ParsedXmlWrapper(parsedEvents, parsedUsers);
 
         } catch (XmlValidationException e) {
             throw e;
@@ -66,7 +79,63 @@ public class GuessMarketXmlParser {
         }
     }
 
-    private static Event validateAndConvert(EventXml xml, Set<Integer> usedIds) throws XmlValidationException {
+    private static void validateMarketMakerToEventMapping(Map<Integer, Event> parsedEvents, Set<User> parsedUsers)
+            throws XmlValidationException {
+        // Validate Market Makers do not reference to an event that doesn't exist
+        for (User user : parsedUsers) {
+            user.getEventsIdUserIsMM().stream()
+                    .filter(eventId -> !parsedEvents.containsKey(eventId))
+                    .findFirst()
+                    .ifPresent(invalidId -> {
+                        throw new XmlValidationException("User '" + user.getName() +
+                                "' is configured as a market maker for non-existent event ID: " + invalidId);
+                    });
+        }
+
+        // Validate every event has exactly one MM
+        Map<Integer, Long> mmCountPerEvent = parsedUsers.stream()
+                .flatMap(user -> user.getEventsIdUserIsMM().stream())
+                .collect(Collectors.groupingBy(Function.identity(), Collectors.counting()));
+
+        // 2. Validate each parsed event
+        for (Map.Entry<Integer, Event> entry : parsedEvents.entrySet()) {
+            Integer eventId = entry.getKey();
+            Event event = entry.getValue();
+            long count = mmCountPerEvent.getOrDefault(eventId, 0L);
+
+            if (count == 0) {
+                throw new XmlValidationException(
+                        "Event ID " + eventId + " ('" + event.getName() + "') has no assigned market maker."
+                );
+            } else if (count > 1) {
+                throw new XmlValidationException(
+                        "Event ID " + eventId + " ('" + event.getName() + "') has multiple market makers (" + count + " users assigned)."
+                );
+            }
+        }
+    }
+
+    private static User validateAndConvertUser(UserXml userXml, Set<String> usedNames) throws XmlValidationException {
+
+        // Validate name
+        if(userXml.getName() == null || userXml.getName().isBlank()) {
+            throw new XmlValidationException("User is missing a valid 'name' attrivute");
+        }
+
+        String name = userXml.getName();
+        if(usedNames.contains(name)) {
+            throw new XmlValidationException("Duplicate user name found: " + name + " is already in use.");
+        }
+
+        // Validate initial cash
+        if(userXml.getInitialCash() == null || userXml.getInitialCash() < 0) {
+            throw new XmlValidationException("Initial cash amount is missing or invalid.");
+        }
+
+        return new User(userXml.getName(), userXml.getInitialCash(), userXml.getMarketMakerEvents());
+    }
+
+    private static Event validateAndConvertEvent(EventXml xml, Set<Integer> usedIds) throws XmlValidationException {
         // 1. Validate Name
         if (xml.getName() == null || xml.getName().isBlank()) {
             throw new XmlValidationException("Event is missing a valid 'name' attribute.");

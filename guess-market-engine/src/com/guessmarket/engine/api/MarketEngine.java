@@ -3,6 +3,7 @@ package com.guessmarket.engine.api;
 import com.guessmarket.dto.EventDTO;
 import com.guessmarket.dto.EventDetailsDTO;
 import com.guessmarket.dto.TradeResultDTO;
+import com.guessmarket.dto.UserDTO;
 import com.guessmarket.engine.exception.MarketException;
 import com.guessmarket.engine.exception.XmlValidationException;
 
@@ -21,6 +22,8 @@ public interface MarketEngine {
 
     // Returns a summary snapshot of all events in the system
     List<EventDTO> getAllEvents() throws MarketException;
+
+    List<UserDTO> getAllUsers() throws MarketException;
 
     // Returns a summary snapshot of all ACTIVE events in the system
     List<EventDTO> getActiveEvents() throws MarketException;

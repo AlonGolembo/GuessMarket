@@ -3,12 +3,14 @@ package com.guessmarket.engine.api;
 import com.guessmarket.dto.EventDTO;
 import com.guessmarket.dto.EventDetailsDTO;
 import com.guessmarket.dto.TradeResultDTO;
+import com.guessmarket.dto.UserDTO;
 import com.guessmarket.engine.exception.MarketException;
 import com.guessmarket.engine.lmsr.LmsrCalculator;
 import com.guessmarket.engine.mapper.EventMapper;
 import com.guessmarket.engine.model.*;
 import com.guessmarket.engine.serialization.StateSerializer;
 import com.guessmarket.engine.xml.GuessMarketXmlParser;
+import com.guessmarket.engine.xml.jaxb.ParsedXmlWrapper;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -31,7 +33,7 @@ public class MarketEngineImpl implements MarketEngine{
     public void loadXmlFile(String filePath) throws MarketException {
 
         // Create a list to hold all new events coming from the xml file
-        Map<Integer, Event> newEvents = GuessMarketXmlParser.parseAndValidateXml(filePath);
+        ParsedXmlWrapper parsedXml = GuessMarketXmlParser.parseAndValidateXml(filePath);
         logger.info("XML File: {} parsed successfully", filePath);
 
         // Create initial subsidy for each event
@@ -63,6 +65,11 @@ public class MarketEngineImpl implements MarketEngine{
         return this.loadedEvents.values().stream()
                 .map(EventMapper::toEventDTO)
                 .toList();
+    }
+
+    @Override
+    public List<UserDTO> getAllUsers() throws MarketException {
+        return List.of();
     }
 
     @Override

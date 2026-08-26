@@ -17,6 +17,10 @@ public class GuessMarketXml {
     @XmlElement(name = "GM-event")
     private List<EventXml> events = new ArrayList<>();
 
+    @XmlElementWrapper(name = "GM-users")
+    @XmlElement(name = "GM-user")
+    private List<UserXml> users = new ArrayList<>();
+
     public GuessMarketXml() {}
 
     public List<EventXml> getEvents() {
@@ -25,5 +29,13 @@ public class GuessMarketXml {
 
     public void setEvents(List<EventXml> events) {
         this.events = events;
+    }
+
+    public List<UserXml> getUsers() {
+        return users;
+    }
+
+    public void setUsers(List<UserXml> users) {
+        this.users = users;
     }
 }

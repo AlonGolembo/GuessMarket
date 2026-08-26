@@ -13,7 +13,7 @@ public class OrderBookXml {
     @XmlAttribute(name="initial")
     private Integer initial;
 
-    @XmlElement(name = "d")
+    @XmlAttribute(name = "d")
     private Integer d;
 
     public OrderBookXml() {}

@@ -1,8 +1,10 @@
 package com.guessmarket.dto;
 
+import java.util.Map;
 import java.util.Set;
 
 public record UserDTO(
         String name,
-        int initialCash,
-        Set<Integer> eventsIdUserIsMM) {}
+        Double initialCash,
+        Set<Integer> eventsIdUserIsMM,
+        Map<Integer, EventDTO> participatingEvents) {}

@@ -21,9 +21,7 @@ import javafx.scene.control.ProgressBar;
 import javafx.scene.control.TextField;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
-import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
-import javafx.scene.layout.RowConstraints;
 import javafx.stage.FileChooser;
 import javafx.util.Duration;
 
@@ -44,13 +42,15 @@ public class MainController {
     @FXML private UsersController usersTabController;
 
     private final ObservableList<EventDTO> eventsList = FXCollections.observableArrayList();
-    private final  ObservableList<UserDTO> usersList = FXCollections.observableArrayList();
-    private final ObjectProperty<Task<List<EventDTO>>> currentTaskProperty = new SimpleObjectProperty<>();
+    private final ObservableList<UserDTO> usersList = FXCollections.observableArrayList();
+
+    // Capital "Void" here
+    private final ObjectProperty<Task<Void>> currentTaskProperty = new SimpleObjectProperty<>();
 
     // Transitions
     private final PauseTransition loadMessageDismissTimer = new PauseTransition(Duration.seconds(2));
 
-    // Set controller properties
+    // Controller properties
     private MarketEngine engine;
     private final StringProperty loadMessage = new SimpleStringProperty("");
     private final ObjectProperty<FileLoadStatus> loadStatus = new SimpleObjectProperty<>(FileLoadStatus.NONE);
@@ -66,8 +66,6 @@ public class MainController {
         if (errorStream != null) errorImage = new Image(errorStream);
 
         fileLoadMessage.textProperty().bind(loadMessage);
-//        fileLoadMessage.visibleProperty().bind(loadMessage.isNotEmpty());
-//        fileLoadMessage.managedProperty().bind(loadMessage.isNotEmpty());
         progressRowContainer.visibleProperty().bind(loadMessage.isNotEmpty());
         progressRowContainer.managedProperty().bind(loadMessage.isNotEmpty());
 
@@ -78,10 +76,7 @@ public class MainController {
                 }, currentTaskProperty.flatMap(Task::progressProperty))
         );
 
-        // Configure timer action: clear error and reset status
-        loadMessageDismissTimer.setOnFinished(e -> {
-            loadMessage.set("");
-        });
+        loadMessageDismissTimer.setOnFinished(e -> loadMessage.set(""));
 
         loadStatus.addListener((obs, oldStatus, newStatus) -> {
             switch (newStatus) {
@@ -95,7 +90,7 @@ public class MainController {
             eventsTabController.bindEventsList(eventsList);
         }
 
-        if(usersTabController != null) {
+        if (usersTabController != null) {
             usersTabController.bindUsersList(usersList);
         }
     }
@@ -112,10 +107,8 @@ public class MainController {
         loadMessageDismissTimer.stop();
         filePathTextField.setText(selectedFile.getAbsolutePath());
 
-        // Create the task
-        Task<List<EventDTO>> task = createLoadTask(selectedFile.getAbsolutePath());
-
-        // Update the property: UI updates automatically via the bindings in initialize()
+        // Create the Void task
+        Task<Void> task = createLoadTask(selectedFile.getAbsolutePath());
         currentTaskProperty.set(task);
 
         Thread thread = new Thread(task);
@@ -123,21 +116,22 @@ public class MainController {
         thread.start();
     }
 
-    private Task<List<EventDTO>> createLoadTask(String path) {
-        Task<List<EventDTO>> task = new Task<>() {
+    private Task<Void> createLoadTask(String path) {
+        Task<Void> task = new Task<>() {
             @Override
-            protected List<EventDTO> call() throws Exception {
+            protected Void call() throws Exception {
                 updateProgress(0.2, 1.0);
-                engine.loadXmlFile(path);
-                updateProgress(0.8, 1.0);
-                List<EventDTO> events = engine.getAllEvents();
+                engine.loadXmlFile(path); // Background XML unmarshalling & validation
                 updateProgress(1.0, 1.0);
-                return events;
+                return null;
             }
         };
 
         task.setOnSucceeded(e -> {
-            eventsList.setAll(task.getValue());
+            // Populate both lists from the engine once loaded
+            eventsList.setAll(engine.getAllEvents());
+            usersList.setAll(engine.getAllUsers());
+
             loadMessage.set("XML loaded successfully!");
             loadStatus.set(FileLoadStatus.SUCCESS);
             loadMessageDismissTimer.playFromStart();
@@ -153,7 +147,7 @@ public class MainController {
         return task;
     }
 
-    public void setEngine(MarketEngine engine){
+    public void setEngine(MarketEngine engine) {
         this.engine = engine;
     }
 }

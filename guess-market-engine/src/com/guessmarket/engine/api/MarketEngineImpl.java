@@ -19,15 +19,35 @@ import java.util.*;
 
 public class MarketEngineImpl implements MarketEngine{
 
+
     private static final Logger logger = LogManager.getLogger(MarketEngineImpl.class);
     private Map<Integer, Event> loadedEvents;
     private Set<User> users;
     private boolean isLoaded;
+    private final List<MarketDataChangeListener> listeners = new ArrayList<>();
 
     public MarketEngineImpl(){
         this.loadedEvents = new LinkedHashMap<>();
         this.users = new LinkedHashSet<>();
         this.isLoaded = false;
+    }
+
+    @Override
+    public void addListener(MarketDataChangeListener listener) {
+        if (listener != null && !listeners.contains(listener)) {
+            listeners.add(listener);
+        }
+    }
+
+    @Override
+    public void removeListener(MarketDataChangeListener listener) {
+        listeners.remove(listener);
+    }
+
+    private void notifyListeners() {
+        for (MarketDataChangeListener listener : listeners) {
+            listener.onMarketDataChanged();
+        }
     }
 
     @Override
@@ -46,6 +66,8 @@ public class MarketEngineImpl implements MarketEngine{
         logger.debug("{} new users were loaded", newUsers.size());
         this.isLoaded = true;
         logger.debug("isLoaded flag was set to true");
+
+        notifyListeners();
     }
 
     @Override
@@ -133,6 +155,8 @@ public class MarketEngineImpl implements MarketEngine{
         TradeRecord record = new TradeRecord(selectedOption.getName(), quantity, totalPaid);
         event.addTradeRecord(record);
 
+        notifyListeners();
+
         // 4. Return execution receipt DTO
         return new TradeResultDTO(sharesCost, commissionCost, totalPaid, EventMapper.toEventDetailsDTO(event));
     }
@@ -151,6 +175,8 @@ public class MarketEngineImpl implements MarketEngine{
 
         // Delegate settlement, commission calculation, payout distribution, and closing to Event
         event.settleAndClose(winningOption);
+
+        notifyListeners();
     }
 
     @Override

@@ -11,6 +11,8 @@ import com.guessmarket.engine.exception.XmlValidationException;
 import java.util.List;
 
 public interface MarketEngine {
+    void addListener(MarketDataChangeListener listener);
+    void removeListener(MarketDataChangeListener listener);
 
     // Reads and parses an XML file containing events
     // Successfully loading a file, resets the current market state

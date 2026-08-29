@@ -49,4 +49,6 @@ public interface MarketEngine {
 
     // get number of loaded events
     int getNumOfLoadedEvents();
+
+    void activateEvent(EventDTO selectedEvent, UserDTO selectedUser);
 }

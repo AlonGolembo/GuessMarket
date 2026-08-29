@@ -14,8 +14,7 @@ public class Event implements java.io.Serializable {
     private final List<Option> options;
     private final ITradingMethod tradingMethod;
     private final Map<String, User> participants;
-
-    private boolean active;
+    private EventStatus status;
     private double eventAccountBalance;      // Subsidies / trades / mint funds
     private double totalCommissionCollected;
     private final List<TradeRecord> tradeHistory; // Audit log of transactions
@@ -34,7 +33,7 @@ public class Event implements java.io.Serializable {
         this.commissionType = commissionType;
         this.options = new ArrayList<>(options);
         this.tradingMethod = tradingMethod;
-        this.active = true;
+        this.status = EventStatus.NOT_ACTIVE;
         this.eventAccountBalance = 0.0;
         this.totalCommissionCollected = 0.0;
         this.tradeHistory = new ArrayList<>();
@@ -67,14 +66,14 @@ public class Event implements java.io.Serializable {
     }
 
     public void closeEvent(Option winningOption) {
-        if (!this.active) {
+        if (this.status != EventStatus.ACTIVE) {
             throw new IllegalStateException("Event is already closed.");
         }
         if (!this.options.contains(winningOption)) {
             throw new IllegalArgumentException("Selected winning option does not belong to this event.");
         }
         this.winningOption = winningOption;
-        this.active = false;
+        this.status = EventStatus.CLOSED;
     }
     public void addParticipant(User user) {
         this.participants.put(user.getName(), user);
@@ -85,7 +84,7 @@ public class Event implements java.io.Serializable {
      * distributing payouts to winning shareholders, and closing the event.
      */
     public void settleAndClose(Option winningOption) throws MarketException {
-        if (!this.isActive()) {
+        if (!Objects.equals(this.getStatus(), "ACTIVE")) {
             throw new MarketException("Event ID " + this.getId() + " is already closed.");
         }
 
@@ -151,8 +150,8 @@ public class Event implements java.io.Serializable {
         return Collections.unmodifiableList(options);
     }
     public ITradingMethod getTradingMethod() {return tradingMethod;}
-    public boolean isActive() {
-        return active;
+    public String getStatus() {
+        return status.toString();
     }
     public double getEventAccountBalance() {
         return eventAccountBalance;
@@ -174,5 +173,9 @@ public class Event implements java.io.Serializable {
     }
     public User getParticipantByName(String name) {
         return this.participants.get(name);
+    }
+
+    public void setStatus(EventStatus status) {
+        this.status = status;
     }
 }

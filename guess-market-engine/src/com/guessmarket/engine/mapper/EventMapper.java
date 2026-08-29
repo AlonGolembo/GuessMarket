@@ -32,7 +32,7 @@ public class EventMapper {
                 event.getCommissionType().toXmlString(),
                 optionNames,
                 event.getTradingMethod().getType().toString(),
-                event.isActive(),
+                event.getStatus(),
                 users
         );
     }

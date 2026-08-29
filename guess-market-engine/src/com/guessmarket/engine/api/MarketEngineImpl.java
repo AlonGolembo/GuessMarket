@@ -99,7 +99,7 @@ public class MarketEngineImpl implements MarketEngine{
     @Override
     public List<EventDTO> getActiveEvents() throws MarketException {
         return getAllEvents().stream()
-                .filter(EventDTO::isActive)
+                .filter(event -> "ACTIVE".equalsIgnoreCase(event.status()))
                 .toList();
     }
 
@@ -115,7 +115,7 @@ public class MarketEngineImpl implements MarketEngine{
         ensureLoaded();
         Event event = findEventById(eventDTO.id());
 
-        if (!event.isActive()) {
+        if (!Objects.equals(event.getStatus(), "ACTIVE")) {
             throw new MarketException("Cannot buy shares: Event ID " + event.getId() + " is closed.");
         }
 
@@ -159,6 +159,7 @@ public class MarketEngineImpl implements MarketEngine{
         event.addCommission(commissionCost);
 
         User buyer = this.users.get(buyerDTO.name());
+        buyer.setBalance(buyer.getAccountBalance() - totalPaid);
 
         TradeRecord record = new TradeRecord(buyer, selectedOption.getName(), quantity, totalPaid);
         event.addTradeRecord(record);
@@ -217,5 +218,17 @@ public class MarketEngineImpl implements MarketEngine{
     @Override
     public int getNumOfLoadedEvents() {
         return this.loadedEvents.keySet().size();
+    }
+
+    @Override
+    public void activateEvent(EventDTO selectedEvent, UserDTO selectedUser) throws MarketException {
+        Event event = this.loadedEvents.get(selectedEvent.id());
+        event.setStatus(EventStatus.ACTIVE);
+        User user = this.users.get(selectedUser.name());
+        if(user.getAccountBalance() < event.getTradingMethod().getInitialSubsidy()){
+            throw new MarketException("User doesn't have enough money to activate the event");
+        }
+
+        user.setBalance(user.getAccountBalance() - event.getTradingMethod().getInitialSubsidy());
     }
 }

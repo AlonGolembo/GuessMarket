@@ -5,7 +5,6 @@ import com.guessmarket.dto.UserDTO;
 import com.guessmarket.engine.exception.MarketException;
 import com.guessmarket.engine.model.User;
 
-import java.util.HashMap;
 import java.util.Map;
 import java.util.stream.Collectors;
 
@@ -17,6 +16,6 @@ public class UserMapper {
                         entry -> EventMapper.toEventDTO(entry.getValue())
                 ));
 
-        return new UserDTO(user.getName(), user.getInitialCash(), user.getEventsIdUserIsMM(), participatingEvents);
+        return new UserDTO(user.getName(), user.getAccountBalance(), user.getEventsIdUserIsMM(), participatingEvents);
     }
 }

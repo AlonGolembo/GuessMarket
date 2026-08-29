@@ -53,7 +53,17 @@ public class UsersController implements MarketDataChangeListener {
     @FXML private Label optionPriceLabel;
     @FXML private Spinner<Integer> sharesCountSpinner;
     @FXML private Button executeTradeButton;
-    @FXML private ListView<TradeHistoryDTO> eventPurchaseHistory;
+
+    // =========================================================================
+    // FXML UI Controls - Purchase History table
+    // =========================================================================
+
+    @FXML private TableView<TradeHistoryDTO> tradeHistoryTableView;
+    @FXML private TableColumn<TradeHistoryDTO, String> tradeDateCol;
+    @FXML private TableColumn<TradeHistoryDTO, String> tradeUserCol;
+    @FXML private TableColumn<TradeHistoryDTO, String> tradeOptionCol;
+    @FXML private TableColumn<TradeHistoryDTO, Integer> tradeSharesCol;
+    @FXML private TableColumn<TradeHistoryDTO, String> tradePriceCol;
 
     // =========================================================================
     // Controller State & Observable Collections
@@ -84,7 +94,7 @@ public class UsersController implements MarketDataChangeListener {
         setupComboBoxConverters();
         setupBindingsAndListeners();
         setupSpinner();
-        setupPurchaseHistoryListView();
+        setupPurchaseHistoryTableView();
     }
 
     /**
@@ -172,7 +182,7 @@ public class UsersController implements MarketDataChangeListener {
         eventBalanceLabel.textProperty().bind(
                 selectedEventDetails
                         .map(EventDetailsDTO::eventAccountBalance)
-                        .map(balance -> String.format("$.2f", balance))
+                        .map(balance -> String.format("$%.2f", balance))
                         .orElse("$0.00")
         );
 
@@ -451,33 +461,30 @@ public class UsersController implements MarketDataChangeListener {
         alert.showAndWait();
     }
 
-    private void setupPurchaseHistoryListView() {
+    private void setupPurchaseHistoryTableView() {
         // 1. Bind items to the observable list
-        eventPurchaseHistory.setItems(tradeHistoryList);
+        tradeHistoryTableView.setItems(tradeHistoryList);
 
         // 2. Custom ListCell rendering
-        eventPurchaseHistory.setCellFactory(listView -> new ListCell<>() {
-            @Override
-            protected void updateItem(TradeHistoryDTO trade, boolean empty) {
-                super.updateItem(trade, empty);
+        tradeDateCol.setCellValueFactory(cellData ->
+                new SimpleStringProperty(cellData.getValue().timestamp()));
 
-                if (empty || trade == null) {
-                    setText(null);
-                    setGraphic(null);
-                } else {
-                    // Adjust field names to match your TradeHistoryDTO record
-                    // e.g., trade.userName(), trade.optionName(), trade.sharesCount(), trade.pricePerShare()
+        // Bind buyer name to User column
+        tradeUserCol.setCellValueFactory(cellData->
+                new SimpleStringProperty(cellData.getValue().buyer().name()));
 
-                    // FIXME: Add a timestamp and user to TradeHistoryDTO and then change the format to: "[%s] User: %s | Option: %s | %d Shares @ $%.2f"
-                    setText(String.format("User: %s | Option: %s | %d Shares @ $%.2f",
-//                            trade.formattedTimestamp() != null ? trade.formattedTimestamp() : "Trade",
-                            trade.buyer().name(),
-                            trade.optionName(),
-                            trade.quantity(),
-                            trade.pricePaid()
-                    ));
-                }
-            }
+        // Bind option name to Option column
+        tradeOptionCol.setCellValueFactory(cellData->
+                new SimpleStringProperty(cellData.getValue().optionName()));
+
+        // Bind quantity to Shares column
+        tradeSharesCol.setCellValueFactory(cellData->
+                new SimpleObjectProperty<>(cellData.getValue().quantity()));
+
+        // Bind pricePaid to Price Paid column
+        tradePriceCol.setCellValueFactory(cellData-> {
+            Double price = cellData.getValue().pricePaid();
+            return new SimpleStringProperty(String.format("$%.2f", price));
         });
     }
 }

@@ -3,10 +3,9 @@ package com.guessmarket.engine.mapper;
 import com.guessmarket.dto.EventDTO;
 import com.guessmarket.dto.EventDetailsDTO;
 import com.guessmarket.dto.TradeHistoryDTO;
+import com.guessmarket.dto.UserDTO;
 import com.guessmarket.engine.lmsr.LmsrCalculator;
-import com.guessmarket.engine.model.Event;
-import com.guessmarket.engine.model.Option;
-import com.guessmarket.engine.model.TradeRecord;
+import com.guessmarket.engine.model.*;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -20,6 +19,10 @@ public class EventMapper {
         List<String> optionNames = event.getOptions().stream()
                 .map(Option::getName)
                 .toList();
+        List<UserDTO> users = event.getUsers()
+                .values().stream()
+                .map(UserMapper::toUserDTO)
+                .toList();
 
         return new EventDTO(
                 event.getId(),
@@ -28,7 +31,9 @@ public class EventMapper {
                 event.getCommissionPercentage(),
                 event.getCommissionType().toXmlString(),
                 optionNames,
-                event.isActive()
+                event.getTradingMethod().getType().toString(),
+                event.isActive(),
+                users
         );
     }
 
@@ -48,7 +53,13 @@ public class EventMapper {
         if (options.size() >= 2) {
             int qYes = options.get(0).getSharesBought();
             int qNo = options.get(1).getSharesBought();
-            int b = event.getB();
+
+            // HACK: Temporary use this switch case to continue only with LMSR method
+            // FIXME: Refactor when implement Order-Book method
+            int b = switch (event.getTradingMethod()) {
+                case LmsrMethod lmsr -> lmsr.getB();
+                case OrderBookMethod ob -> 0; // Order books don't have b
+            };
 
             double pYes = LmsrCalculator.calculateOptionPrice(qYes, qNo, b);
             double pNo = LmsrCalculator.calculateOptionPrice(qNo, qYes, b);
@@ -61,11 +72,7 @@ public class EventMapper {
         List<TradeHistoryDTO> tradeHistory = new ArrayList<>();
         if (event.getTradeHistory() != null) {
             for (TradeRecord record : event.getTradeHistory()) {
-                tradeHistory.add(new TradeHistoryDTO(
-                        record.getOptionName(),
-                        record.getQuantity(),
-                        record.getPricePaid()
-                ));
+                tradeHistory.add(TradeMapper.toTradeHistoryDTO(record));
             }
         }
 

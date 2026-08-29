@@ -10,4 +10,6 @@ public record EventDTO(
         int commissionPercentage,
         String commissionType,
         List<String> options,
-        boolean isActive) {}
+        String tradingMethod,
+        boolean isActive,
+        List<UserDTO> users) {}

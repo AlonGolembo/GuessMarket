@@ -1,15 +1,20 @@
 package com.guessmarket.engine.model;
 
+import com.guessmarket.dto.UserDTO;
+import com.guessmarket.engine.mapper.UserMapper;
+
 import java.time.LocalDateTime;
 import java.util.Objects;
 
 public class TradeRecord implements java.io.Serializable {
+    private final User buyer;
     private final String optionName;
     private final int quantity;
     private final double pricePaid;
     private final LocalDateTime timestamp;
 
-    public TradeRecord(String optionName, int quantity, double pricePaid) {
+    public TradeRecord(User buyer, String optionName, int quantity, double pricePaid) {
+        this.buyer = buyer;
         this.optionName = optionName;
         this.quantity = quantity;
         this.pricePaid = pricePaid;
@@ -31,5 +36,9 @@ public class TradeRecord implements java.io.Serializable {
     @Override
     public int hashCode() {
         return Objects.hash(optionName, timestamp);
+    }
+
+    public UserDTO getBuyer() {
+        return UserMapper.toUserDTO(buyer);
     }
 }

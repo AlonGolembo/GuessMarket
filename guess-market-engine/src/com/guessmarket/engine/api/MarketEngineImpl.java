@@ -3,51 +3,71 @@ package com.guessmarket.engine.api;
 import com.guessmarket.dto.EventDTO;
 import com.guessmarket.dto.EventDetailsDTO;
 import com.guessmarket.dto.TradeResultDTO;
+import com.guessmarket.dto.UserDTO;
 import com.guessmarket.engine.exception.MarketException;
 import com.guessmarket.engine.lmsr.LmsrCalculator;
 import com.guessmarket.engine.mapper.EventMapper;
-import com.guessmarket.engine.model.CommissionType;
-import com.guessmarket.engine.model.Event;
-import com.guessmarket.engine.model.Option;
-import com.guessmarket.engine.model.TradeRecord;
+import com.guessmarket.engine.mapper.UserMapper;
+import com.guessmarket.engine.model.*;
 import com.guessmarket.engine.serialization.StateSerializer;
-import com.guessmarket.engine.xml.XmlEventParser;
+import com.guessmarket.engine.xml.GuessMarketXmlParser;
+import com.guessmarket.engine.xml.jaxb.ParsedXmlWrapper;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 public class MarketEngineImpl implements MarketEngine{
 
+
     private static final Logger logger = LogManager.getLogger(MarketEngineImpl.class);
     private Map<Integer, Event> loadedEvents;
+    private Map<String, User> users;
     private boolean isLoaded;
+    private final List<MarketDataChangeListener> listeners = new ArrayList<>();
 
     public MarketEngineImpl(){
         this.loadedEvents = new LinkedHashMap<>();
+        this.users = new HashMap<>();
         this.isLoaded = false;
+    }
+
+    @Override
+    public void addListener(MarketDataChangeListener listener) {
+        if (listener != null && !listeners.contains(listener)) {
+            listeners.add(listener);
+        }
+    }
+
+    @Override
+    public void removeListener(MarketDataChangeListener listener) {
+        listeners.remove(listener);
+    }
+
+    private void notifyListeners() {
+        for (MarketDataChangeListener listener : listeners) {
+            listener.onMarketDataChanged();
+        }
     }
 
     @Override
     public void loadXmlFile(String filePath) throws MarketException {
 
         // Create a list to hold all new events coming from the xml file
-        Map<Integer, Event> newEvents = XmlEventParser.parseAndValidateXml(filePath);
+        ParsedXmlWrapper parsedXml = GuessMarketXmlParser.parseAndValidateXml(filePath);
         logger.info("XML File: {} parsed successfully", filePath);
 
-        // Create initial subsidy for each event
-        for(Event event : newEvents.values()){
-            double initialSubsidy = LmsrCalculator.calculateInitialSubsidy(event.getB());
-            event.setEventAccountBalance(initialSubsidy);
-            logger.debug("Event {} balance was successfully subsidised", event.getId());
-        }
+        Map<Integer, Event> newEvents = parsedXml.getParsedEvents();
+        Map<String,User>  newUsers = parsedXml.getUsers();
 
         this.loadedEvents = newEvents;
         logger.debug("{} new events were loaded", newEvents.size());
+        this.users = newUsers;
+        logger.debug("{} new users were loaded", newUsers.size());
         this.isLoaded = true;
         logger.debug("isLoaded flag was set to true");
+
+        notifyListeners();
     }
 
     @Override
@@ -61,6 +81,19 @@ public class MarketEngineImpl implements MarketEngine{
         return this.loadedEvents.values().stream()
                 .map(EventMapper::toEventDTO)
                 .toList();
+    }
+
+    @Override
+    public Map<String, UserDTO> getAllUsers() throws MarketException {
+        Map<String, UserDTO> users = new HashMap<>();
+        for(UserDTO user: this.users.values()
+                .stream()
+                .map(UserMapper::toUserDTO)
+                .toList()){
+            users.put(user.name(), user);
+        }
+
+        return users;
     }
 
     @Override
@@ -78,12 +111,12 @@ public class MarketEngineImpl implements MarketEngine{
     }
 
     @Override
-    public TradeResultDTO buyShares(int eventId, int optionIndex1Based, int quantity) throws MarketException {
+    public TradeResultDTO buyShares(UserDTO buyerDTO, EventDTO eventDTO, int optionIndex1Based, int quantity) throws MarketException {
         ensureLoaded();
-        Event event = findEventById(eventId);
+        Event event = findEventById(eventDTO.id());
 
         if (!event.isActive()) {
-            throw new MarketException("Cannot buy shares: Event ID " + eventId + " is closed.");
+            throw new MarketException("Cannot buy shares: Event ID " + event.getId() + " is closed.");
         }
 
         if (quantity <= 0) {
@@ -100,7 +133,13 @@ public class MarketEngineImpl implements MarketEngine{
 
         int qYes = options.get(0).getSharesBought();
         int qNo = options.get(1).getSharesBought();
-        int b = event.getB();
+
+        // HACK: Temporary use this switch case to continue only with LMSR method
+        // FIXME: Refactor when implement Order-Book method
+        int b = switch (event.getTradingMethod()) {
+            case LmsrMethod lmsr -> lmsr.getB();
+            case OrderBookMethod ob -> 0; // Order books don't have b
+        };
 
         // 1. Calculate LMSR cost
         double sharesCost = LmsrCalculator.calculateTradeCost(qYes, qNo, b, isYesOption, quantity);
@@ -119,8 +158,12 @@ public class MarketEngineImpl implements MarketEngine{
 
         event.addCommission(commissionCost);
 
-        TradeRecord record = new TradeRecord(selectedOption.getName(), quantity, totalPaid);
+        User buyer = this.users.get(buyerDTO.name());
+
+        TradeRecord record = new TradeRecord(buyer, selectedOption.getName(), quantity, totalPaid);
         event.addTradeRecord(record);
+
+        notifyListeners();
 
         // 4. Return execution receipt DTO
         return new TradeResultDTO(sharesCost, commissionCost, totalPaid, EventMapper.toEventDetailsDTO(event));
@@ -140,6 +183,8 @@ public class MarketEngineImpl implements MarketEngine{
 
         // Delegate settlement, commission calculation, payout distribution, and closing to Event
         event.settleAndClose(winningOption);
+
+        notifyListeners();
     }
 
     @Override

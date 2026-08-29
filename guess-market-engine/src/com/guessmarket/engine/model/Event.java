@@ -2,10 +2,7 @@ package com.guessmarket.engine.model;
 
 import com.guessmarket.engine.exception.MarketException;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Objects;
+import java.util.*;
 
 public class Event implements java.io.Serializable {
 
@@ -15,7 +12,8 @@ public class Event implements java.io.Serializable {
     private final int commissionPercentage; // Integer between 0 and 90
     private final CommissionType commissionType;
     private final List<Option> options;
-    private final int b;                     // LMSR liquidity parameter
+    private final ITradingMethod tradingMethod;
+    private final Map<String, User> participants;
 
     private boolean active;
     private double eventAccountBalance;      // Subsidies / trades / mint funds
@@ -24,7 +22,7 @@ public class Event implements java.io.Serializable {
     private Option winningOption;             // Set when closed
 
     public Event(int id, String name, String description, int commissionPercentage,
-                 CommissionType commissionType, List<Option> options, int b) {
+                 CommissionType commissionType, List<Option> options, ITradingMethod tradingMethod) {
 
         validateCommission(commissionPercentage);
         validateOptions(options);
@@ -35,12 +33,13 @@ public class Event implements java.io.Serializable {
         this.commissionPercentage = commissionPercentage;
         this.commissionType = commissionType;
         this.options = new ArrayList<>(options);
-        this.b = b;
+        this.tradingMethod = tradingMethod;
         this.active = true;
         this.eventAccountBalance = 0.0;
         this.totalCommissionCollected = 0.0;
         this.tradeHistory = new ArrayList<>();
         this.winningOption = null;
+        this.participants = new HashMap<>();
     }
 
     private void validateOptions(List<Option> options) {
@@ -76,6 +75,9 @@ public class Event implements java.io.Serializable {
         }
         this.winningOption = winningOption;
         this.active = false;
+    }
+    public void addParticipant(User user) {
+        this.participants.put(user.getName(), user);
     }
 
     /**
@@ -148,9 +150,7 @@ public class Event implements java.io.Serializable {
     public List<Option> getOptions() {
         return Collections.unmodifiableList(options);
     }
-    public int getB() {
-        return b;
-    }
+    public ITradingMethod getTradingMethod() {return tradingMethod;}
     public boolean isActive() {
         return active;
     }
@@ -168,5 +168,11 @@ public class Event implements java.io.Serializable {
     }
     public Option getWinningOption() {
         return winningOption;
+    }
+    public Map<String, User> getUsers() {
+        return participants;
+    }
+    public User getParticipantByName(String name) {
+        return this.participants.get(name);
     }
 }

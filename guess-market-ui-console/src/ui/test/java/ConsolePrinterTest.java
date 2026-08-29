@@ -38,6 +38,7 @@ class ConsolePrinterTest {
                 5,
                 "on-purchase",
                 List.of("Hell Yea !", "No way !"),
+                "LMSR",
                 true
         );
 

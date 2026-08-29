@@ -21,7 +21,7 @@ public class EventXml {
     @XmlElement(name = "description")
     private String description;
 
-    @XmlElement(name = "comision")
+    @XmlElement(name = "commission")
     private CommissionXml commission;
 
     @XmlElementWrapper(name = "GM-options")

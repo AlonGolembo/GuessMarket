@@ -2,7 +2,7 @@ package java;
 
 import com.guessmarket.engine.exception.MarketException;
 import com.guessmarket.engine.model.Event;
-import com.guessmarket.engine.xml.XmlEventParser;
+import com.guessmarket.engine.xml.GuessMarketXmlParser;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -15,7 +15,7 @@ import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-class XmlEventParserTest {
+class GuessMarketXmlParserTest {
 
     @Test
     @DisplayName("Valid XML should parse successfully")
@@ -45,7 +45,7 @@ class XmlEventParserTest {
         File xmlFile = tempDir.resolve("test.xml").toFile();
         Files.writeString(xmlFile.toPath(), xmlContent);
 
-        Map<Integer, Event> events = XmlEventParser.parseAndValidateXml(xmlFile.getAbsolutePath());
+        Map<Integer, Event> events = GuessMarketXmlParser.parseAndValidateXml(xmlFile.getAbsolutePath());
 
         assertNotNull(events);
         assertEquals(1, events.size());
@@ -57,7 +57,7 @@ class XmlEventParserTest {
     @DisplayName("Non-existent file path should throw Exception")
     void testFileNotFound() {
         assertThrows(Exception.class, () ->
-                XmlEventParser.parseAndValidateXml("non_existent_file.xml")
+                GuessMarketXmlParser.parseAndValidateXml("non_existent_file.xml")
         );
     }
 }

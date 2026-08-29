@@ -19,15 +19,35 @@ import java.util.*;
 
 public class MarketEngineImpl implements MarketEngine{
 
+
     private static final Logger logger = LogManager.getLogger(MarketEngineImpl.class);
     private Map<Integer, Event> loadedEvents;
-    private Set<User> users;
+    private Map<String, User> users;
     private boolean isLoaded;
+    private final List<MarketDataChangeListener> listeners = new ArrayList<>();
 
     public MarketEngineImpl(){
         this.loadedEvents = new LinkedHashMap<>();
-        this.users = new LinkedHashSet<>();
+        this.users = new HashMap<>();
         this.isLoaded = false;
+    }
+
+    @Override
+    public void addListener(MarketDataChangeListener listener) {
+        if (listener != null && !listeners.contains(listener)) {
+            listeners.add(listener);
+        }
+    }
+
+    @Override
+    public void removeListener(MarketDataChangeListener listener) {
+        listeners.remove(listener);
+    }
+
+    private void notifyListeners() {
+        for (MarketDataChangeListener listener : listeners) {
+            listener.onMarketDataChanged();
+        }
     }
 
     @Override
@@ -38,7 +58,7 @@ public class MarketEngineImpl implements MarketEngine{
         logger.info("XML File: {} parsed successfully", filePath);
 
         Map<Integer, Event> newEvents = parsedXml.getParsedEvents();
-        Set<User>  newUsers = parsedXml.getUsers();
+        Map<String,User>  newUsers = parsedXml.getUsers();
 
         this.loadedEvents = newEvents;
         logger.debug("{} new events were loaded", newEvents.size());
@@ -46,6 +66,8 @@ public class MarketEngineImpl implements MarketEngine{
         logger.debug("{} new users were loaded", newUsers.size());
         this.isLoaded = true;
         logger.debug("isLoaded flag was set to true");
+
+        notifyListeners();
     }
 
     @Override
@@ -62,10 +84,16 @@ public class MarketEngineImpl implements MarketEngine{
     }
 
     @Override
-    public List<UserDTO> getAllUsers() throws MarketException {
-        return this.users.stream()
+    public Map<String, UserDTO> getAllUsers() throws MarketException {
+        Map<String, UserDTO> users = new HashMap<>();
+        for(UserDTO user: this.users.values()
+                .stream()
                 .map(UserMapper::toUserDTO)
-                .toList();
+                .toList()){
+            users.put(user.name(), user);
+        }
+
+        return users;
     }
 
     @Override
@@ -83,12 +111,12 @@ public class MarketEngineImpl implements MarketEngine{
     }
 
     @Override
-    public TradeResultDTO buyShares(int eventId, int optionIndex1Based, int quantity) throws MarketException {
+    public TradeResultDTO buyShares(UserDTO buyerDTO, EventDTO eventDTO, int optionIndex1Based, int quantity) throws MarketException {
         ensureLoaded();
-        Event event = findEventById(eventId);
+        Event event = findEventById(eventDTO.id());
 
         if (!event.isActive()) {
-            throw new MarketException("Cannot buy shares: Event ID " + eventId + " is closed.");
+            throw new MarketException("Cannot buy shares: Event ID " + event.getId() + " is closed.");
         }
 
         if (quantity <= 0) {
@@ -130,8 +158,12 @@ public class MarketEngineImpl implements MarketEngine{
 
         event.addCommission(commissionCost);
 
-        TradeRecord record = new TradeRecord(selectedOption.getName(), quantity, totalPaid);
+        User buyer = this.users.get(buyerDTO.name());
+
+        TradeRecord record = new TradeRecord(buyer, selectedOption.getName(), quantity, totalPaid);
         event.addTradeRecord(record);
+
+        notifyListeners();
 
         // 4. Return execution receipt DTO
         return new TradeResultDTO(sharesCost, commissionCost, totalPaid, EventMapper.toEventDetailsDTO(event));
@@ -151,6 +183,8 @@ public class MarketEngineImpl implements MarketEngine{
 
         // Delegate settlement, commission calculation, payout distribution, and closing to Event
         event.settleAndClose(winningOption);
+
+        notifyListeners();
     }
 
     @Override

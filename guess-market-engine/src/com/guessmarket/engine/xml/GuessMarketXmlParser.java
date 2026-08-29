@@ -66,11 +66,11 @@ public class GuessMarketXmlParser {
             }
 
             // 4. Validate users
-            Set<User> parsedUsers = new LinkedHashSet<>();
+            Map<String, User> parsedUsers = new HashMap<>();
             Set<String> usedNames = new HashSet<>();
             for (UserXml userXml : root.getUsers()) {
                 User user = validateAndConvertUser(userXml, usedNames);
-                parsedUsers.add(user);
+                parsedUsers.put(user.getName(), user);
             }
 
             // 5. Validate market maker to event mapping
@@ -85,10 +85,10 @@ public class GuessMarketXmlParser {
         }
     }
 
-    private static void validateMarketMakerToEventMapping(Map<Integer, Event> parsedEvents, Set<User> parsedUsers)
+    private static void validateMarketMakerToEventMapping(Map<Integer, Event> parsedEvents, Map<String, User> parsedUsers)
             throws XmlValidationException {
         // Validate Market Makers do not reference to an event that doesn't exist
-        for (User user : parsedUsers) {
+        for (User user : parsedUsers.values()) {
             user.getEventsIdUserIsMM().stream()
                     .filter(eventId -> !parsedEvents.containsKey(eventId))
                     .findFirst()
@@ -99,7 +99,8 @@ public class GuessMarketXmlParser {
         }
 
         // Validate every event has exactly one MM
-        Map<Integer, Long> mmCountPerEvent = parsedUsers.stream()
+        Map<Integer, Long> mmCountPerEvent = parsedUsers.values()
+                .stream()
                 .flatMap(user -> user.getEventsIdUserIsMM().stream())
                 .collect(Collectors.groupingBy(Function.identity(), Collectors.counting()));
 

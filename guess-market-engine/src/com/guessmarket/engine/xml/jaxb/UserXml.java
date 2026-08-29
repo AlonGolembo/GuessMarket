@@ -16,7 +16,7 @@ public class UserXml {
     private String name;
 
     @XmlElement(name = "initial-cash")
-    private Integer initialCash;
+    private Double initialCash;
 
     @XmlElementWrapper(name = "GM-market-maker")
     @XmlElement(name = "event")
@@ -29,7 +29,7 @@ public class UserXml {
         return name;
     }
 
-    public Integer getInitialCash() {
+    public Double getInitialCash() {
         return initialCash;
     }
 

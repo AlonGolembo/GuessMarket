@@ -1,28 +1,39 @@
 package com.guessmarket.engine.model;
 
+import javax.management.ImmutableDescriptor;
 import java.util.*;
 
 public class User {
     private String name;
-    private int initialCash;
+    private Double initialCash;
     private Set<Integer> eventsIdUserIsMM;
+    private Map<Integer, Event> participatingEvents;
 
-    public User(String name, int initialCash, Set<Integer> eventsId){
+    public User(String name, Double initialCash, Set<Integer> eventsId){
         this.name = name;
         this.initialCash = initialCash;
         this.eventsIdUserIsMM = eventsId;
+        this.participatingEvents = new HashMap<>();
     }
 
     public String getName() {
         return name;
     }
 
-    public int getInitialCash() {
+    public Double getInitialCash() {
         return initialCash;
     }
 
     public Set<Integer> getEventsIdUserIsMM() {
         return eventsIdUserIsMM;
+    }
+
+    public Map<Integer, Event> getParticipatingEvents() {
+        return participatingEvents;
+    }
+
+    public void addParticipatingEvent(Event participatingEvent){
+        participatingEvents.put(participatingEvent.getId(), participatingEvent);
     }
 
     @Override

@@ -3,6 +3,7 @@ package com.guessmarket.engine.mapper;
 import com.guessmarket.dto.EventDTO;
 import com.guessmarket.dto.EventDetailsDTO;
 import com.guessmarket.dto.TradeHistoryDTO;
+import com.guessmarket.dto.UserDTO;
 import com.guessmarket.engine.lmsr.LmsrCalculator;
 import com.guessmarket.engine.model.*;
 
@@ -18,6 +19,10 @@ public class EventMapper {
         List<String> optionNames = event.getOptions().stream()
                 .map(Option::getName)
                 .toList();
+        List<UserDTO> users = event.getUsers()
+                .values().stream()
+                .map(UserMapper::toUserDTO)
+                .toList();
 
         return new EventDTO(
                 event.getId(),
@@ -27,7 +32,8 @@ public class EventMapper {
                 event.getCommissionType().toXmlString(),
                 optionNames,
                 event.getTradingMethod().getType().toString(),
-                event.isActive()
+                event.isActive(),
+                users
         );
     }
 
@@ -66,11 +72,7 @@ public class EventMapper {
         List<TradeHistoryDTO> tradeHistory = new ArrayList<>();
         if (event.getTradeHistory() != null) {
             for (TradeRecord record : event.getTradeHistory()) {
-                tradeHistory.add(new TradeHistoryDTO(
-                        record.getOptionName(),
-                        record.getQuantity(),
-                        record.getPricePaid()
-                ));
+                tradeHistory.add(TradeMapper.toTradeHistoryDTO(record));
             }
         }
 

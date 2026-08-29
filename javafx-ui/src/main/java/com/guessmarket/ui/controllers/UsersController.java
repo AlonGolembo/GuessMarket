@@ -267,7 +267,7 @@ public class UsersController implements MarketDataChangeListener {
             EventDTO currentSelectedEvent = activeEventsComboBox.getValue();
 
             // Refresh master lists from engine
-            usersList.setAll(marketEngine.getAllUsers());
+            usersList.setAll(marketEngine.getAllUsers().values());
             eventsList.setAll(marketEngine.getAllEvents());
 
             // Filter and populate only active events for trading
@@ -424,8 +424,8 @@ public class UsersController implements MarketDataChangeListener {
         // 3. Execute trade
         try {
             marketEngine.buyShares(
-//                    selectedUser.name(),
-                    selectedEvent.id(),
+                    selectedUser,
+                    selectedEvent,
                     selectedOption,
                     shares
             );
@@ -469,9 +469,9 @@ public class UsersController implements MarketDataChangeListener {
                     // e.g., trade.userName(), trade.optionName(), trade.sharesCount(), trade.pricePerShare()
 
                     // FIXME: Add a timestamp and user to TradeHistoryDTO and then change the format to: "[%s] User: %s | Option: %s | %d Shares @ $%.2f"
-                    setText(String.format("Option: %s | %d Shares @ $%.2f",
+                    setText(String.format("User: %s | Option: %s | %d Shares @ $%.2f",
 //                            trade.formattedTimestamp() != null ? trade.formattedTimestamp() : "Trade",
-//                            trade.userName(),
+                            trade.buyer().name(),
                             trade.optionName(),
                             trade.quantity(),
                             trade.pricePaid()

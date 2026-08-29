@@ -2,10 +2,7 @@ package com.guessmarket.engine.model;
 
 import com.guessmarket.engine.exception.MarketException;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Objects;
+import java.util.*;
 
 public class Event implements java.io.Serializable {
 
@@ -16,6 +13,7 @@ public class Event implements java.io.Serializable {
     private final CommissionType commissionType;
     private final List<Option> options;
     private final ITradingMethod tradingMethod;
+    private final Map<String, User> participants;
 
     private boolean active;
     private double eventAccountBalance;      // Subsidies / trades / mint funds
@@ -41,6 +39,7 @@ public class Event implements java.io.Serializable {
         this.totalCommissionCollected = 0.0;
         this.tradeHistory = new ArrayList<>();
         this.winningOption = null;
+        this.participants = new HashMap<>();
     }
 
     private void validateOptions(List<Option> options) {
@@ -76,6 +75,9 @@ public class Event implements java.io.Serializable {
         }
         this.winningOption = winningOption;
         this.active = false;
+    }
+    public void addParticipant(User user) {
+        this.participants.put(user.getName(), user);
     }
 
     /**
@@ -166,5 +168,11 @@ public class Event implements java.io.Serializable {
     }
     public Option getWinningOption() {
         return winningOption;
+    }
+    public Map<String, User> getUsers() {
+        return participants;
+    }
+    public User getParticipantByName(String name) {
+        return this.participants.get(name);
     }
 }

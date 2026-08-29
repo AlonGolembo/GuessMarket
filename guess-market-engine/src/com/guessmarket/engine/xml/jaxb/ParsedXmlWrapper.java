@@ -7,9 +7,9 @@ import java.util.*;
 
 public class ParsedXmlWrapper {
     Map<Integer, Event> parsedEvents;
-    Set<User> users;
+    Map<String, User> users;
 
-    public ParsedXmlWrapper(Map<Integer, Event> parsedEvents, Set<User> users) {
+    public ParsedXmlWrapper(Map<Integer, Event> parsedEvents, Map<String, User> users) {
         this.parsedEvents = parsedEvents;
         this.users = users;
     }
@@ -18,7 +18,7 @@ public class ParsedXmlWrapper {
         return parsedEvents;
     }
 
-    public Set<User> getUsers() {
+    public Map<String, User> getUsers() {
         return users;
     }
 }

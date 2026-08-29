@@ -16,6 +16,7 @@ public class UserMapper {
                         Map.Entry::getKey,
                         entry -> EventMapper.toEventDTO(entry.getValue())
                 ));
+
         return new UserDTO(user.getName(), user.getInitialCash(), user.getEventsIdUserIsMM(), participatingEvents);
     }
 }

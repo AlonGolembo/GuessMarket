@@ -9,6 +9,7 @@ import com.guessmarket.engine.exception.XmlValidationException;
 
 
 import java.util.List;
+import java.util.Map;
 
 public interface MarketEngine {
     void addListener(MarketDataChangeListener listener);
@@ -25,7 +26,7 @@ public interface MarketEngine {
     // Returns a summary snapshot of all events in the system
     List<EventDTO> getAllEvents() throws MarketException;
 
-    List<UserDTO> getAllUsers() throws MarketException;
+    Map<String, UserDTO> getAllUsers() throws MarketException;
 
     // Returns a summary snapshot of all ACTIVE events in the system
     List<EventDTO> getActiveEvents() throws MarketException;
@@ -35,7 +36,7 @@ public interface MarketEngine {
 
     // Buys shares for a specific active event
     // optionIndex1Based is the required option index but starting with 1 to be user-friendly
-    TradeResultDTO buyShares(int eventId, int optionIndex1Based, int quantity) throws MarketException;
+    TradeResultDTO buyShares(UserDTO buyer, EventDTO event, int optionIndex1Based, int quantity) throws MarketException;
 
     // Closes an event and declares the winning option
     void closeEvent(int eventId, int winningOptionIndex1Based) throws MarketException;

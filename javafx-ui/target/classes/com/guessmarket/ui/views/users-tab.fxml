@@ -231,6 +231,21 @@
                                                 <Spinner fx:id="sharesCountSpinner" editable="true" maxWidth="1.7976931348623157E308" />
                                             </children>
                                         </VBox>
+                              <HBox alignment="CENTER_LEFT" spacing="8.0">
+                                 <children>
+                                    <Label text="Commission:">
+                                       <font>
+                                          <Font name="System Bold" size="12.0" />
+                                       </font>
+                                    </Label>
+                                    <Label fx:id="commissionToPayLabel" text="\$0.00">
+                                       <font>
+                                          <Font name="System Bold" size="12.0" />
+                                       </font>
+                                    </Label>
+                                    <Label fx:id="payNowOrLaterLabel" text="(Pay now)" />
+                                 </children>
+                              </HBox>
 
                                         <HBox alignment="CENTER_LEFT" spacing="8.0">
                                             <children>

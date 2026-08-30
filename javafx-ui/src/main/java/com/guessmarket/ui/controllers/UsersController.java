@@ -30,7 +30,7 @@ public class UsersController implements MarketDataChangeListener {
     // =========================================================================
     @FXML private TableView<UserDTO> usersTableView;
     @FXML private TableColumn<UserDTO, String> userNameCol;
-    @FXML private TableColumn<UserDTO, Double> userBalanceCol;
+    @FXML private TableColumn<UserDTO, String> userBalanceCol;
 
     // =========================================================================
     // FXML UI Controls - Single User Details & Sub-Table
@@ -54,7 +54,10 @@ public class UsersController implements MarketDataChangeListener {
     @FXML private Label optionPriceLabel;
     @FXML private Spinner<Integer> sharesCountSpinner;
     @FXML private VBox buySharesSection;
+    @FXML private Label totalSharesPrice;
     @FXML private Button activateEventButton;
+    @FXML private Label commissionToPayLabel;
+    @FXML private Label payNowOrLaterLabel;
 
     // =========================================================================
     // FXML UI Controls - Purchase History table
@@ -84,6 +87,7 @@ public class UsersController implements MarketDataChangeListener {
     private final DoubleProperty userBalance = new SimpleDoubleProperty(0.0);
     private final ObjectProperty<EventDetailsDTO> selectedEventDetails = new SimpleObjectProperty<>();
     private final IntegerProperty selectedSharesProperty = new SimpleIntegerProperty(1);
+    private final DoubleProperty totalPriceToPay = new SimpleDoubleProperty(0.0);
 
     // =========================================================================
     // Lifecycle & Initialization
@@ -133,8 +137,10 @@ public class UsersController implements MarketDataChangeListener {
         userNameCol.setCellValueFactory(cellData ->
                 new SimpleStringProperty(cellData.getValue().name()));
 
-        userBalanceCol.setCellValueFactory(cellData ->
-                new SimpleObjectProperty<>(cellData.getValue().initialCash()));
+        userBalanceCol.setCellValueFactory(cellData ->{
+            Double balance = cellData.getValue().initialCash();
+            return new SimpleStringProperty(String.format("$%.2f", balance));
+        });
     }
 
     /**
@@ -290,6 +296,56 @@ public class UsersController implements MarketDataChangeListener {
                     }
                     return "$0.00";
                 }, selectedEventDetails, tradeOptionComboBox.valueProperty())
+        );
+
+        totalSharesPrice.textProperty().bind(
+                Bindings.createStringBinding(() -> {
+                    EventDetailsDTO details = selectedEventDetails.get();
+                    String selectedOption = tradeOptionComboBox.getValue();
+                    Double totalPriceToPay = details.currentOptionPrices().get(selectedOption) * selectedSharesProperty.getValue();
+                    if(Objects.equals(details.eventInfo().commissionType(), "on-purchase")){
+                        totalPriceToPay += (totalPriceToPay * details.eventInfo().commissionPercentage()) / 100;
+                    }
+
+                    if (details != null && selectedOption != null && details.currentOptionPrices() != null) {
+                        Double price = details.currentOptionPrices().get(selectedOption);
+                        if (price != null) {
+                            return String.format("$%.2f", totalPriceToPay);
+                        }
+                    }
+                    return "$0.00";
+                }, selectedEventDetails, tradeOptionComboBox.valueProperty(), selectedSharesProperty)
+        );
+
+        commissionToPayLabel.textProperty().bind(
+                Bindings.createStringBinding(()-> {
+                    EventDetailsDTO details = selectedEventDetails.get();
+                    String selectedOption = tradeOptionComboBox.getValue();
+                    Double totalPriceToPay = details.currentOptionPrices().get(selectedOption) * selectedSharesProperty.getValue();
+                    Double commission = (totalPriceToPay * details.eventInfo().commissionPercentage()) / 100;
+
+                    if (details != null && selectedOption != null && details.currentOptionPrices() != null) {
+                        Double price = details.currentOptionPrices().get(selectedOption);
+                        if (price != null) {
+                            return String.format("$%.2f", commission);
+                        }
+                    }
+                    return "$0.00";
+                }, selectedEventDetails, tradeOptionComboBox.valueProperty(), selectedSharesProperty)
+        );
+
+        payNowOrLaterLabel.textProperty().bind(
+                Bindings.createStringBinding(() -> {
+                    EventDetailsDTO details = selectedEventDetails.get();
+                    String whenToPay = "";
+                    if(Objects.equals(details.eventInfo().commissionType(), "on-close")){
+                        whenToPay = "(Pay later)";
+                    }
+                    else if(Objects.equals(details.eventInfo().commissionType(), "on-purchase")) {
+                        whenToPay = "(Pay now)";
+                    }
+                    return whenToPay;
+                }, selectedEventDetails)
         );
 
         selectedEventDetails.addListener((obs, oldDetails, newDetails) -> {

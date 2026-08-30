@@ -14,7 +14,7 @@ import com.guessmarket.engine.model.User;
 import com.guessmarket.engine.serialization.MarketSnapshot;
 import com.guessmarket.engine.serialization.StateSerializer;
 import com.guessmarket.engine.xml.GuessMarketXmlParser;
-import com.guessmarket.engine.xml.jaxb.ParsedXmlWrapper;
+import com.guessmarket.engine.xml.ParsedMarket;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -49,10 +49,10 @@ public class MarketEngineImpl implements MarketEngine {
 
     @Override
     public void loadXmlFile(String filePath) throws MarketException {
-        ParsedXmlWrapper parsed = GuessMarketXmlParser.parseAndValidateXml(filePath);
+        ParsedMarket parsed = GuessMarketXmlParser.parseAndValidateXml(filePath);
         logger.info("Parsed {}: {} events, {} users", filePath,
-                parsed.getParsedEvents().size(), parsed.getUsers().size());
-        catalog.replace(parsed.getParsedEvents(), parsed.getUsers());
+                parsed.events().size(), parsed.users().size());
+        catalog.replace(parsed.events(), parsed.users());
         publisher.publish();
     }
 

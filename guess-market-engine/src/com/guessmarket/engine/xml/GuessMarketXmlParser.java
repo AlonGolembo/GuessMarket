@@ -54,14 +54,9 @@ public class GuessMarketXmlParser {
             Map<Integer, Event> parsedEvents = new LinkedHashMap<>();
             Set<Integer> usedIds = new HashSet<>();
 
-            double initialSubsidy;
             for (EventXml eventXml : root.getEvents()) {
+                // The Event constructor seeds its pool from tradingMethod.getInitialSubsidy().
                 Event event = validateAndConvertEvent(eventXml, usedIds);
-                switch (event.getTradingMethod()) {
-                    case LmsrMethod lmsr -> initialSubsidy = lmsr.getInitialSubsidy();
-                    case OrderBookMethod ob -> initialSubsidy = ob.getInitialSubsidy();
-                };
-                event.setEventAccountBalance(initialSubsidy);
                 parsedEvents.put(event.getId(), event);
             }
 
@@ -89,7 +84,7 @@ public class GuessMarketXmlParser {
             throws XmlValidationException {
         // Validate Market Makers do not reference to an event that doesn't exist
         for (User user : parsedUsers.values()) {
-            user.getEventsIdUserIsMM().stream()
+            user.getMarketMakerEventIds().stream()
                     .filter(eventId -> !parsedEvents.containsKey(eventId))
                     .findFirst()
                     .ifPresent(invalidId -> {
@@ -101,7 +96,7 @@ public class GuessMarketXmlParser {
         // Validate every event has exactly one MM
         Map<Integer, Long> mmCountPerEvent = parsedUsers.values()
                 .stream()
-                .flatMap(user -> user.getEventsIdUserIsMM().stream())
+                .flatMap(user -> user.getMarketMakerEventIds().stream())
                 .collect(Collectors.groupingBy(Function.identity(), Collectors.counting()));
 
         // 2. Validate each parsed event

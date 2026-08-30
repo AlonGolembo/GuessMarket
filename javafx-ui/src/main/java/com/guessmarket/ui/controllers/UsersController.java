@@ -572,7 +572,7 @@ public class UsersController implements MarketDataChangeListener {
 
         // Bind buyer name to User column
         tradeUserCol.setCellValueFactory(cellData->
-                new SimpleStringProperty(cellData.getValue().buyer().name()));
+                new SimpleStringProperty(cellData.getValue().buyerName()));
 
         // Bind option name to Option column
         tradeOptionCol.setCellValueFactory(cellData->

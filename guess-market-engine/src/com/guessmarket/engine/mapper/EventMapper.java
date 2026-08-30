@@ -13,13 +13,15 @@ import java.util.List;
 import java.util.Map;
 
 
-public class EventMapper {
+public final class EventMapper {
+
+    private EventMapper() {}
 
     public static EventDTO toEventDTO(Event event) {
         List<String> optionNames = event.getOptions().stream()
                 .map(Option::getName)
                 .toList();
-        List<UserDTO> users = event.getUsers()
+        List<UserDTO> users = event.getParticipants()
                 .values().stream()
                 .map(UserMapper::toUserDTO)
                 .toList();
@@ -32,7 +34,7 @@ public class EventMapper {
                 event.getCommissionType().toXmlString(),
                 optionNames,
                 event.getTradingMethod().getType().toString(),
-                event.getStatus(),
+                event.getStatus().name(),
                 users
         );
     }
@@ -43,7 +45,7 @@ public class EventMapper {
         // Extract shares bought per option
         Map<String, Integer> sharesBoughtMap = new LinkedHashMap<>();
         for (Option option : event.getOptions()) {
-            sharesBoughtMap.put(option.getName(), option.getSharesBought());
+            sharesBoughtMap.put(option.getName(), option.getSharesOutstanding());
         }
 
         // Calculate current LMSR probability prices per option
@@ -51,8 +53,8 @@ public class EventMapper {
         List<Option> options = event.getOptions();
 
         if (options.size() >= 2) {
-            int qYes = options.get(0).getSharesBought();
-            int qNo = options.get(1).getSharesBought();
+            int qYes = options.get(0).getSharesOutstanding();
+            int qNo = options.get(1).getSharesOutstanding();
 
             // HACK: Temporary use this switch case to continue only with LMSR method
             // FIXME: Refactor when implement Order-Book method

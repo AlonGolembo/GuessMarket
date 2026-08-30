@@ -1,39 +1,56 @@
 package com.guessmarket.engine.model;
 
-import java.util.Objects;
+import java.io.Serializable;
 
-public class Option implements java.io.Serializable {
+/**
+ * One outcome of an {@link Event} (e.g. "Yes" / "No"), together with the running
+ * count of shares the market has sold for it.
+ *
+ * <p>Identity is the option {@code name}: two options are the same option when
+ * they are named the same, regardless of how many shares have been bought. The
+ * share count only ever increases, and only {@link Event} may change it.
+ */
+public class Option implements Serializable {
+
     private final String name;
-    private int sharesBought;
+    private int sharesOutstanding;
 
     public Option(String name) {
         this.name = name;
-        this.sharesBought = 0;
+        this.sharesOutstanding = 0;
     }
 
     public String getName() {
         return name;
     }
-    public int getSharesBought() {
-        return sharesBought;
+
+    /** Total shares the market has sold for this outcome. */
+    public int getSharesOutstanding() {
+        return sharesOutstanding;
     }
 
-    public void addShares(int count) {
+    /** Package-private: share issuance is driven by {@link Event#buy}. */
+    void addShares(int count) {
         if (count <= 0) {
-            throw new IllegalArgumentException("Share count must be positive");
+            throw new IllegalArgumentException("Share count must be positive, got: " + count);
         }
-        this.sharesBought += count;
+        this.sharesOutstanding += count;
     }
 
     @Override
     public boolean equals(Object o) {
+        if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
-        Option option = (Option) o;
-        return sharesBought == option.sharesBought && Objects.equals(name, option.name);
+        return name.equals(((Option) o).name);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(name, sharesBought);
+        return name.hashCode();
+    }
+
+    @Override
+    public String toString() {
+        return "Option[" + name + ", shares=" + sharesOutstanding + "]";
     }
 }

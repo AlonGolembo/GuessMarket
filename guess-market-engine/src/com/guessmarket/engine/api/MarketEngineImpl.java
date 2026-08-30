@@ -4,6 +4,7 @@ import com.guessmarket.dto.EventDTO;
 import com.guessmarket.dto.EventDetailsDTO;
 import com.guessmarket.dto.TradeResultDTO;
 import com.guessmarket.dto.UserDTO;
+import com.guessmarket.engine.exception.InsufficientFundsException;
 import com.guessmarket.engine.exception.MarketException;
 import com.guessmarket.engine.lmsr.LmsrCalculator;
 import com.guessmarket.engine.mapper.EventMapper;
@@ -85,15 +86,9 @@ public class MarketEngineImpl implements MarketEngine{
 
     @Override
     public Map<String, UserDTO> getAllUsers() throws MarketException {
-        Map<String, UserDTO> users = new HashMap<>();
-        for(UserDTO user: this.users.values()
-                .stream()
+        return this.users.values().stream()
                 .map(UserMapper::toUserDTO)
-                .toList()){
-            users.put(user.name(), user);
-        }
-
-        return users;
+                .collect(java.util.stream.Collectors.toMap(UserDTO::name, u -> u));
     }
 
     @Override
@@ -115,8 +110,8 @@ public class MarketEngineImpl implements MarketEngine{
         ensureLoaded();
         Event event = findEventById(eventDTO.id());
 
-        if (!Objects.equals(event.getStatus(), "ACTIVE")) {
-            throw new MarketException("Cannot buy shares: Event ID " + event.getId() + " is closed.");
+        if (event.getStatus() != EventStatus.ACTIVE) {
+            throw new MarketException("Cannot buy shares: Event ID " + event.getId() + " is not open for trading.");
         }
 
         if (quantity <= 0) {
@@ -128,11 +123,16 @@ public class MarketEngineImpl implements MarketEngine{
             throw new MarketException("Invalid option choice: " + optionIndex1Based + ". Select between 1 and " + options.size() + ".");
         }
 
+        User buyer = this.users.get(buyerDTO.name());
+        if (buyer == null) {
+            throw new MarketException("Unknown user: " + buyerDTO.name());
+        }
+
         Option selectedOption = options.get(optionIndex1Based - 1);
         boolean isYesOption = (optionIndex1Based == 1);
 
-        int qYes = options.get(0).getSharesBought();
-        int qNo = options.get(1).getSharesBought();
+        int qYes = options.get(0).getSharesOutstanding();
+        int qNo = options.get(1).getSharesOutstanding();
 
         // HACK: Temporary use this switch case to continue only with LMSR method
         // FIXME: Refactor when implement Order-Book method
@@ -152,16 +152,14 @@ public class MarketEngineImpl implements MarketEngine{
 
         double totalPaid = sharesCost + commissionCost;
 
-        // 3. Mutate Domain State
-        selectedOption.addShares(quantity);
-        event.setEventAccountBalance(event.getEventAccountBalance() + sharesCost);
-
+        // 3. Mutate state. Debit the buyer first: if they cannot pay this throws
+        //    InsufficientFundsException before any event state has changed.
+        buyer.debit(totalPaid);
+        event.issueShares(selectedOption, quantity);
+        event.recordTradeProceeds(sharesCost);
         event.addCommission(commissionCost);
 
-        User buyer = this.users.get(buyerDTO.name());
-        buyer.setBalance(buyer.getAccountBalance() - totalPaid);
-
-        TradeRecord record = new TradeRecord(buyer, selectedOption.getName(), quantity, totalPaid);
+        TradeRecord record = new TradeRecord(buyer.getName(), selectedOption.getName(), quantity, totalPaid);
         event.addTradeRecord(record);
 
         notifyListeners();
@@ -222,13 +220,31 @@ public class MarketEngineImpl implements MarketEngine{
 
     @Override
     public void activateEvent(EventDTO selectedEvent, UserDTO selectedUser) throws MarketException {
-        Event event = this.loadedEvents.get(selectedEvent.id());
-        event.setStatus(EventStatus.ACTIVE);
+        ensureLoaded();
+        Event event = findEventById(selectedEvent.id());
         User user = this.users.get(selectedUser.name());
-        if(user.getAccountBalance() < event.getTradingMethod().getInitialSubsidy()){
-            throw new MarketException("User doesn't have enough money to activate the event");
+        if (user == null) {
+            throw new MarketException("Unknown user: " + selectedUser.name());
         }
 
-        user.setBalance(user.getAccountBalance() - event.getTradingMethod().getInitialSubsidy());
+        // Only the event's market maker may open it, and only if they can fund the subsidy.
+        if (!user.isMarketMakerFor(event.getId())) {
+            throw new MarketException(
+                    "User '" + user.getName() + "' is not the market maker for event ID " + event.getId() + ".");
+        }
+
+        Double rawSubsidy = event.getTradingMethod().getInitialSubsidy();
+        double subsidy = (rawSubsidy == null || rawSubsidy.isNaN()) ? 0.0 : rawSubsidy;
+        if (user.getAccountBalance() < subsidy) {
+            throw new InsufficientFundsException(subsidy, user.getAccountBalance());
+        }
+
+        // Validation passed: now mutate, in an order that cannot leave a half-open event.
+        if (subsidy > 0) {
+            user.debit(subsidy);
+        }
+        event.activate();
+
+        notifyListeners();
     }
 }

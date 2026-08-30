@@ -1,6 +1,7 @@
+/**
+ * Immutable data-transfer records exchanged across the {@code guess-market-engine}
+ * API boundary. This module deliberately has no dependencies.
+ */
 module guess.market.dto {
-    requires org.apache.logging.log4j;
-    requires org.apache.logging.log4j.core;
-
     exports com.guessmarket.dto;
 }

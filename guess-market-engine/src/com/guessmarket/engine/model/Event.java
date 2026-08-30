@@ -12,15 +12,20 @@ import java.util.Objects;
 
 /**
  * A prediction-market event: the aggregate root that owns its options, its cash
- * pool, its commission terms, its trade history, its participants and its
- * lifecycle. Every rule about those things is enforced here; callers never reach
- * past this class to mutate them, and there are no plain setters.
+ * pool, its commission terms, its trade history, its participants, their holdings
+ * and its lifecycle. Every rule about those things is enforced here; nothing
+ * outside this class mutates them, and there are no plain setters.
  *
- * <p><b>Lifecycle:</b> {@code NOT_ACTIVE -> ACTIVE -> CLOSED}. A new event starts
- * {@code NOT_ACTIVE}; {@link #activate()} opens it for trading; {@link #settleAndClose}
- * declares a winner and closes it. Each transition is one-way and guarded.
+ * <p><b>Lifecycle</b>
+ * <pre>
+ *   NOT_ACTIVE --open(marketMaker)--> ACTIVE --settleAndClose(winner)--> CLOSED
+ * </pre>
+ * Each transition is one-way and guarded. A trade ({@link #buy}) is only accepted
+ * while {@code ACTIVE}.
  *
- * <p>Money is {@code double} dollars for now (see {@link Account}).
+ * <p><b>Money</b> is {@code double} dollars, held in a {@code double} pool for
+ * now (a follow-up moves it to {@link Account}). The pool holds the market-maker
+ * subsidy, trade proceeds and collected commission, and pays winners on close.
  */
 public class Event implements Serializable {
 
@@ -31,11 +36,14 @@ public class Event implements Serializable {
     private final CommissionType commissionType;
     private final List<Option> options;
     private final TradingMethod tradingMethod;
+
     private final Map<String, User> participants = new HashMap<>();
+    /** buyer name -> shares held per option index. */
+    private final Map<String, int[]> holdingsByUser = new HashMap<>();
     private final List<TradeRecord> tradeHistory = new ArrayList<>();  // newest first
 
     private EventStatus status = EventStatus.NOT_ACTIVE;
-    private double eventAccountBalance;           // market-maker subsidy + trade proceeds + collected commission
+    private double pool;                          // subsidy + trade proceeds + collected commission - payouts
     private double totalCommissionCollected;
     private Option winningOption;                 // set on close
 
@@ -52,15 +60,7 @@ public class Event implements Serializable {
         this.commissionType = commissionType;
         this.options = new ArrayList<>(options);
         this.tradingMethod = tradingMethod;
-        this.eventAccountBalance = seedSubsidy(tradingMethod);
-    }
-
-    private static double seedSubsidy(TradingMethod method) {
-        if (method == null) {
-            return 0.0;
-        }
-        double subsidy = method.initialSubsidy();
-        return (Double.isNaN(subsidy) || subsidy < 0) ? 0.0 : subsidy;
+        this.pool = 0.0;   // funded by the market maker in open()
     }
 
     private static void validateOptions(List<Option> options) {
@@ -77,88 +77,130 @@ public class Event implements Serializable {
         }
     }
 
-    // --- Lifecycle ------------------------------------------------------------
+    // --- Lifecycle ----------------------------------------------------------
 
-    /** Opens the event for trading. Only valid from {@code NOT_ACTIVE}. */
-    public void activate() {
+    /**
+     * Opens the event for trading. The given user must be this event's market
+     * maker and must be able to fund the trading-method subsidy, which is debited
+     * from their account into the pool. Atomic: if the debit fails the event
+     * stays {@code NOT_ACTIVE}.
+     */
+    public void open(User marketMaker) {
         if (status != EventStatus.NOT_ACTIVE) {
-            throw new MarketException("Event ID " + id + " cannot be activated from state " + status + ".");
+            throw new MarketException("Event ID " + id + " cannot be opened from state " + status + ".");
         }
+        if (!marketMaker.isMarketMakerFor(id)) {
+            throw new MarketException(
+                    "User '" + marketMaker.getName() + "' is not the market maker for event ID " + id + ".");
+        }
+
+        double subsidy = tradingMethod.initialSubsidy();
+        if (Double.isNaN(subsidy) || subsidy < 0) {
+            subsidy = 0.0;
+        }
+        if (subsidy > 0) {
+            marketMaker.debit(subsidy);      // throws InsufficientFundsException -> event stays NOT_ACTIVE
+            pool += subsidy;
+        }
+
+        participants.put(marketMaker.getName(), marketMaker);
+        marketMaker.addParticipatingEvent(this);
         status = EventStatus.ACTIVE;
     }
 
     /**
-     * Settles the market: applies the on-close commission if configured, pays the
-     * winning shareholders, records the winner and closes the event. Only valid
-     * from {@code ACTIVE}.
+     * Executes a purchase: prices the shares, charges the on-purchase commission
+     * if configured, debits the buyer, credits the pool, issues the shares and
+     * records the holding and the trade. Atomic: the buyer is debited first, so
+     * an unaffordable trade throws before anything else changes.
+     *
+     * @param optionIndex 0-based index into {@link #getOptions()}
      */
-    public void settleAndClose(Option winningOption) {
+    public TradeReceipt buy(User buyer, int optionIndex, int quantity) {
         if (status != EventStatus.ACTIVE) {
-            throw new MarketException("Event ID " + id + " is not open for settlement (state: " + status + ").");
+            throw new MarketException("Event ID " + id + " is not open for trading (state: " + status + ").");
         }
-        if (winningOption == null || !options.contains(winningOption)) {
-            throw new MarketException("Winning option does not belong to event: " + name);
+        if (quantity <= 0) {
+            throw new MarketException("Quantity to buy must be strictly positive (> 0), got: " + quantity);
         }
-
-        int winningShares = winningOption.getSharesOutstanding();
-
-        if (commissionType == CommissionType.ON_CLOSE) {
-            double payoutBeforeFee = winningShares * 1.0;           // $1.00 base payout per winning share
-            addCommission(payoutBeforeFee * (commissionPercentage / 100.0));
+        if (optionIndex < 0 || optionIndex >= options.size()) {
+            throw new MarketException("Invalid option index: " + optionIndex);
         }
 
-        distributeWinningPayouts(winningOption, winningShares);
+        Option option = options.get(optionIndex);
+        double sharesCost = tradingMethod.costToBuy(optionIndex, quantity, options);
+        double commission = commissionType == CommissionType.ON_PURCHASE
+                ? sharesCost * (commissionPercentage / 100.0)
+                : 0.0;
+        double totalPaid = sharesCost + commission;
 
-        this.winningOption = winningOption;
-        this.status = EventStatus.CLOSED;
+        buyer.debit(totalPaid);              // InsufficientFundsException -> nothing below runs
+
+        pool += sharesCost;
+        recordCommission(commission);
+        option.addShares(quantity);
+        holdingsByUser.computeIfAbsent(buyer.getName(), k -> new int[options.size()])[optionIndex] += quantity;
+        participants.put(buyer.getName(), buyer);
+        buyer.addParticipatingEvent(this);
+        tradeHistory.add(0, new TradeRecord(buyer.getName(), option.getName(), quantity, totalPaid));
+
+        return new TradeReceipt(sharesCost, commission, totalPaid);
     }
 
     /**
-     * Credits ($1.00 - commission fraction) per winning share to each holder.
-     * Real per-user holdings arrive with the trade-into-aggregate work; until
-     * then this is a no-op.
+     * Settles the market from {@code ACTIVE}: takes the on-close commission from
+     * the winning pot if configured, pays every holder of the winning option
+     * their per-share payout from the pool, records the winner and closes.
+     *
+     * @param winningOptionIndex 0-based index into {@link #getOptions()}
      */
-    private void distributeWinningPayouts(Option winningOption, int winningShares) {
-        // TODO(phase-3): iterate per-user holdings of winningOption and credit their accounts.
-    }
-
-    // --- Trading-side mutations (called by the trade orchestration) ----------
-
-    /** Adds shares of one of this event's options. */
-    public void issueShares(Option option, int quantity) {
-        if (!options.contains(option)) {
-            throw new MarketException("Option " + option + " does not belong to event " + id + ".");
+    public void settleAndClose(int winningOptionIndex) {
+        if (status != EventStatus.ACTIVE) {
+            throw new MarketException("Event ID " + id + " is not open for settlement (state: " + status + ").");
         }
-        option.addShares(quantity);
-    }
-
-    /** Records cash received from a trade into the event pool. */
-    public void recordTradeProceeds(double amount) {
-        if (amount < 0 || Double.isNaN(amount)) {
-            throw new IllegalArgumentException("Trade proceeds must be >= 0, got: " + amount);
+        if (winningOptionIndex < 0 || winningOptionIndex >= options.size()) {
+            throw new MarketException("Invalid winning option index: " + winningOptionIndex);
         }
-        eventAccountBalance += amount;
+
+        Option winner = options.get(winningOptionIndex);
+        double commissionFraction = commissionPercentage / 100.0;
+
+        if (commissionType == CommissionType.ON_CLOSE) {
+            double winningPot = winner.getSharesOutstanding() * 1.0;   // $1.00 per winning share
+            recordCommission(winningPot * commissionFraction);
+        }
+
+        // On-close: fee comes out of the payout. On-purchase: it was already taken.
+        double payoutPerShare = commissionType == CommissionType.ON_CLOSE
+                ? (1.0 - commissionFraction)
+                : 1.0;
+
+        for (Map.Entry<String, int[]> entry : holdingsByUser.entrySet()) {
+            int heldWinningShares = entry.getValue()[winningOptionIndex];
+            if (heldWinningShares <= 0) {
+                continue;
+            }
+            User holder = participants.get(entry.getKey());
+            double payout = heldWinningShares * payoutPerShare;
+            if (holder != null && payout > 0) {
+                holder.credit(payout);
+                pool -= payout;
+            }
+        }
+
+        this.winningOption = winner;
+        this.status = EventStatus.CLOSED;
     }
 
-    /** Records collected commission (also held in the event pool). */
-    public void addCommission(double amount) {
+    private void recordCommission(double amount) {
         if (amount < 0 || Double.isNaN(amount)) {
             throw new IllegalArgumentException("Commission must be >= 0, got: " + amount);
         }
         totalCommissionCollected += amount;
-        eventAccountBalance += amount;
+        pool += amount;
     }
 
-    /** Appends a trade to the audit log (kept newest-first). */
-    public void addTradeRecord(TradeRecord record) {
-        tradeHistory.add(0, record);
-    }
-
-    public void addParticipant(User user) {
-        participants.put(user.getName(), user);
-    }
-
-    // --- Accessors ----------------------------------------------------------
+    // --- Accessors --------------------------------------------------------
 
     public int getId() {
         return id;
@@ -193,7 +235,7 @@ public class Event implements Serializable {
     }
 
     public double getEventAccountBalance() {
-        return eventAccountBalance;
+        return pool;
     }
 
     public double getTotalCommissionCollected() {
@@ -215,6 +257,12 @@ public class Event implements Serializable {
 
     public User getParticipantByName(String name) {
         return participants.get(name);
+    }
+
+    /** Shares the named user holds of each option (by index), or all zeros. */
+    public int[] holdingsOf(String userName) {
+        int[] held = holdingsByUser.get(userName);
+        return held == null ? new int[options.size()] : held.clone();
     }
 
     @Override

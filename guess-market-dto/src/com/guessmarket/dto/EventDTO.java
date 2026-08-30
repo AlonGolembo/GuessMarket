@@ -1,8 +1,9 @@
 package com.guessmarket.dto;
 
 import java.util.List;
-import java.util.Map;
 
+/** Summary snapshot of an event. Enum-like fields ({@code commissionType},
+ *  {@code tradingMethod}, {@code status}) are carried as their enum name. */
 public record EventDTO(
         int id,
         String name,
@@ -11,5 +12,5 @@ public record EventDTO(
         String commissionType,
         List<String> options,
         String tradingMethod,
-        String status,
-        List<UserDTO> users) {}
+        String status
+) {}

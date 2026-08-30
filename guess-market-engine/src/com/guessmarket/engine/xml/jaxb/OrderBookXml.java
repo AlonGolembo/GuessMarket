@@ -21,5 +21,12 @@ public class OrderBookXml {
     public Integer getD() {
         return d;
     }
-    public Integer getInitial() {return initial;}
+
+    public Integer getInitial() {
+        return initial;
+    }
+
+    public boolean isAllowMint() {
+        return allowMint;
+    }
 }

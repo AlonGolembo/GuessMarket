@@ -6,7 +6,6 @@ import com.guessmarket.dto.TradeResultDTO;
 import com.guessmarket.dto.UserDTO;
 import com.guessmarket.engine.exception.InsufficientFundsException;
 import com.guessmarket.engine.exception.MarketException;
-import com.guessmarket.engine.lmsr.LmsrCalculator;
 import com.guessmarket.engine.mapper.EventMapper;
 import com.guessmarket.engine.mapper.UserMapper;
 import com.guessmarket.engine.model.*;
@@ -129,20 +128,10 @@ public class MarketEngineImpl implements MarketEngine{
         }
 
         Option selectedOption = options.get(optionIndex1Based - 1);
-        boolean isYesOption = (optionIndex1Based == 1);
+        int optionIndex = optionIndex1Based - 1;
 
-        int qYes = options.get(0).getSharesOutstanding();
-        int qNo = options.get(1).getSharesOutstanding();
-
-        // HACK: Temporary use this switch case to continue only with LMSR method
-        // FIXME: Refactor when implement Order-Book method
-        int b = switch (event.getTradingMethod()) {
-            case LmsrMethod lmsr -> lmsr.getB();
-            case OrderBookMethod ob -> 0; // Order books don't have b
-        };
-
-        // 1. Calculate LMSR cost
-        double sharesCost = LmsrCalculator.calculateTradeCost(qYes, qNo, b, isYesOption, quantity);
+        // 1. Ask the trading method what the shares cost.
+        double sharesCost = event.getTradingMethod().costToBuy(optionIndex, quantity, options);
 
         // 2. Calculate fee if 'on-purchase'
         double commissionCost = 0.0;
@@ -233,8 +222,8 @@ public class MarketEngineImpl implements MarketEngine{
                     "User '" + user.getName() + "' is not the market maker for event ID " + event.getId() + ".");
         }
 
-        Double rawSubsidy = event.getTradingMethod().getInitialSubsidy();
-        double subsidy = (rawSubsidy == null || rawSubsidy.isNaN()) ? 0.0 : rawSubsidy;
+        double rawSubsidy = event.getTradingMethod().initialSubsidy();
+        double subsidy = (Double.isNaN(rawSubsidy) || rawSubsidy < 0) ? 0.0 : rawSubsidy;
         if (user.getAccountBalance() < subsidy) {
             throw new InsufficientFundsException(subsidy, user.getAccountBalance());
         }

@@ -30,7 +30,7 @@ public class Event implements Serializable {
     private final int commissionPercentage;      // 0..90
     private final CommissionType commissionType;
     private final List<Option> options;
-    private final ITradingMethod tradingMethod;
+    private final TradingMethod tradingMethod;
     private final Map<String, User> participants = new HashMap<>();
     private final List<TradeRecord> tradeHistory = new ArrayList<>();  // newest first
 
@@ -40,7 +40,7 @@ public class Event implements Serializable {
     private Option winningOption;                 // set on close
 
     public Event(int id, String name, String description, int commissionPercentage,
-                 CommissionType commissionType, List<Option> options, ITradingMethod tradingMethod) {
+                 CommissionType commissionType, List<Option> options, TradingMethod tradingMethod) {
 
         validateCommission(commissionPercentage);
         validateOptions(options);
@@ -55,9 +55,12 @@ public class Event implements Serializable {
         this.eventAccountBalance = seedSubsidy(tradingMethod);
     }
 
-    private static double seedSubsidy(ITradingMethod method) {
-        Double subsidy = method == null ? null : method.getInitialSubsidy();
-        return (subsidy == null || subsidy.isNaN() || subsidy < 0) ? 0.0 : subsidy;
+    private static double seedSubsidy(TradingMethod method) {
+        if (method == null) {
+            return 0.0;
+        }
+        double subsidy = method.initialSubsidy();
+        return (Double.isNaN(subsidy) || subsidy < 0) ? 0.0 : subsidy;
     }
 
     private static void validateOptions(List<Option> options) {
@@ -181,7 +184,7 @@ public class Event implements Serializable {
         return Collections.unmodifiableList(options);
     }
 
-    public ITradingMethod getTradingMethod() {
+    public TradingMethod getTradingMethod() {
         return tradingMethod;
     }
 

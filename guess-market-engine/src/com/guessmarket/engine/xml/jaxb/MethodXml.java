@@ -23,16 +23,17 @@ public class MethodXml {
         return orderBook;
     }
 
-    public TradingMethodType getType(){
-        TradingMethodType tradingMethodType = TradingMethodType.NONE;
-        if(lmsr != null && orderBook == null){
-            tradingMethodType = TradingMethodType.LMSR;
-        }
-
-        if(lmsr == null && orderBook != null){
-            tradingMethodType = TradingMethodType.ORDERBOOK;
-        }
-
-        return tradingMethodType;
+    /**
+     * @return {@code LMSR}/{@code ORDERBOOK} when exactly one method is present,
+     *         {@code NOTDEFINED} when both are present (ambiguous),
+     *         {@code NONE} when neither is.
+     */
+    public TradingMethodType getType() {
+        boolean hasLmsr = lmsr != null;
+        boolean hasOrderBook = orderBook != null;
+        if (hasLmsr && hasOrderBook) return TradingMethodType.NOTDEFINED;
+        if (hasLmsr) return TradingMethodType.LMSR;
+        if (hasOrderBook) return TradingMethodType.ORDERBOOK;
+        return TradingMethodType.NONE;
     }
 }

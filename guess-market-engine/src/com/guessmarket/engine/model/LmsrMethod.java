@@ -1,26 +1,60 @@
 package com.guessmarket.engine.model;
 
+import com.guessmarket.engine.exception.XmlValidationException;
 import com.guessmarket.engine.lmsr.LmsrCalculator;
 
-public final class LmsrMethod implements ITradingMethod{
-    private final Integer b;
-    private final Double initialSubsidy;
+import java.util.List;
 
-    public LmsrMethod(Integer b){
+/**
+ * Logarithmic Market Scoring Rule pricing. All the maths lives in
+ * {@link LmsrCalculator}; this class adapts it to the {@link TradingMethod} seam.
+ */
+public final class LmsrMethod implements TradingMethod {
+
+    /** Liquidity parameter: larger {@code b} = deeper market, smaller price moves. */
+    private final int b;
+
+    public LmsrMethod(int b) {
         this.b = b;
-        this.initialSubsidy = LmsrCalculator.calculateInitialSubsidy(b);
     }
 
-    @Override
-    public TradingMethodType getType() {
-        return TradingMethodType.LMSR;
-    }
-
-    public int getB(){
+    public int b() {
         return b;
     }
 
-    public Double getInitialSubsidy() {
-        return initialSubsidy;
+    @Override
+    public TradingMethodType type() {
+        return TradingMethodType.LMSR;
+    }
+
+    @Override
+    public double initialSubsidy() {
+        return LmsrCalculator.calculateInitialSubsidy(b);
+    }
+
+    @Override
+    public double priceOf(int optionIndex, List<Option> options) {
+        int qTarget = options.get(optionIndex).getSharesOutstanding();
+        int qOther = options.get(1 - optionIndex).getSharesOutstanding();
+        return LmsrCalculator.calculateOptionPrice(qTarget, qOther, b);
+    }
+
+    @Override
+    public double costToBuy(int optionIndex, int quantity, List<Option> options) {
+        int qFirst = options.get(0).getSharesOutstanding();
+        int qSecond = options.get(1).getSharesOutstanding();
+        return LmsrCalculator.calculateTradeCost(qFirst, qSecond, b, optionIndex == 0, quantity);
+    }
+
+    @Override
+    public void validate() throws XmlValidationException {
+        if (b <= 0) {
+            throw new XmlValidationException("LMSR parameter 'b' must be strictly positive (> 0), got: " + b);
+        }
+    }
+
+    @Override
+    public String toString() {
+        return "LMSR[b=" + b + "]";
     }
 }

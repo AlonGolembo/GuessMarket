@@ -55,7 +55,7 @@ public class GuessMarketXmlParser {
             Set<Integer> usedIds = new HashSet<>();
 
             for (EventXml eventXml : root.getEvents()) {
-                // The Event constructor seeds its pool from tradingMethod.getInitialSubsidy().
+                // The Event constructor seeds its pool from tradingMethod.initialSubsidy().
                 Event event = validateAndConvertEvent(eventXml, usedIds);
                 parsedEvents.put(event.getId(), event);
             }
@@ -189,47 +189,37 @@ public class GuessMarketXmlParser {
             options.add(new Option(optName.trim()));
         }
 
-        // Validate Method
-        if(xml.getMethod() == null){
+        // Validate Method: build the TradingMethod, then let it self-validate.
+        if (xml.getMethod() == null) {
             throw new XmlValidationException("Event ID " + id + ": Missing <GM-method> element.");
         }
 
-        TradingMethodType tradingMethodType = xml.getMethod().getType();
-        ITradingMethod tradingMethod = null;
+        TradingMethod tradingMethod = switch (xml.getMethod().getType()) {
+            case LMSR -> {
+                LmsrXml lmsr = xml.getMethod().getLmsr();
+                if (lmsr.getB() == null) {
+                    throw new XmlValidationException("Event ID " + id + ": Missing LMSR <b> value.");
+                }
+                yield new LmsrMethod(lmsr.getB());
+            }
+            case ORDERBOOK -> {
+                OrderBookXml ob = xml.getMethod().getOrderBook();
+                if (ob.getD() == null || ob.getInitial() == null) {
+                    throw new XmlValidationException(
+                            "Event ID " + id + ": Missing Order Book <d> / <initial> value.");
+                }
+                yield new OrderBookMethod(ob.getD(), ob.getInitial(), ob.isAllowMint());
+            }
+            case NONE -> throw new XmlValidationException(
+                    "Event ID " + id + ": <GM-method> must contain <GM-LMSR> or <GM-order-book>.");
+            case NOTDEFINED -> throw new XmlValidationException(
+                    "Event ID " + id + ": <GM-method> defines more than one trading method.");
+        };
 
-        if(tradingMethodType == TradingMethodType.NOTDEFINED){
-            throw new XmlValidationException("Event ID " + id + ": More than one trading method is defined.");
-        }
-
-        // Validate LMSR Liquidity Parameter 'b'
-        if (tradingMethodType == TradingMethodType.LMSR){
-            if (xml.getMethod().getLmsr().getB() == null) {
-                throw new XmlValidationException("Event ID " + id + ": Missing LMSR method parameter b configuration.");
-            }
-            int b = xml.getMethod().getLmsr().getB();
-            if (b <= 0) {
-                throw new XmlValidationException("Event ID " + id + ": LMSR parameter 'b' must be strictly positive (> 0). Got: " + b);
-            }
-        }
-
-        // Validate Order Book initial and d
-        if (tradingMethodType == TradingMethodType.ORDERBOOK){
-            if (xml.getMethod().getOrderBook().getD() == null || xml.getMethod().getOrderBook().getInitial() == null) {
-                throw new XmlValidationException("Event ID " + id + ": Missing Order Book method configuration <d> / <initial>.");
-            }
-            int d = xml.getMethod().getOrderBook().getD();
-            if (d <= 0) {
-                throw new XmlValidationException("Event ID " + id + ": Order Book parameter 'd' must be strictly positive (> 0). Got: " + d);
-            }
-            int initial = xml.getMethod().getOrderBook().getInitial();
-            if (initial < 0){
-                throw new XmlValidationException("Event ID " + id + ": Order Book paramater 'initial' must be positive (>=0). Got: " + initial);
-            }
-        }
-
-        switch (tradingMethodType){
-            case LMSR -> tradingMethod = new LmsrMethod(xml.getMethod().getLmsr().getB());
-            case ORDERBOOK-> tradingMethod = new OrderBookMethod();
+        try {
+            tradingMethod.validate();
+        } catch (XmlValidationException e) {
+            throw new XmlValidationException("Event ID " + id + ": " + e.getMessage());
         }
 
         return new Event(id, name, description, commission, commissionType, options, tradingMethod);

@@ -120,31 +120,39 @@ public class Event implements Serializable {
         if (status != EventStatus.ACTIVE) {
             throw new MarketException("Event ID " + id + " is not open for trading (state: " + status + ").");
         }
+
+        TradeReceipt receipt = quote(optionIndex, quantity);   // also validates optionIndex / quantity
+
+        buyer.debit(receipt.totalPaid());        // InsufficientFundsException -> nothing below runs
+
+        Option option = options.get(optionIndex);
+        pool += receipt.sharesCost();
+        recordCommission(receipt.commission());
+        option.addShares(quantity);
+        holdingsByUser.computeIfAbsent(buyer.getName(), k -> new int[options.size()])[optionIndex] += quantity;
+        participants.put(buyer.getName(), buyer);
+        buyer.addParticipatingEvent(this);
+        tradeHistory.add(0, new TradeRecord(buyer.getName(), option.getName(), quantity, receipt.totalPaid()));
+
+        return receipt;
+    }
+
+    /**
+     * Prices a prospective trade without changing anything. {@link #buy} charges
+     * exactly this breakdown.
+     */
+    public TradeReceipt quote(int optionIndex, int quantity) {
         if (quantity <= 0) {
             throw new MarketException("Quantity to buy must be strictly positive (> 0), got: " + quantity);
         }
         if (optionIndex < 0 || optionIndex >= options.size()) {
             throw new MarketException("Invalid option index: " + optionIndex);
         }
-
-        Option option = options.get(optionIndex);
         double sharesCost = tradingMethod.costToBuy(optionIndex, quantity, options);
         double commission = commissionType == CommissionType.ON_PURCHASE
                 ? sharesCost * (commissionPercentage / 100.0)
                 : 0.0;
-        double totalPaid = sharesCost + commission;
-
-        buyer.debit(totalPaid);              // InsufficientFundsException -> nothing below runs
-
-        pool += sharesCost;
-        recordCommission(commission);
-        option.addShares(quantity);
-        holdingsByUser.computeIfAbsent(buyer.getName(), k -> new int[options.size()])[optionIndex] += quantity;
-        participants.put(buyer.getName(), buyer);
-        buyer.addParticipatingEvent(this);
-        tradeHistory.add(0, new TradeRecord(buyer.getName(), option.getName(), quantity, totalPaid));
-
-        return new TradeReceipt(sharesCost, commission, totalPaid);
+        return new TradeReceipt(sharesCost, commission, sharesCost + commission);
     }
 
     /**

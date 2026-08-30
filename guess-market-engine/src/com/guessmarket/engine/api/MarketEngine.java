@@ -2,6 +2,7 @@ package com.guessmarket.engine.api;
 
 import com.guessmarket.dto.EventDTO;
 import com.guessmarket.dto.EventDetailsDTO;
+import com.guessmarket.dto.TradeQuoteDTO;
 import com.guessmarket.dto.TradeResultDTO;
 import com.guessmarket.dto.UserDTO;
 import com.guessmarket.engine.exception.MarketException;
@@ -33,6 +34,10 @@ public interface MarketEngine {
 
     // Returns detailed trading status, option prices, account balance, trade history of a specific event
     EventDetailsDTO getEventDetails(int eventId) throws MarketException;
+
+    // Prices a prospective trade without executing it. buyShares() charges exactly
+    // the returned breakdown.
+    TradeQuoteDTO quoteTrade(UserDTO buyer, EventDTO event, int optionIndex1Based, int quantity) throws MarketException;
 
     // Buys shares for a specific active event
     // optionIndex1Based is the required option index but starting with 1 to be user-friendly

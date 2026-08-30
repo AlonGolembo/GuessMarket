@@ -2,6 +2,7 @@ package com.guessmarket.engine.api;
 
 import com.guessmarket.dto.EventDTO;
 import com.guessmarket.dto.EventDetailsDTO;
+import com.guessmarket.dto.TradeQuoteDTO;
 import com.guessmarket.dto.TradeResultDTO;
 import com.guessmarket.dto.UserDTO;
 import com.guessmarket.engine.exception.MarketException;
@@ -10,6 +11,7 @@ import com.guessmarket.engine.mapper.UserMapper;
 import com.guessmarket.engine.model.Event;
 import com.guessmarket.engine.model.TradeReceipt;
 import com.guessmarket.engine.model.User;
+import com.guessmarket.engine.serialization.MarketSnapshot;
 import com.guessmarket.engine.serialization.StateSerializer;
 import com.guessmarket.engine.xml.GuessMarketXmlParser;
 import com.guessmarket.engine.xml.jaxb.ParsedXmlWrapper;
@@ -62,14 +64,13 @@ public class MarketEngineImpl implements MarketEngine {
     @Override
     public void saveState(String filePath) throws MarketException {
         catalog.requireLoaded();
-        StateSerializer.saveEngineState(catalog.eventMap(), filePath);
+        StateSerializer.save(new MarketSnapshot(catalog.eventMap(), catalog.userMap()), filePath);
     }
 
     @Override
     public void loadState(String filePath) throws MarketException {
-        // NOTE: users are not persisted yet, so a restored session has events only.
-        Map<Integer, Event> events = StateSerializer.loadEngineState(filePath);
-        catalog.replace(events, Map.of());
+        MarketSnapshot snapshot = StateSerializer.load(filePath);
+        catalog.replace(snapshot.events(), snapshot.users());
         publisher.publish();
     }
 
@@ -112,6 +113,13 @@ public class MarketEngineImpl implements MarketEngine {
         User marketMaker = catalog.user(selectedUser.name());
         event.open(marketMaker);
         publisher.publish();
+    }
+
+    @Override
+    public TradeQuoteDTO quoteTrade(UserDTO buyerDTO, EventDTO eventDTO, int optionIndex1Based, int quantity)
+            throws MarketException {
+        TradeReceipt r = catalog.event(eventDTO.id()).quote(optionIndex1Based - 1, quantity);
+        return new TradeQuoteDTO(r.sharesCost(), r.commission(), r.totalPaid());
     }
 
     @Override

@@ -137,10 +137,8 @@ public class UsersController implements MarketDataChangeListener {
         userNameCol.setCellValueFactory(cellData ->
                 new SimpleStringProperty(cellData.getValue().name()));
 
-        userBalanceCol.setCellValueFactory(cellData ->{
-            Double balance = cellData.getValue().initialCash();
-            return new SimpleStringProperty(String.format("$%.2f", balance));
-        });
+        userBalanceCol.setCellValueFactory(cellData ->
+                new SimpleStringProperty(String.format("$%.2f", cellData.getValue().balance())));
     }
 
     /**
@@ -154,8 +152,8 @@ public class UsersController implements MarketDataChangeListener {
             EventDTO event = cellData.getValue();
             UserDTO selectedUser = usersTableView.getSelectionModel().getSelectedItem();
 
-            if (selectedUser != null && selectedUser.eventsIdUserIsMM() != null) {
-                boolean isMarketMaker = selectedUser.eventsIdUserIsMM().contains(event.id());
+            if (selectedUser != null && selectedUser.marketMakerEventIds() != null) {
+                boolean isMarketMaker = selectedUser.marketMakerEventIds().contains(event.id());
                 return new SimpleStringProperty(isMarketMaker ? "Market Maker" : "Participant");
             }
             return new SimpleStringProperty("Participant");
@@ -244,8 +242,8 @@ public class UsersController implements MarketDataChangeListener {
                             }
 
                             // Check if user is the Market Maker for this event
-                            if (selectedUser.eventsIdUserIsMM() != null) {
-                                return selectedUser.eventsIdUserIsMM().contains(selectedEvent.id());
+                            if (selectedUser.marketMakerEventIds() != null) {
+                                return selectedUser.marketMakerEventIds().contains(selectedEvent.id());
                             }
 
                             return false;
@@ -265,8 +263,8 @@ public class UsersController implements MarketDataChangeListener {
                             }
 
                             // 2. User is NOT the Market Maker for this event -> Disabled
-                            boolean isMM = selectedUser.eventsIdUserIsMM() != null
-                                    && selectedUser.eventsIdUserIsMM().contains(selectedEvent.id());
+                            boolean isMM = selectedUser.marketMakerEventIds() != null
+                                    && selectedUser.marketMakerEventIds().contains(selectedEvent.id());
                             if (!isMM) {
                                 return true;
                             }
@@ -423,17 +421,20 @@ public class UsersController implements MarketDataChangeListener {
      * Updates the balance display and participating events table based on the selected user.
      */
     private void handleRowSelected(UserDTO selectedUser) {
-        if (selectedUser != null) {
-            userBalance.set(selectedUser.initialCash() != null ? selectedUser.initialCash() : 0.0);
-
-            if (selectedUser.participatingEvents() != null) {
-                participatingEventsList.setAll(selectedUser.participatingEvents().values());
-            } else {
-                participatingEventsList.clear();
-            }
-        } else {
+        if (selectedUser == null) {
             userBalance.set(0.0);
             participatingEventsList.clear();
+            return;
+        }
+        userBalance.set(selectedUser.balance());
+
+        java.util.Set<Integer> ids = selectedUser.participatingEventIds();
+        if (ids == null || ids.isEmpty() || marketEngine == null) {
+            participatingEventsList.clear();
+        } else {
+            participatingEventsList.setAll(marketEngine.getAllEvents().stream()
+                    .filter(e -> ids.contains(e.id()))
+                    .toList());
         }
     }
 
@@ -595,7 +596,7 @@ public class UsersController implements MarketDataChangeListener {
         EventDTO selectedEvent = eventsComboBox.getValue();
 
         // Verify selectedUser is selectedEvent MM
-        if(!selectedUser.eventsIdUserIsMM().contains(selectedEvent.id())){
+        if(!selectedUser.marketMakerEventIds().contains(selectedEvent.id())){
             // FIXME: Handle case that user isn't MM of the event
         }
 

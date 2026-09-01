@@ -2,12 +2,12 @@ package com.guessmarket.ui.controllers;
 
 import com.guessmarket.dto.EventDTO;
 import com.guessmarket.dto.EventDetailsDTO;
-import com.guessmarket.dto.EventStatus;
 import com.guessmarket.dto.TradeHistoryDTO;
 import com.guessmarket.dto.TradeQuoteDTO;
 import com.guessmarket.dto.UserDTO;
 import com.guessmarket.engine.api.MarketDataChangeListener;
 import com.guessmarket.engine.api.MarketEngine;
+import com.guessmarket.ui.common.TradeRules;
 import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
 import javafx.beans.property.*;
@@ -226,56 +226,22 @@ public class UsersController implements MarketDataChangeListener {
             }
         });
 
-        // Disable buySharesContainer if:
-        // 1. No user is selected
-        // 2. No active event is selected
-        // 3. The selected user is the Market Maker (MM) for the selected event
+        // The trade panel is enabled only for a non-market-maker on an open event.
         buySharesSection.disableProperty().bind(
-                Bindings.createBooleanBinding(() -> {
-                            UserDTO selectedUser = usersTableView.getSelectionModel().getSelectedItem();
-                            EventDTO selectedEvent = eventsComboBox.getValue();
-
-                            // Must have both a selected user and a selected event
-                            if (selectedUser == null || selectedEvent == null) {
-                                return true;
-                            }
-
-                            // Check if user is the Market Maker for this event
-                            if (selectedUser.marketMakerEventIds() != null) {
-                                return selectedUser.marketMakerEventIds().contains(selectedEvent.id());
-                            }
-
-                            return false;
-                        },
+                Bindings.createBooleanBinding(
+                        () -> !TradeRules.canTrade(
+                                usersTableView.getSelectionModel().getSelectedItem(),
+                                eventsComboBox.getValue()),
                         usersTableView.getSelectionModel().selectedItemProperty(),
                         eventsComboBox.valueProperty())
         );
 
+        // The activate button is enabled only for the market maker of a not-yet-open event.
         activateEventButton.disableProperty().bind(
-                Bindings.createBooleanBinding(() -> {
-                            UserDTO selectedUser = usersTableView.getSelectionModel().getSelectedItem();
-                            EventDTO selectedEvent = eventsComboBox.getValue();
-
-                            // 1. Missing selections -> Disabled
-                            if (selectedUser == null || selectedEvent == null) {
-                                return true;
-                            }
-
-                            // 2. User is NOT the Market Maker for this event -> Disabled
-                            boolean isMM = selectedUser.marketMakerEventIds() != null
-                                    && selectedUser.marketMakerEventIds().contains(selectedEvent.id());
-                            if (!isMM) {
-                                return true;
-                            }
-
-                            // 3. Only a not-yet-open event can be activated
-                            if (selectedEvent.status() != EventStatus.NOT_ACTIVE) {
-                                return true;
-                            }
-
-                            // Otherwise (User is MM AND event is PENDING) -> Enabled (not disabled)
-                            return false;
-                        },
+                Bindings.createBooleanBinding(
+                        () -> !TradeRules.canActivate(
+                                usersTableView.getSelectionModel().getSelectedItem(),
+                                eventsComboBox.getValue()),
                         usersTableView.getSelectionModel().selectedItemProperty(),
                         eventsComboBox.valueProperty())
         );
@@ -316,13 +282,9 @@ public class UsersController implements MarketDataChangeListener {
         payNowOrLaterLabel.textProperty().bind(
                 Bindings.createStringBinding(() -> {
                     EventDetailsDTO details = selectedEventDetails.get();
-                    if (details == null || details.eventInfo() == null) {
-                        return "";
-                    }
-                    return switch (details.eventInfo().commissionType()) {
-                        case ON_CLOSE -> "(Pay later)";
-                        case ON_PURCHASE -> "(Pay now)";
-                    };
+                    return details == null || details.eventInfo() == null
+                            ? ""
+                            : TradeRules.payTimingLabel(details.eventInfo().commissionType());
                 }, selectedEventDetails)
         );
 

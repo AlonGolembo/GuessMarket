@@ -1,6 +1,7 @@
-package com.guessmarket.engine.model;
+package com.guessmarket.dto;
 
-public enum CommissionType implements java.io.Serializable {
+/** When an event's commission is charged. */
+public enum CommissionType {
     ON_PURCHASE,
     ON_CLOSE;
 

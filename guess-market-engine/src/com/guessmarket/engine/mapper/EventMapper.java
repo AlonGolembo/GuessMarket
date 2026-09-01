@@ -28,10 +28,10 @@ public final class EventMapper {
                 event.getName(),
                 event.getDescription(),
                 event.getCommissionPercentage(),
-                event.getCommissionType().toXmlString(),
+                event.getCommissionType(),
                 optionNames,
-                event.getTradingMethod().type().name(),
-                event.getStatus().name()
+                event.getTradingMethod().type(),
+                event.getStatus()
         );
     }
 

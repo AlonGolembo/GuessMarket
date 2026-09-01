@@ -2,6 +2,7 @@ package com.guessmarket.ui.controllers;
 
 import com.guessmarket.dto.EventDTO;
 import com.guessmarket.dto.EventDetailsDTO;
+import com.guessmarket.dto.EventStatus;
 import com.guessmarket.dto.TradeHistoryDTO;
 import com.guessmarket.dto.TradeQuoteDTO;
 import com.guessmarket.dto.UserDTO;
@@ -179,7 +180,7 @@ public class UsersController implements MarketDataChangeListener {
         eventMethodLabel.textProperty().bind(
                 selectedEventDetails
                         .map(EventDetailsDTO::eventInfo)
-                        .map(EventDTO::tradingMethod)
+                        .map(e -> e.tradingMethod().name())
                         .orElse("-")
         );
 
@@ -200,7 +201,7 @@ public class UsersController implements MarketDataChangeListener {
         eventStatusOrWinningOption.textProperty().bind(
                 selectedEventDetails
                         .map(EventDetailsDTO::eventInfo)
-                        .map(EventDTO::status)
+                        .map(e -> e.status().name())
         );
 
         eventDescriptionLabel.textProperty().bind(
@@ -267,8 +268,8 @@ public class UsersController implements MarketDataChangeListener {
                                 return true;
                             }
 
-                            // 3. Event is already "ACTIVE" (or not in a pending state) -> Disabled
-                            if ("ACTIVE".equalsIgnoreCase(selectedEvent.status())) {
+                            // 3. Only a not-yet-open event can be activated
+                            if (selectedEvent.status() != EventStatus.NOT_ACTIVE) {
                                 return true;
                             }
 
@@ -319,9 +320,8 @@ public class UsersController implements MarketDataChangeListener {
                         return "";
                     }
                     return switch (details.eventInfo().commissionType()) {
-                        case "on-close" -> "(Pay later)";
-                        case "on-purchase" -> "(Pay now)";
-                        default -> "";
+                        case ON_CLOSE -> "(Pay later)";
+                        case ON_PURCHASE -> "(Pay now)";
                     };
                 }, selectedEventDetails)
         );

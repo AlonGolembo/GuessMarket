@@ -89,13 +89,13 @@ public class EventsController implements MarketDataChangeListener {
                 new SimpleStringProperty(cellData.getValue().name()));
 
         eventStatusCol.setCellValueFactory(cellData ->
-                new SimpleStringProperty(cellData.getValue().status()));
+                new SimpleStringProperty(cellData.getValue().status().name()));
 
         eventMethodCol.setCellValueFactory(cellData ->
-                new SimpleStringProperty(cellData.getValue().tradingMethod()));
+                new SimpleStringProperty(cellData.getValue().tradingMethod().name()));
 
         commissionMethodCol.setCellValueFactory(cellData ->
-                new SimpleStringProperty(cellData.getValue().commissionType()));
+                new SimpleStringProperty(cellData.getValue().commissionType().name()));
     }
 
     /**

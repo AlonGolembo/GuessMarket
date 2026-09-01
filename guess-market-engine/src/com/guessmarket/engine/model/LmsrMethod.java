@@ -1,5 +1,6 @@
 package com.guessmarket.engine.model;
 
+import com.guessmarket.dto.TradingMethodType;
 import com.guessmarket.engine.exception.XmlValidationException;
 import com.guessmarket.engine.lmsr.LmsrCalculator;
 

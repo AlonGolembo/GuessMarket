@@ -1,5 +1,7 @@
 package com.guessmarket.engine.model;
 
+import com.guessmarket.dto.CommissionType;
+import com.guessmarket.dto.EventStatus;
 import com.guessmarket.engine.exception.MarketException;
 
 import java.io.Serializable;

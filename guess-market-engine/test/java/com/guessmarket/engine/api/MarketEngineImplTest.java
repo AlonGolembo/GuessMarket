@@ -1,6 +1,7 @@
 package com.guessmarket.engine.api;
 
 import com.guessmarket.dto.EventDTO;
+import com.guessmarket.dto.EventStatus;
 import com.guessmarket.dto.TradeQuoteDTO;
 import com.guessmarket.dto.TradeResultDTO;
 import com.guessmarket.dto.UserDTO;
@@ -61,7 +62,7 @@ class MarketEngineImplTest {
     @Test
     void loadExposesEventsAndUsers() {
         assertEquals(1, engine.getNumOfLoadedEvents());
-        assertEquals("NOT_ACTIVE", event().status());
+        assertEquals(EventStatus.NOT_ACTIVE, event().status());
         assertTrue(engine.getAllUsers().keySet().containsAll(java.util.Set.of("mm", "trader")));
     }
 
@@ -112,7 +113,7 @@ class MarketEngineImplTest {
         engine.closeEvent(1, 1);
 
         assertEquals("Heads", engine.getEventDetails(1).winningOption());
-        assertEquals("CLOSED", engine.getEventDetails(1).eventInfo().status());
+        assertEquals(EventStatus.CLOSED, engine.getEventDetails(1).eventInfo().status());
         assertEquals(afterBuy + 20.0, user("trader").balance(), 1e-9);   // on-purchase: full $1/share
     }
 }

@@ -1,7 +1,7 @@
 package com.guessmarket.engine.xml;
 
+import com.guessmarket.dto.CommissionType;
 import com.guessmarket.engine.exception.XmlValidationException;
-import com.guessmarket.engine.model.CommissionType;
 import com.guessmarket.engine.model.Event;
 import com.guessmarket.engine.model.LmsrMethod;
 import com.guessmarket.engine.model.Option;

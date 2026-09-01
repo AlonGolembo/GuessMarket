@@ -1,6 +1,6 @@
 package com.guessmarket.engine.xml.jaxb;
 
-import com.guessmarket.engine.model.TradingMethodType;
+import com.guessmarket.dto.TradingMethodType;
 import jakarta.xml.bind.annotation.XmlAccessType;
 import jakarta.xml.bind.annotation.XmlAccessorType;
 import jakarta.xml.bind.annotation.XmlElement;

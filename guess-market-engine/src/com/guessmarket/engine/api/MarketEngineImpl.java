@@ -2,6 +2,7 @@ package com.guessmarket.engine.api;
 
 import com.guessmarket.dto.EventDTO;
 import com.guessmarket.dto.EventDetailsDTO;
+import com.guessmarket.dto.EventStatus;
 import com.guessmarket.dto.TradeQuoteDTO;
 import com.guessmarket.dto.TradeResultDTO;
 import com.guessmarket.dto.UserDTO;
@@ -84,7 +85,7 @@ public class MarketEngineImpl implements MarketEngine {
     @Override
     public List<EventDTO> getActiveEvents() throws MarketException {
         return getAllEvents().stream()
-                .filter(e -> "ACTIVE".equalsIgnoreCase(e.status()))
+                .filter(e -> e.status() == EventStatus.ACTIVE)
                 .toList();
     }
 

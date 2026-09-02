@@ -7,7 +7,7 @@ public final class OrderBookMethod implements  ITradingMethod{
     }
 
     // FIXME: Need to implement
-    public double getInitialSubsidy() {
-        return 0;
+    public Double getInitialSubsidy() {
+        return Double.NaN;
     }
 }

@@ -13,9 +13,10 @@ import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
+import javafx.scene.layout.VBox;
 import javafx.util.StringConverter;
 
-import java.util.List;
+import java.util.Objects;
 
 /**
  * Controller for the Users Tab, managing the list of all users,
@@ -29,7 +30,7 @@ public class UsersController implements MarketDataChangeListener {
     // =========================================================================
     @FXML private TableView<UserDTO> usersTableView;
     @FXML private TableColumn<UserDTO, String> userNameCol;
-    @FXML private TableColumn<UserDTO, Double> userBalanceCol;
+    @FXML private TableColumn<UserDTO, String> userBalanceCol;
 
     // =========================================================================
     // FXML UI Controls - Single User Details & Sub-Table
@@ -43,16 +44,20 @@ public class UsersController implements MarketDataChangeListener {
     // =========================================================================
     // FXML UI Controls - Event Trading Section
     // =========================================================================
-    @FXML private ComboBox<EventDTO> activeEventsComboBox;
+    @FXML private ComboBox<EventDTO> eventsComboBox;
     @FXML private Label eventMethodLabel;
     @FXML private Label eventBalanceLabel;
     @FXML private Label eventCommissionLabel;
-    @FXML private Label eventWinningOptionLabel;
+    @FXML private Label eventStatusOrWinningOption;
     @FXML private Label eventDescriptionLabel;
     @FXML private ComboBox<String> tradeOptionComboBox;
     @FXML private Label optionPriceLabel;
     @FXML private Spinner<Integer> sharesCountSpinner;
-    @FXML private Button executeTradeButton;
+    @FXML private VBox buySharesSection;
+    @FXML private Label totalSharesPrice;
+    @FXML private Button activateEventButton;
+    @FXML private Label commissionToPayLabel;
+    @FXML private Label payNowOrLaterLabel;
 
     // =========================================================================
     // FXML UI Controls - Purchase History table
@@ -82,6 +87,7 @@ public class UsersController implements MarketDataChangeListener {
     private final DoubleProperty userBalance = new SimpleDoubleProperty(0.0);
     private final ObjectProperty<EventDetailsDTO> selectedEventDetails = new SimpleObjectProperty<>();
     private final IntegerProperty selectedSharesProperty = new SimpleIntegerProperty(1);
+    private final DoubleProperty totalPriceToPay = new SimpleDoubleProperty(0.0);
 
     // =========================================================================
     // Lifecycle & Initialization
@@ -102,7 +108,7 @@ public class UsersController implements MarketDataChangeListener {
      */
     private void bindCollectionsToControls() {
         usersTableView.setItems(usersList);
-        activeEventsComboBox.setItems(activeEventsList);
+        eventsComboBox.setItems(eventsList);
         userEventsTableView.setItems(participatingEventsList);
         tradeOptionComboBox.setItems(availableOptionsList);
     }
@@ -111,7 +117,7 @@ public class UsersController implements MarketDataChangeListener {
      * Configures display converters for UI controls (renders Event names in ComboBox).
      */
     private void setupComboBoxConverters() {
-        activeEventsComboBox.setConverter(new StringConverter<>() {
+        eventsComboBox.setConverter(new StringConverter<>() {
             @Override
             public String toString(EventDTO event) {
                 return event != null ? event.name() : "";
@@ -131,8 +137,10 @@ public class UsersController implements MarketDataChangeListener {
         userNameCol.setCellValueFactory(cellData ->
                 new SimpleStringProperty(cellData.getValue().name()));
 
-        userBalanceCol.setCellValueFactory(cellData ->
-                new SimpleObjectProperty<>(cellData.getValue().initialCash()));
+        userBalanceCol.setCellValueFactory(cellData ->{
+            Double balance = cellData.getValue().initialCash();
+            return new SimpleStringProperty(String.format("$%.2f", balance));
+        });
     }
 
     /**
@@ -167,7 +175,7 @@ public class UsersController implements MarketDataChangeListener {
         );
 
         // Fetch detailed DTO when an active event is selected in the ComboBox
-        activeEventsComboBox.getSelectionModel().selectedItemProperty().addListener(
+        eventsComboBox.getSelectionModel().selectedItemProperty().addListener(
                 (obs, oldEvent, newEvent) -> handleActiveEventSelected(newEvent)
         );
 
@@ -193,9 +201,10 @@ public class UsersController implements MarketDataChangeListener {
                         .orElse("$0.00")
         );
 
-        eventWinningOptionLabel.textProperty().bind(
+        eventStatusOrWinningOption.textProperty().bind(
                 selectedEventDetails
-                        .map(EventDetailsDTO::winningOption)
+                        .map(EventDetailsDTO::eventInfo)
+                        .map(EventDTO::status)
         );
 
         eventDescriptionLabel.textProperty().bind(
@@ -220,6 +229,60 @@ public class UsersController implements MarketDataChangeListener {
             }
         });
 
+        // Disable buySharesContainer if:
+        // 1. No user is selected
+        // 2. No active event is selected
+        // 3. The selected user is the Market Maker (MM) for the selected event
+        buySharesSection.disableProperty().bind(
+                Bindings.createBooleanBinding(() -> {
+                            UserDTO selectedUser = usersTableView.getSelectionModel().getSelectedItem();
+                            EventDTO selectedEvent = eventsComboBox.getValue();
+
+                            // Must have both a selected user and a selected event
+                            if (selectedUser == null || selectedEvent == null) {
+                                return true;
+                            }
+
+                            // Check if user is the Market Maker for this event
+                            if (selectedUser.eventsIdUserIsMM() != null) {
+                                return selectedUser.eventsIdUserIsMM().contains(selectedEvent.id());
+                            }
+
+                            return false;
+                        },
+                        usersTableView.getSelectionModel().selectedItemProperty(),
+                        eventsComboBox.valueProperty())
+        );
+
+        activateEventButton.disableProperty().bind(
+                Bindings.createBooleanBinding(() -> {
+                            UserDTO selectedUser = usersTableView.getSelectionModel().getSelectedItem();
+                            EventDTO selectedEvent = eventsComboBox.getValue();
+
+                            // 1. Missing selections -> Disabled
+                            if (selectedUser == null || selectedEvent == null) {
+                                return true;
+                            }
+
+                            // 2. User is NOT the Market Maker for this event -> Disabled
+                            boolean isMM = selectedUser.eventsIdUserIsMM() != null
+                                    && selectedUser.eventsIdUserIsMM().contains(selectedEvent.id());
+                            if (!isMM) {
+                                return true;
+                            }
+
+                            // 3. Event is already "ACTIVE" (or not in a pending state) -> Disabled
+                            if ("ACTIVE".equalsIgnoreCase(selectedEvent.status())) {
+                                return true;
+                            }
+
+                            // Otherwise (User is MM AND event is PENDING) -> Enabled (not disabled)
+                            return false;
+                        },
+                        usersTableView.getSelectionModel().selectedItemProperty(),
+                        eventsComboBox.valueProperty())
+        );
+
         optionPriceLabel.textProperty().bind(
                 Bindings.createStringBinding(() -> {
                     EventDetailsDTO details = selectedEventDetails.get();
@@ -235,10 +298,54 @@ public class UsersController implements MarketDataChangeListener {
                 }, selectedEventDetails, tradeOptionComboBox.valueProperty())
         );
 
-        executeTradeButton.disableProperty().bind(
-                usersTableView.getSelectionModel().selectedItemProperty().isNull()
-                        .or(activeEventsComboBox.getSelectionModel().selectedItemProperty().isNull())
-                        .or(tradeOptionComboBox.getSelectionModel().selectedItemProperty().isNull())
+        totalSharesPrice.textProperty().bind(
+                Bindings.createStringBinding(() -> {
+                    EventDetailsDTO details = selectedEventDetails.get();
+                    String selectedOption = tradeOptionComboBox.getValue();
+                    Double totalPriceToPay = details.currentOptionPrices().get(selectedOption) * selectedSharesProperty.getValue();
+                    if(Objects.equals(details.eventInfo().commissionType(), "on-purchase")){
+                        totalPriceToPay += (totalPriceToPay * details.eventInfo().commissionPercentage()) / 100;
+                    }
+
+                    if (details != null && selectedOption != null && details.currentOptionPrices() != null) {
+                        Double price = details.currentOptionPrices().get(selectedOption);
+                        if (price != null) {
+                            return String.format("$%.2f", totalPriceToPay);
+                        }
+                    }
+                    return "$0.00";
+                }, selectedEventDetails, tradeOptionComboBox.valueProperty(), selectedSharesProperty)
+        );
+
+        commissionToPayLabel.textProperty().bind(
+                Bindings.createStringBinding(()-> {
+                    EventDetailsDTO details = selectedEventDetails.get();
+                    String selectedOption = tradeOptionComboBox.getValue();
+                    Double totalPriceToPay = details.currentOptionPrices().get(selectedOption) * selectedSharesProperty.getValue();
+                    Double commission = (totalPriceToPay * details.eventInfo().commissionPercentage()) / 100;
+
+                    if (details != null && selectedOption != null && details.currentOptionPrices() != null) {
+                        Double price = details.currentOptionPrices().get(selectedOption);
+                        if (price != null) {
+                            return String.format("$%.2f", commission);
+                        }
+                    }
+                    return "$0.00";
+                }, selectedEventDetails, tradeOptionComboBox.valueProperty(), selectedSharesProperty)
+        );
+
+        payNowOrLaterLabel.textProperty().bind(
+                Bindings.createStringBinding(() -> {
+                    EventDetailsDTO details = selectedEventDetails.get();
+                    String whenToPay = "";
+                    if(Objects.equals(details.eventInfo().commissionType(), "on-close")){
+                        whenToPay = "(Pay later)";
+                    }
+                    else if(Objects.equals(details.eventInfo().commissionType(), "on-purchase")) {
+                        whenToPay = "(Pay now)";
+                    }
+                    return whenToPay;
+                }, selectedEventDetails)
         );
 
         selectedEventDetails.addListener((obs, oldDetails, newDetails) -> {
@@ -274,17 +381,11 @@ public class UsersController implements MarketDataChangeListener {
         // Ensure UI updates always run safely on the JavaFX Application Thread
         Platform.runLater(() -> {
             UserDTO currentSelectedUser = usersTableView.getSelectionModel().getSelectedItem();
-            EventDTO currentSelectedEvent = activeEventsComboBox.getValue();
+            EventDTO currentSelectedEvent = eventsComboBox.getValue();
 
             // Refresh master lists from engine
             usersList.setAll(marketEngine.getAllUsers().values());
             eventsList.setAll(marketEngine.getAllEvents());
-
-            // Filter and populate only active events for trading
-            List<EventDTO> activeList = eventsList.stream()
-                    .filter(EventDTO::isActive)
-                    .toList();
-            activeEventsList.setAll(activeList);
 
             // Restore user selection if still present in the updated list
             if (currentSelectedUser != null) {
@@ -308,8 +409,8 @@ public class UsersController implements MarketDataChangeListener {
                         .filter(e -> e.id() == currentSelectedEvent.id())
                         .findFirst()
                         .ifPresentOrElse(
-                                e -> activeEventsComboBox.setValue(e),
-                                () -> activeEventsComboBox.setValue(null)
+                                e -> eventsComboBox.setValue(e),
+                                () -> eventsComboBox.setValue(null)
                         );
             }
         });
@@ -416,7 +517,7 @@ public class UsersController implements MarketDataChangeListener {
         commitEditorText();
 
         UserDTO selectedUser = usersTableView.getSelectionModel().getSelectedItem();
-        EventDTO selectedEvent = activeEventsComboBox.getValue();
+        EventDTO selectedEvent = eventsComboBox.getValue();
         int selectedOption = tradeOptionComboBox.getSelectionModel().getSelectedIndex() + 1;
         int shares = selectedSharesProperty.get();
 
@@ -486,5 +587,19 @@ public class UsersController implements MarketDataChangeListener {
             Double price = cellData.getValue().pricePaid();
             return new SimpleStringProperty(String.format("$%.2f", price));
         });
+    }
+
+    @FXML
+    private void handleActivateEvent(){
+        UserDTO selectedUser = usersTableView.getSelectionModel().getSelectedItem();
+        EventDTO selectedEvent = eventsComboBox.getValue();
+
+        // Verify selectedUser is selectedEvent MM
+        if(!selectedUser.eventsIdUserIsMM().contains(selectedEvent.id())){
+            // FIXME: Handle case that user isn't MM of the event
+        }
+
+        this.marketEngine.activateEvent(selectedEvent, selectedUser);
+        onMarketDataChanged();
     }
 }

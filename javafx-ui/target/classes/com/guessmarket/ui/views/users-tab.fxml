@@ -120,7 +120,7 @@
                                         <Font name="System Bold" size="13.0" />
                                     </font>
                                 </Label>
-                                <ComboBox fx:id="activeEventsComboBox" prefWidth="280.0" promptText="Choose an active event..." />
+                                <ComboBox fx:id="eventsComboBox" prefWidth="280.0" promptText="Choose an active event..." />
                             </children>
                         </HBox>
 
@@ -162,10 +162,11 @@
                                         </HBox>
                                         <HBox spacing="6.0">
                                             <Label text="Status / Winner:" textFill="#666666" />
-                                            <Label fx:id="eventWinningOptionLabel" text="ACTIVE" textFill="#1976d2" />
+                                            <Label fx:id="eventStatusOrWinningOption" text="ACTIVE" textFill="#1976d2" />
                                         </HBox>
                                         <Label text="Description:" textFill="#666666" />
                                         <Label fx:id="eventDescriptionLabel" text="-" wrapText="true" VBox.vgrow="ALWAYS" />
+                              <Button fx:id="activateEventButton" mnemonicParsing="false" onAction="#handleActivateEvent" text="Activate Event" />
                                     </children>
                                 </VBox>
 
@@ -200,7 +201,7 @@
                                     </font>
                                 </Label>
                                 <!-- Column 3 Content: Action Box -->
-                                <VBox spacing="12.0" style="-fx-border-color: #dcdcdc; -fx-border-radius: 4; -fx-padding: 12;" GridPane.columnIndex="2" GridPane.rowIndex="1">
+                                <VBox fx:id="buySharesSection" spacing="12.0" style="-fx-border-color: #dcdcdc; -fx-border-radius: 4; -fx-padding: 12;" GridPane.columnIndex="2" GridPane.rowIndex="1">
                                     <children>
                                         <VBox spacing="4.0">
                                             <children>
@@ -230,6 +231,21 @@
                                                 <Spinner fx:id="sharesCountSpinner" editable="true" maxWidth="1.7976931348623157E308" />
                                             </children>
                                         </VBox>
+                              <HBox alignment="CENTER_LEFT" spacing="8.0">
+                                 <children>
+                                    <Label text="Commission:">
+                                       <font>
+                                          <Font name="System Bold" size="12.0" />
+                                       </font>
+                                    </Label>
+                                    <Label fx:id="commissionToPayLabel" text="\$0.00">
+                                       <font>
+                                          <Font name="System Bold" size="12.0" />
+                                       </font>
+                                    </Label>
+                                    <Label fx:id="payNowOrLaterLabel" text="(Pay now)" />
+                                 </children>
+                              </HBox>
 
                                         <HBox alignment="CENTER_LEFT" spacing="8.0">
                                             <children>

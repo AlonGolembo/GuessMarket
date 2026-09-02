@@ -2,6 +2,7 @@ package com.guessmarket.engine.api;
 
 import com.guessmarket.dto.EventDTO;
 import com.guessmarket.dto.EventStatus;
+import com.guessmarket.dto.HoldingDTO;
 import com.guessmarket.dto.TradeQuoteDTO;
 import com.guessmarket.dto.TradeResultDTO;
 import com.guessmarket.dto.UserDTO;
@@ -13,6 +14,7 @@ import org.junit.jupiter.api.io.TempDir;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -87,7 +89,23 @@ class MarketEngineImplTest {
     }
 
     @Test
-    void stateRoundTripRestoresEventsUsersAndBalances() throws MarketException {
+    void holdingsAreExposedPerUserAndPerEvent() {
+        engine.activateEvent(event(), user("mm"));
+        engine.buyShares(user("trader"), event(), 1, 20);   // 20 Heads
+        engine.buyShares(user("trader"), event(), 2, 5);    // 5 Tails
+
+        // per user
+        assertEquals(Map.of("Heads", 20, "Tails", 5),
+                engine.getAllUsers().get("trader").holdings().get(1));
+
+        // per event
+        assertEquals(
+                java.util.Set.of(new HoldingDTO("trader", "Heads", 20), new HoldingDTO("trader", "Tails", 5)),
+                java.util.Set.copyOf(engine.getEventDetails(1).participantHoldings()));
+    }
+
+    @Test
+    void stateRoundTripRestoresEventsUsersBalancesAndHoldings() throws MarketException {
         engine.activateEvent(event(), user("mm"));
         engine.buyShares(user("trader"), event(), 1, 20);
         double traderBalance = user("trader").balance();
@@ -102,6 +120,8 @@ class MarketEngineImplTest {
         assertEquals(java.util.Set.of("mm", "trader"), restored.getAllUsers().keySet());
         assertEquals(traderBalance, restored.getAllUsers().get("trader").balance(), 1e-9);
         assertEquals(1, restored.getEventDetails(1).tradeHistory().size());
+        assertEquals(Map.of("Heads", 20, "Tails", 0),
+                restored.getAllUsers().get("trader").holdings().get(1));
     }
 
     @Test

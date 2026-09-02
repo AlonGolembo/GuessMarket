@@ -2,11 +2,13 @@ package com.guessmarket.engine.mapper;
 
 import com.guessmarket.dto.EventDTO;
 import com.guessmarket.dto.EventDetailsDTO;
+import com.guessmarket.dto.HoldingDTO;
 import com.guessmarket.dto.TradeHistoryDTO;
 import com.guessmarket.engine.model.Event;
 import com.guessmarket.engine.model.Option;
 import com.guessmarket.engine.model.TradeRecord;
 import com.guessmarket.engine.model.TradingMethod;
+import com.guessmarket.engine.model.User;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -62,8 +64,23 @@ public final class EventMapper {
                 event.getEventAccountBalance(),
                 event.getTotalCommissionCollected(),
                 tradeHistory,
+                participantHoldings(event, options),
                 winningOptionName
         );
+    }
+
+    /** One {@link HoldingDTO} per (participant, option) the participant actually holds. */
+    private static List<HoldingDTO> participantHoldings(Event event, List<Option> options) {
+        List<HoldingDTO> holdings = new ArrayList<>();
+        for (User participant : event.getParticipants().values()) {
+            int[] held = event.holdingsOf(participant.getName());
+            for (int i = 0; i < options.size(); i++) {
+                if (held[i] > 0) {
+                    holdings.add(new HoldingDTO(participant.getName(), options.get(i).getName(), held[i]));
+                }
+            }
+        }
+        return holdings;
     }
 
     /**

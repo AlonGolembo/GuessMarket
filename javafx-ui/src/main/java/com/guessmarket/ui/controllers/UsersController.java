@@ -18,6 +18,8 @@ import javafx.scene.control.*;
 import javafx.scene.layout.VBox;
 import javafx.util.StringConverter;
 
+import java.util.Map;
+
 /**
  * Controller for the Users Tab, managing the list of all users,
  * displaying individual user details/balances, showing participating events,
@@ -156,6 +158,12 @@ public class UsersController implements MarketDataChangeListener {
                 return new SimpleStringProperty(isMarketMaker ? "Market Maker" : "Participant");
             }
             return new SimpleStringProperty("Participant");
+        });
+
+        userEventSharesCol.setCellValueFactory(cellData -> {
+            UserDTO selectedUser = usersTableView.getSelectionModel().getSelectedItem();
+            int shares = selectedUser == null ? 0 : totalSharesHeld(selectedUser, cellData.getValue().id());
+            return new SimpleObjectProperty<>(shares);
         });
     }
 
@@ -370,14 +378,23 @@ public class UsersController implements MarketDataChangeListener {
         }
         userBalance.set(selectedUser.balance());
 
-        java.util.Set<Integer> ids = selectedUser.participatingEventIds();
-        if (ids == null || ids.isEmpty() || marketEngine == null) {
+        java.util.Set<Integer> ids = selectedUser.holdings().keySet();
+        if (ids.isEmpty() || marketEngine == null) {
             participatingEventsList.clear();
         } else {
             participatingEventsList.setAll(marketEngine.getAllEvents().stream()
                     .filter(e -> ids.contains(e.id()))
                     .toList());
         }
+    }
+
+    /** Total shares the given user holds in the given event, across all options. */
+    private static int totalSharesHeld(UserDTO user, int eventId) {
+        Map<String, Integer> byOption = user.holdings().get(eventId);
+        if (byOption == null) {
+            return 0;
+        }
+        return byOption.values().stream().mapToInt(Integer::intValue).sum();
     }
 
     /**

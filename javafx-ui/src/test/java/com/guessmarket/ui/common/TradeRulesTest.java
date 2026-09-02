@@ -8,6 +8,7 @@ import com.guessmarket.dto.UserDTO;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -22,7 +23,7 @@ class TradeRulesTest {
     }
 
     private static UserDTO user(Set<Integer> mmEvents) {
-        return new UserDTO("u", 100.0, mmEvents, Set.of());
+        return new UserDTO("u", 100.0, mmEvents, Map.of());
     }
 
     @Test

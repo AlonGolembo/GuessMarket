@@ -9,6 +9,7 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 import java.util.Set;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -75,6 +76,21 @@ class EventTest {
         assertEquals(50, e.getOptions().get(0).getSharesOutstanding());
         assertEquals(1, e.getTradeHistory().size());
         assertEquals("t", e.getTradeHistory().get(0).getBuyerName());
+        assertArrayEquals(new int[]{50, 0}, e.holdingsOf("t"));   // 50 of option 0, none of option 1
+    }
+
+    @Test
+    void holdingsAccumulateAcrossOptionsAndTrades() {
+        Event e = event(CommissionType.ON_PURCHASE, 0);
+        e.open(user("mm", 10_000, Set.of(1)));
+        User trader = user("t", 10_000, Set.of());
+
+        e.buy(trader, 0, 10);
+        e.buy(trader, 0, 5);
+        e.buy(trader, 1, 7);
+
+        assertArrayEquals(new int[]{15, 7}, e.holdingsOf("t"));
+        assertArrayEquals(new int[]{0, 0}, e.holdingsOf("someone-who-never-traded"));
     }
 
     @Test

@@ -1,53 +1,88 @@
 package com.guessmarket.engine.model;
 
-import java.util.*;
+import java.io.Serializable;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
 
-public class User {
-    private String name;
-    private Double accountBalance;
-    private Set<Integer> eventsIdUserIsMM;
-    private Map<Integer, Event> participatingEvents;
+/**
+ * A market participant. A user has a stable {@code name} (their identity), an
+ * {@link Account} holding their cash, and a set of events for which they act as
+ * the market maker.
+ *
+ * <p>Cash only moves through {@link #debit(double)} / {@link #credit(double)},
+ * which delegate to the {@link Account}; there is no balance setter. Two users
+ * are equal when their names are equal.
+ */
+public class User implements Serializable {
 
-    public User(String name, Double accountBalance, Set<Integer> eventsId){
-        this.name = name;
-        this.accountBalance = accountBalance;
-        this.eventsIdUserIsMM = eventsId;
-        this.participatingEvents = new HashMap<>();
+    private final String name;
+    private final Account account;
+    private final Set<Integer> marketMakerEventIds;
+
+    /** Events this user currently participates in, keyed by event id. Populated as trades happen. */
+    private final Map<Integer, Event> participatingEvents = new HashMap<>();
+
+    public User(String name, double initialBalance, Set<Integer> marketMakerEventIds) {
+        this.name = Objects.requireNonNull(name, "name");
+        this.account = new Account(initialBalance);
+        this.marketMakerEventIds = marketMakerEventIds == null ? Set.of() : Set.copyOf(marketMakerEventIds);
     }
 
     public String getName() {
         return name;
     }
 
-    public Double getAccountBalance() {
-        return accountBalance;
+    /** The user's cash account. Mutate it with {@link #debit}/{@link #credit}. */
+    public Account getAccount() {
+        return account;
     }
 
-    public Set<Integer> getEventsIdUserIsMM() {
-        return eventsIdUserIsMM;
+    /** Convenience read-through to {@link Account#balance()}. */
+    public double getAccountBalance() {
+        return account.balance();
+    }
+
+    public void debit(double amount) {
+        account.debit(amount);
+    }
+
+    public void credit(double amount) {
+        account.credit(amount);
+    }
+
+    /** Ids of the events this user is the market maker for (unmodifiable). */
+    public Set<Integer> getMarketMakerEventIds() {
+        return marketMakerEventIds;
+    }
+
+    public boolean isMarketMakerFor(int eventId) {
+        return marketMakerEventIds.contains(eventId);
     }
 
     public Map<Integer, Event> getParticipatingEvents() {
         return participatingEvents;
     }
 
-    public void addParticipatingEvent(Event participatingEvent){
-        participatingEvents.put(participatingEvent.getId(), participatingEvent);
+    public void addParticipatingEvent(Event event) {
+        participatingEvents.put(event.getId(), event);
     }
 
     @Override
     public boolean equals(Object o) {
+        if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
-        User user = (User) o;
-        return accountBalance == user.accountBalance && Objects.equals(name, user.name) && Objects.equals(eventsIdUserIsMM, user.eventsIdUserIsMM);
+        return name.equals(((User) o).name);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(name, accountBalance, eventsIdUserIsMM);
+        return name.hashCode();
     }
 
-    public void setBalance(double v) {
-        this.accountBalance = v;
+    @Override
+    public String toString() {
+        return "User[" + name + ", " + account + "]";
     }
 }

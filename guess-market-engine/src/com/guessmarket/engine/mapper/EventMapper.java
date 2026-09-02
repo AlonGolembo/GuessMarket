@@ -2,26 +2,27 @@ package com.guessmarket.engine.mapper;
 
 import com.guessmarket.dto.EventDTO;
 import com.guessmarket.dto.EventDetailsDTO;
+import com.guessmarket.dto.HoldingDTO;
 import com.guessmarket.dto.TradeHistoryDTO;
-import com.guessmarket.dto.UserDTO;
-import com.guessmarket.engine.lmsr.LmsrCalculator;
-import com.guessmarket.engine.model.*;
+import com.guessmarket.engine.model.Event;
+import com.guessmarket.engine.model.Option;
+import com.guessmarket.engine.model.TradeRecord;
+import com.guessmarket.engine.model.TradingMethod;
+import com.guessmarket.engine.model.User;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+/** Converts a domain {@link Event} to its DTOs. One direction only. */
+public final class EventMapper {
 
-public class EventMapper {
+    private EventMapper() {}
 
     public static EventDTO toEventDTO(Event event) {
         List<String> optionNames = event.getOptions().stream()
                 .map(Option::getName)
-                .toList();
-        List<UserDTO> users = event.getUsers()
-                .values().stream()
-                .map(UserMapper::toUserDTO)
                 .toList();
 
         return new EventDTO(
@@ -29,66 +30,74 @@ public class EventMapper {
                 event.getName(),
                 event.getDescription(),
                 event.getCommissionPercentage(),
-                event.getCommissionType().toXmlString(),
+                event.getCommissionType(),
                 optionNames,
-                event.getTradingMethod().getType().toString(),
-                event.getStatus(),
-                users
+                event.getTradingMethod().type(),
+                event.getStatus()
         );
     }
 
     public static EventDetailsDTO toEventDetailsDTO(Event event) {
         EventDTO baseInfo = toEventDTO(event);
-
-        // Extract shares bought per option
-        Map<String, Integer> sharesBoughtMap = new LinkedHashMap<>();
-        for (Option option : event.getOptions()) {
-            sharesBoughtMap.put(option.getName(), option.getSharesBought());
-        }
-
-        // Calculate current LMSR probability prices per option
-        Map<String, Double> pricesMap = new LinkedHashMap<>();
         List<Option> options = event.getOptions();
 
-        if (options.size() >= 2) {
-            int qYes = options.get(0).getSharesBought();
-            int qNo = options.get(1).getSharesBought();
-
-            // HACK: Temporary use this switch case to continue only with LMSR method
-            // FIXME: Refactor when implement Order-Book method
-            int b = switch (event.getTradingMethod()) {
-                case LmsrMethod lmsr -> lmsr.getB();
-                case OrderBookMethod ob -> 0; // Order books don't have b
-            };
-
-            double pYes = LmsrCalculator.calculateOptionPrice(qYes, qNo, b);
-            double pNo = LmsrCalculator.calculateOptionPrice(qNo, qYes, b);
-
-            pricesMap.put(options.get(0).getName(), pYes);
-            pricesMap.put(options.get(1).getName(), pNo);
+        Map<String, Integer> sharesOutstanding = new LinkedHashMap<>();
+        for (Option option : options) {
+            sharesOutstanding.put(option.getName(), option.getSharesOutstanding());
         }
 
-         // Map trade history records
+        Map<String, Double> prices = currentPrices(event.getTradingMethod(), options);
+
         List<TradeHistoryDTO> tradeHistory = new ArrayList<>();
-        if (event.getTradeHistory() != null) {
-            for (TradeRecord record : event.getTradeHistory()) {
-                tradeHistory.add(TradeMapper.toTradeHistoryDTO(record));
-            }
+        for (TradeRecord record : event.getTradeHistory()) {
+            tradeHistory.add(TradeMapper.toTradeHistoryDTO(record));
         }
 
-        // Winning option name (if event is closed)
-        String winningOptionName = (event.getWinningOption() != null)
+        String winningOptionName = event.getWinningOption() != null
                 ? event.getWinningOption().getName()
                 : null;
 
         return new EventDetailsDTO(
                 baseInfo,
-                pricesMap,
-                sharesBoughtMap,
+                prices,
+                sharesOutstanding,
                 event.getEventAccountBalance(),
                 event.getTotalCommissionCollected(),
                 tradeHistory,
+                participantHoldings(event, options),
                 winningOptionName
         );
+    }
+
+    /** One {@link HoldingDTO} per (participant, option) the participant actually holds. */
+    private static List<HoldingDTO> participantHoldings(Event event, List<Option> options) {
+        List<HoldingDTO> holdings = new ArrayList<>();
+        for (User participant : event.getParticipants().values()) {
+            int[] held = event.holdingsOf(participant.getName());
+            for (int i = 0; i < options.size(); i++) {
+                if (held[i] > 0) {
+                    holdings.add(new HoldingDTO(participant.getName(), options.get(i).getName(), held[i]));
+                }
+            }
+        }
+        return holdings;
+    }
+
+    /**
+     * Current price per option, from the trading method. Empty if the method
+     * cannot price yet (e.g. Order Book), so the caller can render "-".
+     */
+    private static Map<String, Double> currentPrices(TradingMethod method, List<Option> options) {
+        Map<String, Double> prices = new LinkedHashMap<>();
+        if (options.size() != 2) {
+            return prices;
+        }
+        try {
+            prices.put(options.get(0).getName(), method.priceOf(0, options));
+            prices.put(options.get(1).getName(), method.priceOf(1, options));
+        } catch (UnsupportedOperationException pricingNotImplemented) {
+            prices.clear();
+        }
+        return prices;
     }
 }

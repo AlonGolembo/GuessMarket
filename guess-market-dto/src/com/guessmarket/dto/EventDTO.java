@@ -1,15 +1,15 @@
 package com.guessmarket.dto;
 
 import java.util.List;
-import java.util.Map;
 
+/** Summary snapshot of an event. */
 public record EventDTO(
         int id,
         String name,
         String description,
         int commissionPercentage,
-        String commissionType,
+        CommissionType commissionType,
         List<String> options,
-        String tradingMethod,
-        String status,
-        List<UserDTO> users) {}
+        TradingMethodType tradingMethod,
+        EventStatus status
+) {}

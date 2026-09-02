@@ -20,6 +20,8 @@ import javafx.scene.image.ImageView;
 import javafx.scene.layout.HBox;
 import javafx.stage.FileChooser;
 import javafx.util.Duration;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.io.File;
 import java.io.InputStream;
@@ -29,6 +31,8 @@ import java.io.InputStream;
  * and injecting the single MarketEngine instance into child tab controllers.
  */
 public class MainController {
+
+    private static final Logger LOG = LogManager.getLogger(MainController.class);
 
     // =========================================================================
     // FXML UI Controls
@@ -165,6 +169,7 @@ public class MainController {
         Task<Void> task = new Task<>() {
             @Override
             protected Void call() throws Exception {
+                LOG.info("User requested XML load: {}", path);
                 updateProgress(0.2, 1.0);
                 // Engine handles XML unmarshalling, validation, and fires onMarketDataChanged() to listeners
                 engine.loadXmlFile(path);
@@ -174,6 +179,7 @@ public class MainController {
         };
 
         task.setOnSucceeded(e -> {
+            LOG.info("XML load succeeded: {}", path);
             loadMessage.set("XML loaded successfully!");
             loadStatus.set(FileLoadStatus.SUCCESS);
             loadMessageDismissTimer.playFromStart();
@@ -181,6 +187,7 @@ public class MainController {
 
         task.setOnFailed(e -> {
             Throwable ex = task.getException();
+            LOG.warn("XML load failed for {}: {}", path, ex != null ? ex.getMessage() : "unknown error");
             loadMessage.set(ex != null ? ex.getMessage() : "Failed to load XML file.");
             loadStatus.set(FileLoadStatus.ERROR);
             loadMessageDismissTimer.playFromStart();

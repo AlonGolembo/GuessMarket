@@ -2,8 +2,9 @@ package com.guessmarket.engine.model;
 
 import com.guessmarket.dto.CommissionType;
 import com.guessmarket.dto.EventStatus;
-import com.guessmarket.dto.TradingMethodType;
 import com.guessmarket.engine.exception.MarketException;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -32,6 +33,8 @@ import java.util.Objects;
  * and then sweeps whatever is left to the market maker.
  */
 public class Event implements Serializable {
+
+    private static final Logger LOG = LogManager.getLogger(Event.class);
 
     private final int id;
     private final String name;
@@ -112,6 +115,8 @@ public class Event implements Serializable {
         participants.put(marketMaker.getName(), marketMaker);
         marketMaker.addParticipatingEvent(this);
         status = EventStatus.ACTIVE;
+        LOG.info("Event {} opened by market maker '{}'; subsidy {} funded into the pool",
+                id, marketMaker.getName(), subsidy);
     }
 
     /**
@@ -140,6 +145,9 @@ public class Event implements Serializable {
         buyer.addParticipatingEvent(this);
         tradeHistory.add(0, new TradeRecord(buyer.getName(), option.getName(), quantity, receipt.totalPaid()));
 
+        LOG.info("Event {}: '{}' bought {} '{}' for {} (shares {}, commission {}); pool now {}",
+                id, buyer.getName(), quantity, option.getName(),
+                receipt.totalPaid(), receipt.sharesCost(), receipt.commission(), pool);
         return receipt;
     }
 
@@ -191,6 +199,8 @@ public class Event implements Serializable {
                 ? (1.0 - commissionFraction)
                 : 1.0;
 
+        double totalPaidToHolders = 0.0;
+        int paidHolders = 0;
         for (Map.Entry<String, int[]> entry : holdingsByUser.entrySet()) {
             int heldWinningShares = entry.getValue()[winningOptionIndex];
             if (heldWinningShares <= 0) {
@@ -201,18 +211,26 @@ public class Event implements Serializable {
             if (holder != null && payout > 0) {
                 holder.credit(payout);
                 pool -= payout;
+                totalPaidToHolders += payout;
+                paidHolders++;
             }
         }
 
         // Whatever is left in the pool - the collected commission, the unspent
         // subsidy and the net trade proceeds - belongs to the market maker.
+        double marketMakerSweep = 0.0;
         if (marketMaker != null && pool > 1e-9) {
+            marketMakerSweep = pool;
             marketMaker.credit(pool);
             pool = 0.0;
         }
 
         this.winningOption = winner;
         this.status = EventStatus.CLOSED;
+
+        LOG.info("Event {} settled: winner '{}', paid {} to {} holder(s), swept {} to market maker '{}'",
+                id, winner.getName(), totalPaidToHolders, paidHolders, marketMakerSweep,
+                marketMaker == null ? "-" : marketMaker.getName());
     }
 
     private void recordCommission(double amount) {

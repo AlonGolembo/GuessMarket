@@ -167,6 +167,12 @@
                                         <Label text="Description:" textFill="#666666" />
                                         <Label fx:id="eventDescriptionLabel" text="-" wrapText="true" VBox.vgrow="ALWAYS" />
                               <Button fx:id="activateEventButton" mnemonicParsing="false" onAction="#handleActivateEvent" text="Activate Event" />
+                              <HBox spacing="8.0">
+                                 <children>
+                                    <ComboBox fx:id="winningOptionComboBox" prefHeight="25.0" prefWidth="179.0" promptText="Choose Winning Option..." />
+                                    <Button fx:id="endEventButton" mnemonicParsing="false" onAction="#handleEndEvent" prefHeight="25.0" prefWidth="91.0" text="End Event" />
+                                 </children>
+                              </HBox>
                                     </children>
                                 </VBox>
 

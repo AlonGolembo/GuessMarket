@@ -2,6 +2,7 @@ package com.guessmarket.engine.model;
 
 import com.guessmarket.dto.CommissionType;
 import com.guessmarket.dto.EventStatus;
+import com.guessmarket.dto.TradingMethodType;
 import com.guessmarket.engine.exception.MarketException;
 
 import java.io.Serializable;
@@ -27,7 +28,8 @@ import java.util.Objects;
  *
  * <p><b>Money</b> is {@code double} dollars, held in a {@code double} pool for
  * now (a follow-up moves it to {@link Account}). The pool holds the market-maker
- * subsidy, trade proceeds and collected commission, and pays winners on close.
+ * subsidy, trade proceeds and collected commission; on close it pays the winners
+ * and then sweeps whatever is left to the market maker.
  */
 public class Event implements Serializable {
 
@@ -47,6 +49,7 @@ public class Event implements Serializable {
     private EventStatus status = EventStatus.NOT_ACTIVE;
     private double pool;                          // subsidy + trade proceeds + collected commission - payouts
     private double totalCommissionCollected;
+    private User marketMaker;                     // set on open()
     private Option winningOption;                 // set on close
 
     public Event(int id, String name, String description, int commissionPercentage,
@@ -105,6 +108,7 @@ public class Event implements Serializable {
             pool += subsidy;
         }
 
+        this.marketMaker = marketMaker;
         participants.put(marketMaker.getName(), marketMaker);
         marketMaker.addParticipatingEvent(this);
         status = EventStatus.ACTIVE;
@@ -160,7 +164,9 @@ public class Event implements Serializable {
     /**
      * Settles the market from {@code ACTIVE}: takes the on-close commission from
      * the winning pot if configured, pays every holder of the winning option
-     * their per-share payout from the pool, records the winner and closes.
+     * their per-share payout from the pool, sweeps whatever remains in the pool
+     * (collected commission + unspent subsidy + net trade proceeds) to the market
+     * maker, records the winner and closes.
      *
      * @param winningOptionIndex 0-based index into {@link #getOptions()}
      */
@@ -196,6 +202,13 @@ public class Event implements Serializable {
                 holder.credit(payout);
                 pool -= payout;
             }
+        }
+
+        // Whatever is left in the pool - the collected commission, the unspent
+        // subsidy and the net trade proceeds - belongs to the market maker.
+        if (marketMaker != null && pool > 1e-9) {
+            marketMaker.credit(pool);
+            pool = 0.0;
         }
 
         this.winningOption = winner;
@@ -259,6 +272,11 @@ public class Event implements Serializable {
 
     public Option getWinningOption() {
         return winningOption;
+    }
+
+    /** The user who opened this event and backs its pool; {@code null} until {@link #open}. */
+    public User getMarketMaker() {
+        return marketMaker;
     }
 
     public Map<String, User> getParticipants() {

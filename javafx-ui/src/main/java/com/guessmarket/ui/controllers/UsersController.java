@@ -58,6 +58,8 @@ public class UsersController implements MarketDataChangeListener {
     @FXML private VBox buySharesSection;
     @FXML private Label totalSharesPrice;
     @FXML private Button activateEventButton;
+    @FXML private Button endEventButton;
+    @FXML private ComboBox<String> winningOptionComboBox;
     @FXML private Label commissionToPayLabel;
     @FXML private Label payNowOrLaterLabel;
 
@@ -112,6 +114,7 @@ public class UsersController implements MarketDataChangeListener {
         eventsComboBox.setItems(eventsList);
         userEventsTableView.setItems(participatingEventsList);
         tradeOptionComboBox.setItems(availableOptionsList);
+        winningOptionComboBox.setItems(availableOptionsList);
     }
 
     /**
@@ -248,6 +251,26 @@ public class UsersController implements MarketDataChangeListener {
         activateEventButton.disableProperty().bind(
                 Bindings.createBooleanBinding(
                         () -> !TradeRules.canActivate(
+                                usersTableView.getSelectionModel().getSelectedItem(),
+                                eventsComboBox.getValue()),
+                        usersTableView.getSelectionModel().selectedItemProperty(),
+                        eventsComboBox.valueProperty())
+        );
+
+        // The end even button is enabled only for the market maker of an open event.
+        endEventButton.disableProperty().bind(
+                Bindings.createBooleanBinding(
+                        () -> !TradeRules.canEnd(
+                                usersTableView.getSelectionModel().getSelectedItem(),
+                                eventsComboBox.getValue()),
+                        usersTableView.getSelectionModel().selectedItemProperty(),
+                        eventsComboBox.valueProperty())
+        );
+
+        // The winning option combobox is enabled only for the market maker of an open event.
+        winningOptionComboBox.disableProperty().bind(
+                Bindings.createBooleanBinding(
+                        () -> !TradeRules.canEnd(
                                 usersTableView.getSelectionModel().getSelectedItem(),
                                 eventsComboBox.getValue()),
                         usersTableView.getSelectionModel().selectedItemProperty(),
@@ -584,6 +607,22 @@ public class UsersController implements MarketDataChangeListener {
             marketEngine.activateEvent(selectedEvent, selectedUser);
         } catch (RuntimeException ex) {
             showErrorAlert("Could not activate event", ex.getMessage());
+        }
+    }
+
+    @FXML
+    private void handleEndEvent() {
+        UserDTO selectedUser = usersTableView.getSelectionModel().getSelectedItem();
+        EventDTO selectedEvent = eventsComboBox.getValue();
+        int selectedOption = winningOptionComboBox.getSelectionModel().getSelectedIndex() + 1;
+        if (selectedUser == null || selectedEvent == null || marketEngine == null) {
+            showErrorAlert("Invalid Selection", "Select a user and an event first.");
+            return;
+        }
+        try{
+            marketEngine.closeEvent(selectedEvent.id(), selectedOption);
+        }catch (RuntimeException ex){
+            showErrorAlert("Could not close event", ex.getMessage());
         }
     }
 }

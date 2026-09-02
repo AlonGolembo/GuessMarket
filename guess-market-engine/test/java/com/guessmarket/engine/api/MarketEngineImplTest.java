@@ -125,15 +125,19 @@ class MarketEngineImplTest {
     }
 
     @Test
-    void closeEventDeclaresTheWinnerAndPaysHolders() {
+    void closeEventDeclaresTheWinnerPaysHoldersAndSweepsThePoolToTheMarketMaker() {
         engine.activateEvent(event(), user("mm"));
         engine.buyShares(user("trader"), event(), 1, 20);   // 20 Heads
         double afterBuy = user("trader").balance();
+        double mmBeforeClose = user("mm").balance();
+        double poolBeforeClose = engine.getEventDetails(1).eventAccountBalance();
 
         engine.closeEvent(1, 1);
 
         assertEquals("Heads", engine.getEventDetails(1).winningOption());
         assertEquals(EventStatus.CLOSED, engine.getEventDetails(1).eventInfo().status());
         assertEquals(afterBuy + 20.0, user("trader").balance(), 1e-9);   // on-purchase: full $1/share
+        assertEquals(0.0, engine.getEventDetails(1).eventAccountBalance(), 1e-9);
+        assertEquals(mmBeforeClose + poolBeforeClose - 20.0, user("mm").balance(), 1e-9);
     }
 }

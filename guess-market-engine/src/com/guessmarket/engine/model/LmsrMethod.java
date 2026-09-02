@@ -14,9 +14,12 @@ public final class LmsrMethod implements TradingMethod {
 
     /** Liquidity parameter: larger {@code b} = deeper market, smaller price moves. */
     private final int b;
+    private final double initialSubsidy;
 
     public LmsrMethod(int b) {
         this.b = b;
+        // An invalid b is reported by validate(); don't let the eager calc throw here.
+        this.initialSubsidy = b > 0 ? LmsrCalculator.calculateInitialSubsidy(b) : Double.NaN;
     }
 
     public int b() {
@@ -30,7 +33,7 @@ public final class LmsrMethod implements TradingMethod {
 
     @Override
     public double initialSubsidy() {
-        return LmsrCalculator.calculateInitialSubsidy(b);
+        return this.initialSubsidy;
     }
 
     @Override

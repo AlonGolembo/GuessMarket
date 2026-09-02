@@ -11,6 +11,8 @@ import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -40,6 +42,12 @@ class EventTest {
         assertEquals(EventStatus.ACTIVE, e.getStatus());
         assertEquals(1000 - SUBSIDY, mm.getAccountBalance(), 1e-6);
         assertEquals(SUBSIDY, e.getEventAccountBalance(), 1e-6);
+        assertSame(mm, e.getMarketMaker());
+    }
+
+    @Test
+    void marketMakerIsNullBeforeOpen() {
+        assertNull(event(CommissionType.ON_PURCHASE, 0).getMarketMaker());
     }
 
     @Test
@@ -161,5 +169,39 @@ class EventTest {
         e.open(user("mm", 10_000, Set.of(1)));
         e.settleAndClose(0);
         assertThrows(MarketException.class, () -> e.settleAndClose(1));
+    }
+
+    @Test
+    void settlementSweepsThePoolRemainderToTheMarketMaker() {
+        Event e = event(CommissionType.ON_CLOSE, 10);
+        User mm = user("mm", 10_000, Set.of(1));
+        e.open(mm);
+        double mmAfterOpen = mm.getAccountBalance();               // 10_000 - subsidy
+        e.buy(user("t", 1_000, Set.of()), 0, 40);                  // 40 Heads
+        double poolBeforeSettle = e.getEventAccountBalance();
+
+        e.settleAndClose(0);                                       // Heads wins
+
+        // pool gains the 4.00 on-close commission, loses the 36.00 holder payout,
+        // then the market maker takes the rest.
+        double sweep = poolBeforeSettle + (40 * 0.10) - (40 * 0.90);
+        assertEquals(0.0, e.getEventAccountBalance(), 1e-9);
+        assertEquals(mmAfterOpen + sweep, mm.getAccountBalance(), 1e-9);
+        assertTrue(mm.getAccountBalance() > mmAfterOpen);          // profit from commission + returned subsidy
+    }
+
+    @Test
+    void onPurchaseSettlementAlsoSweepsTheProceedsToTheMarketMaker() {
+        Event e = event(CommissionType.ON_PURCHASE, 10);
+        User mm = user("mm", 10_000, Set.of(1));
+        e.open(mm);
+        double mmAfterOpen = mm.getAccountBalance();
+        e.buy(user("t", 1_000, Set.of()), 1, 25);                 // 25 Tails
+        double poolBeforeSettle = e.getEventAccountBalance();     // subsidy + shares cost + 10% commission
+
+        e.settleAndClose(1);                                      // Tails wins, 25 paid at $1.00
+
+        assertEquals(0.0, e.getEventAccountBalance(), 1e-9);
+        assertEquals(mmAfterOpen + poolBeforeSettle - 25.0, mm.getAccountBalance(), 1e-9);
     }
 }

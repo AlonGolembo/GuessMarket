@@ -41,4 +41,8 @@ public final class TradeRules {
             case ON_PURCHASE -> "(Pay now)";
         };
     }
+
+    public static boolean canEnd(UserDTO user, EventDTO event) {
+        return isMarketMaker(user, event) && event.status() == EventStatus.ACTIVE;
+    }
 }

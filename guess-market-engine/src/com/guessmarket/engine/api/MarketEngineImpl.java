@@ -50,10 +50,16 @@ public class MarketEngineImpl implements MarketEngine {
 
     @Override
     public void loadXmlFile(String filePath) throws MarketException {
-        ParsedMarket parsed = GuessMarketXmlParser.parseAndValidateXml(filePath);
-        logger.info("Parsed {}: {} events, {} users", filePath,
-                parsed.events().size(), parsed.users().size());
-        catalog.replace(parsed.events(), parsed.users());
+        logger.info("Loading market XML: {}", filePath);
+        try {
+            ParsedMarket parsed = GuessMarketXmlParser.parseAndValidateXml(filePath);
+            catalog.replace(parsed.events(), parsed.users());
+            logger.info("Loaded {} event(s) and {} user(s) from {}",
+                    parsed.events().size(), parsed.users().size(), filePath);
+        } catch (MarketException e) {
+            logger.warn("Rejected XML {}: {}", filePath, e.getMessage());
+            throw e;
+        }
         publisher.publish();
     }
 
@@ -65,13 +71,16 @@ public class MarketEngineImpl implements MarketEngine {
     @Override
     public void saveState(String filePath) throws MarketException {
         catalog.requireLoaded();
+        logger.info("Saving market state to {}", filePath);
         StateSerializer.save(new MarketSnapshot(catalog.eventMap(), catalog.userMap()), filePath);
     }
 
     @Override
     public void loadState(String filePath) throws MarketException {
+        logger.info("Restoring market state from {}", filePath);
         MarketSnapshot snapshot = StateSerializer.load(filePath);
         catalog.replace(snapshot.events(), snapshot.users());
+        logger.info("Restored {} event(s) and {} user(s)", snapshot.events().size(), snapshot.users().size());
         publisher.publish();
     }
 
@@ -113,6 +122,8 @@ public class MarketEngineImpl implements MarketEngine {
         Event event = catalog.event(selectedEvent.id());
         User marketMaker = catalog.user(selectedUser.name());
         event.open(marketMaker);
+        logger.info("Event {} ('{}') activated by market maker '{}'",
+                event.getId(), event.getName(), marketMaker.getName());
         publisher.publish();
     }
 
@@ -129,6 +140,9 @@ public class MarketEngineImpl implements MarketEngine {
         Event event = catalog.event(eventDTO.id());
         User buyer = catalog.user(buyerDTO.name());
         TradeReceipt receipt = event.buy(buyer, optionIndex1Based - 1, quantity);
+        logger.info("'{}' bought {} share(s) of option #{} in event {} for {} (cost {}, commission {})",
+                buyer.getName(), quantity, optionIndex1Based, event.getId(),
+                receipt.totalPaid(), receipt.sharesCost(), receipt.commission());
         publisher.publish();
         return new TradeResultDTO(
                 receipt.sharesCost(), receipt.commission(), receipt.totalPaid(),
@@ -139,6 +153,8 @@ public class MarketEngineImpl implements MarketEngine {
     public void closeEvent(int eventId, int winningOptionIndex1Based) throws MarketException {
         Event event = catalog.event(eventId);
         event.settleAndClose(winningOptionIndex1Based - 1);
+        logger.info("Event {} ('{}') closed; winning option #{}",
+                event.getId(), event.getName(), winningOptionIndex1Based);
         publisher.publish();
     }
 }

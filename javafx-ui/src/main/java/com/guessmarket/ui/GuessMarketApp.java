@@ -8,11 +8,17 @@ import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.stage.Stage;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 public class GuessMarketApp extends Application {
 
+    private static final Logger LOG = LogManager.getLogger(GuessMarketApp.class);
+
     public static void main(String[] args) {
+        LOG.info("Guess Market starting");
         launch(args);
+        LOG.info("Guess Market stopped");
     }
 
     @Override
@@ -28,5 +34,6 @@ public class GuessMarketApp extends Application {
         primaryStage.setTitle("Guess Market");
         primaryStage.setScene(new Scene(root));
         primaryStage.show();
+        LOG.info("Main window shown");
     }
 }

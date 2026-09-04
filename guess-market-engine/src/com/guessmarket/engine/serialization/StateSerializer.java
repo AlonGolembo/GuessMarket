@@ -1,6 +1,8 @@
 package com.guessmarket.engine.serialization;
 
 import com.guessmarket.engine.exception.MarketException;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -14,14 +16,19 @@ import java.io.StreamCorruptedException;
 /** Binary save/load of the whole {@link MarketSnapshot}. */
 public final class StateSerializer {
 
+    private static final Logger LOG = LogManager.getLogger(StateSerializer.class);
+
     private StateSerializer() {}
 
     public static void save(MarketSnapshot snapshot, String filePath) throws MarketException {
         if (filePath == null || filePath.isBlank()) {
             throw new MarketException("Save file path cannot be empty.");
         }
-        try (ObjectOutputStream out = new ObjectOutputStream(new FileOutputStream(new File(filePath.trim())))) {
+        File file = new File(filePath.trim());
+        try (ObjectOutputStream out = new ObjectOutputStream(new FileOutputStream(file))) {
             out.writeObject(snapshot);
+            LOG.info("Wrote market state ({} event(s), {} user(s)) to {} [{} bytes]",
+                    snapshot.events().size(), snapshot.users().size(), file, file.length());
         } catch (IOException e) {
             throw new MarketException("Failed to save state to [" + filePath + "]: " + e.getMessage(), e);
         }
@@ -36,7 +43,10 @@ public final class StateSerializer {
             throw new MarketException("State file does not exist at path: " + filePath);
         }
         try (ObjectInputStream in = new ObjectInputStream(new FileInputStream(file))) {
-            return (MarketSnapshot) in.readObject();
+            MarketSnapshot snapshot = (MarketSnapshot) in.readObject();
+            LOG.info("Read market state ({} event(s), {} user(s)) from {}",
+                    snapshot.events().size(), snapshot.users().size(), file);
+            return snapshot;
         } catch (StreamCorruptedException | ClassCastException e) {
             throw new MarketException(
                     "That file is not a valid Guess Market saved state (did you pick an XML file by mistake?).");

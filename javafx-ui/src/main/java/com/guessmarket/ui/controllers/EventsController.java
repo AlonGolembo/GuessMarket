@@ -1,23 +1,32 @@
 package com.guessmarket.ui.controllers;
 
+import com.guessmarket.dto.CommissionType;
 import com.guessmarket.dto.EventDTO;
+import com.guessmarket.dto.EventStatus;
 import com.guessmarket.dto.HoldingDTO;
+import com.guessmarket.dto.TradingMethodType;
 import com.guessmarket.engine.api.MarketDataChangeListener;
 import com.guessmarket.engine.api.MarketEngine;
+import com.guessmarket.ui.common.EventFilters;
 import javafx.application.Platform;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
+import javafx.collections.transformation.FilteredList;
+import javafx.collections.transformation.SortedList;
 import javafx.fxml.FXML;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 import javafx.scene.layout.VBox;
 
+import java.util.ArrayList;
+import java.util.List;
+
 /**
- * Controller for the Events Tab: the events list, and for the selected event its
- * order books (not yet implemented) and participant holdings.
+ * Controller for the Events Tab: a filterable events list, and for the selected
+ * event its order books (not yet implemented) and participant holdings.
  */
 public class EventsController implements MarketDataChangeListener {
 
@@ -61,6 +70,7 @@ public class EventsController implements MarketDataChangeListener {
     // =========================================================================
     private MarketEngine marketEngine;
     private final ObservableList<EventDTO> eventsList = FXCollections.observableArrayList();
+    private final FilteredList<EventDTO> filteredEvents = new FilteredList<>(eventsList);
     private final ObservableList<HoldingDTO> participationsList = FXCollections.observableArrayList();
 
     // =========================================================================
@@ -68,10 +78,16 @@ public class EventsController implements MarketDataChangeListener {
     // =========================================================================
     @FXML
     private void initialize() {
-        eventsTableView.setItems(eventsList);
+        // FilteredList (predicate) -> SortedList (header clicks) -> table.
+        SortedList<EventDTO> sortedEvents = new SortedList<>(filteredEvents);
+        sortedEvents.comparatorProperty().bind(eventsTableView.comparatorProperty());
+        eventsTableView.setItems(sortedEvents);
         participationsTableView.setItems(participationsList);
+
         setupEventsTableColumns();
         setupParticipationsColumns();
+        setupFilters();
+
         eventsTableView.getSelectionModel().selectedItemProperty().addListener(
                 (obs, oldSelection, newSelection) -> handleEventSelected(newSelection));
     }
@@ -99,6 +115,39 @@ public class EventsController implements MarketDataChangeListener {
     }
 
     // =========================================================================
+    // Filters
+    // =========================================================================
+    private void setupFilters() {
+        fillFilterCombo(methodFilterComboBox, TradingMethodType.LMSR.name(), TradingMethodType.ORDERBOOK.name());
+        fillFilterCombo(statusFilterComboBox,
+                EventStatus.NOT_ACTIVE.name(), EventStatus.ACTIVE.name(), EventStatus.CLOSED.name());
+        fillFilterCombo(commissionFilterComboBox,
+                CommissionType.ON_PURCHASE.name(), CommissionType.ON_CLOSE.name());
+
+        methodFilterComboBox.valueProperty().addListener((obs, oldV, newV) -> applyFilter());
+        statusFilterComboBox.valueProperty().addListener((obs, oldV, newV) -> applyFilter());
+        commissionFilterComboBox.valueProperty().addListener((obs, oldV, newV) -> applyFilter());
+
+        applyFilter();
+    }
+
+    /** Loads {@code "All"} plus the given values and selects {@code "All"}. */
+    private static void fillFilterCombo(ComboBox<String> combo, String... values) {
+        List<String> items = new ArrayList<>();
+        items.add(EventFilters.NO_FILTER);
+        items.addAll(List.of(values));
+        combo.getItems().setAll(items);
+        combo.getSelectionModel().select(EventFilters.NO_FILTER);
+    }
+
+    private void applyFilter() {
+        filteredEvents.setPredicate(EventFilters.predicate(
+                methodFilterComboBox.getValue(),
+                statusFilterComboBox.getValue(),
+                commissionFilterComboBox.getValue()));
+    }
+
+    // =========================================================================
     // Dependency Injection & Engine Listener
     // =========================================================================
     public void setEngine(MarketEngine marketEngine) {
@@ -113,10 +162,10 @@ public class EventsController implements MarketDataChangeListener {
 
         Platform.runLater(() -> {
             EventDTO currentSelectedEvent = eventsTableView.getSelectionModel().getSelectedItem();
-            eventsList.setAll(marketEngine.getAllEvents());
+            eventsList.setAll(marketEngine.getAllEvents());   // FilteredList re-applies its predicate
 
             if (currentSelectedEvent != null) {
-                eventsList.stream()
+                eventsTableView.getItems().stream()
                         .filter(e -> e.id() == currentSelectedEvent.id())
                         .findFirst()
                         .ifPresentOrElse(

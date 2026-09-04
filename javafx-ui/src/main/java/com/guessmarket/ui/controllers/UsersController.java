@@ -17,6 +17,8 @@ import javafx.fxml.FXML;
 import javafx.scene.control.*;
 import javafx.scene.layout.VBox;
 import javafx.util.StringConverter;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.util.Map;
 
@@ -26,6 +28,8 @@ import java.util.Map;
  * and maintaining active event options for trading.
  */
 public class UsersController implements MarketDataChangeListener {
+
+    private static final Logger LOG = LogManager.getLogger(UsersController.class);
 
     // =========================================================================
     // FXML UI Controls - Main Users Table
@@ -537,6 +541,8 @@ public class UsersController implements MarketDataChangeListener {
         }
 
         // 3. Execute trade
+        LOG.info("Trade requested: user='{}', event={}, option#={}, shares={}",
+                selectedUser.name(), selectedEvent.id(), selectedOption, shares);
         try {
             marketEngine.buyShares(
                     selectedUser,
@@ -549,6 +555,8 @@ public class UsersController implements MarketDataChangeListener {
             sharesCountSpinner.getValueFactory().setValue(1);
 
         } catch (Exception ex) {
+            LOG.warn("Trade failed for user '{}' on event {}: {}",
+                    selectedUser.name(), selectedEvent.id(), ex.getMessage());
             showErrorAlert("Trade Execution Failed", ex.getMessage());
         }
     }
@@ -603,9 +611,11 @@ public class UsersController implements MarketDataChangeListener {
         }
         // The engine enforces that the user is the event's market maker and can
         // fund the subsidy; surface whatever it rejects.
+        LOG.info("Activate event {} requested by '{}'", selectedEvent.id(), selectedUser.name());
         try {
             marketEngine.activateEvent(selectedEvent, selectedUser);
         } catch (RuntimeException ex) {
+            LOG.warn("Activate event {} failed: {}", selectedEvent.id(), ex.getMessage());
             showErrorAlert("Could not activate event", ex.getMessage());
         }
     }
@@ -619,9 +629,12 @@ public class UsersController implements MarketDataChangeListener {
             showErrorAlert("Invalid Selection", "Select a user and an event first.");
             return;
         }
-        try{
+        LOG.info("End event {} requested by '{}' with winning option #{}",
+                selectedEvent.id(), selectedUser.name(), selectedOption);
+        try {
             marketEngine.closeEvent(selectedEvent.id(), selectedOption);
-        }catch (RuntimeException ex){
+        } catch (RuntimeException ex) {
+            LOG.warn("End event {} failed: {}", selectedEvent.id(), ex.getMessage());
             showErrorAlert("Could not close event", ex.getMessage());
         }
     }

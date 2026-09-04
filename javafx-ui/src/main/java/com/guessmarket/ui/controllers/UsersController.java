@@ -7,6 +7,7 @@ import com.guessmarket.dto.TradeQuoteDTO;
 import com.guessmarket.dto.UserDTO;
 import com.guessmarket.engine.api.MarketDataChangeListener;
 import com.guessmarket.engine.api.MarketEngine;
+import com.guessmarket.ui.common.Dialogs;
 import com.guessmarket.ui.common.TradeRules;
 import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
@@ -531,12 +532,12 @@ public class UsersController implements MarketDataChangeListener {
 
         // 2. Defensive checks
         if (selectedUser == null || selectedEvent == null || selectedOption == 0 || shares <= 0) {
-            showErrorAlert("Invalid Selection", "Please select a user, an active event, an option, and a valid quantity of shares.");
+            Dialogs.error("Invalid Selection", "Please select a user, an active event, an option, and a valid quantity of shares.");
             return;
         }
 
         if (marketEngine == null) {
-            showErrorAlert("Engine Error", "Market Engine is not initialized.");
+            Dialogs.error("Engine Error", "Market Engine is not initialized.");
             return;
         }
 
@@ -557,21 +558,8 @@ public class UsersController implements MarketDataChangeListener {
         } catch (Exception ex) {
             LOG.warn("Trade failed for user '{}' on event {}: {}",
                     selectedUser.name(), selectedEvent.id(), ex.getMessage());
-            showErrorAlert("Trade Execution Failed", ex.getMessage());
+            Dialogs.error("Trade Execution Failed", ex);
         }
-    }
-
-    /**
-     * Utility dialog to show error messages to the user.
-     */
-    private void showErrorAlert(String title, String message) {
-        javafx.scene.control.Alert alert = new javafx.scene.control.Alert(
-                javafx.scene.control.Alert.AlertType.ERROR
-        );
-        alert.setTitle(title);
-        alert.setHeaderText(null);
-        alert.setContentText(message);
-        alert.showAndWait();
     }
 
     private void setupPurchaseHistoryTableView() {
@@ -606,7 +594,7 @@ public class UsersController implements MarketDataChangeListener {
         UserDTO selectedUser = usersTableView.getSelectionModel().getSelectedItem();
         EventDTO selectedEvent = eventsComboBox.getValue();
         if (selectedUser == null || selectedEvent == null || marketEngine == null) {
-            showErrorAlert("Invalid Selection", "Select a user and an event first.");
+            Dialogs.error("Invalid Selection", "Select a user and an event first.");
             return;
         }
         // The engine enforces that the user is the event's market maker and can
@@ -616,7 +604,7 @@ public class UsersController implements MarketDataChangeListener {
             marketEngine.activateEvent(selectedEvent, selectedUser);
         } catch (RuntimeException ex) {
             LOG.warn("Activate event {} failed: {}", selectedEvent.id(), ex.getMessage());
-            showErrorAlert("Could not activate event", ex.getMessage());
+            Dialogs.error("Could not activate event", ex);
         }
     }
 
@@ -626,7 +614,7 @@ public class UsersController implements MarketDataChangeListener {
         EventDTO selectedEvent = eventsComboBox.getValue();
         int selectedOption = winningOptionComboBox.getSelectionModel().getSelectedIndex() + 1;
         if (selectedUser == null || selectedEvent == null || marketEngine == null) {
-            showErrorAlert("Invalid Selection", "Select a user and an event first.");
+            Dialogs.error("Invalid Selection", "Select a user and an event first.");
             return;
         }
         LOG.info("End event {} requested by '{}' with winning option #{}",
@@ -635,7 +623,7 @@ public class UsersController implements MarketDataChangeListener {
             marketEngine.closeEvent(selectedEvent.id(), selectedOption);
         } catch (RuntimeException ex) {
             LOG.warn("End event {} failed: {}", selectedEvent.id(), ex.getMessage());
-            showErrorAlert("Could not close event", ex.getMessage());
+            Dialogs.error("Could not close event", ex);
         }
     }
 }

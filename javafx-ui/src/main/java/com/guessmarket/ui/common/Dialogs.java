@@ -1,6 +1,7 @@
 package com.guessmarket.ui.common;
 
 import javafx.scene.control.Alert;
+import javafx.scene.control.ButtonType;
 
 /**
  * Modal message dialogs, shared by the controllers so error reporting looks and
@@ -31,5 +32,15 @@ public final class Dialogs {
             message = cause.getClass().getSimpleName();
         }
         error(title, message);
+    }
+
+    /** Shows a blocking OK/Cancel dialog; returns {@code true} if the user chose OK. */
+    public static boolean confirm(String title, String message) {
+        Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
+        alert.setTitle(title);
+        alert.setHeaderText(null);
+        alert.setContentText(message);
+        alert.showAndWait();
+        return alert.getResult() == ButtonType.OK;
     }
 }

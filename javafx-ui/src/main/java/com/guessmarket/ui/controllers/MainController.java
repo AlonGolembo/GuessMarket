@@ -1,6 +1,7 @@
 package com.guessmarket.ui.controllers;
 
 import com.guessmarket.engine.api.MarketEngine;
+import com.guessmarket.ui.common.Dialogs;
 import com.guessmarket.ui.common.FileLoadStatus;
 import javafx.animation.PauseTransition;
 import javafx.beans.binding.Bindings;
@@ -37,7 +38,6 @@ public class MainController {
     // =========================================================================
     // FXML UI Controls
     // =========================================================================
-    @FXML private Label fileLoadMessage;
     @FXML private Button loadFileButton;
     @FXML private TextField filePathTextField;
     @FXML private ImageView fileStatusIcon;
@@ -89,7 +89,6 @@ public class MainController {
      */
     private void setupBindings() {
         // Bind load message and container visibility
-        fileLoadMessage.textProperty().bind(loadMessage);
         progressRowContainer.visibleProperty().bind(loadMessage.isNotEmpty());
         progressRowContainer.managedProperty().bind(loadMessage.isNotEmpty());
 
@@ -149,6 +148,13 @@ public class MainController {
 
         if (selectedFile == null) return;
 
+        // Ask before replacing an already-loaded market. This must happen here,
+        // on the FX thread - a dialog cannot be shown from the background task.
+        if (engine.isFileLoaded() && !Dialogs.confirm("Replace loaded file?",
+                "A file is already loaded. Loading this one will replace it.\nContinue?")) {
+            return;
+        }
+
         loadMessageDismissTimer.stop();
         filePathTextField.setText(selectedFile.getAbsolutePath());
 
@@ -188,7 +194,7 @@ public class MainController {
         task.setOnFailed(e -> {
             Throwable ex = task.getException();
             LOG.warn("XML load failed for {}: {}", path, ex != null ? ex.getMessage() : "unknown error");
-            loadMessage.set(ex != null ? ex.getMessage() : "Failed to load XML file.");
+            Dialogs.error("Failed to load XML", ex);
             loadStatus.set(FileLoadStatus.ERROR);
             loadMessageDismissTimer.playFromStart();
         });

@@ -54,13 +54,13 @@
   </dependencies>
 
   <build>
-    <!-- Non-standard layout: main sources under src/, tests under test/java. -->
+    <!-- Non-standard layout: main sources under src/, tests under test/. -->
     <sourceDirectory>src</sourceDirectory>
     <testSourceDirectory>test/java</testSourceDirectory>
-    <resources>
-      <resource>
-        <directory>src/resources</directory>
-      </resource>
-    </resources>
+    <testResources>
+      <testResource>
+        <directory>test/resources</directory>
+      </testResource>
+    </testResources>
   </build>
 </project>

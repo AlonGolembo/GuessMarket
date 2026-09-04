@@ -3,6 +3,7 @@ module com.guessmarket.ui {
     requires javafx.fxml;
     requires guess.market.engine;
     requires guess.market.dto;
+    requires org.apache.logging.log4j;
 
     // Opens FXML controllers to JavaFX loader reflection
     opens com.guessmarket.ui.controllers to javafx.fxml;

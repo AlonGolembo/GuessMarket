@@ -6,6 +6,8 @@ import com.guessmarket.engine.model.User;
 import com.guessmarket.engine.xml.jaxb.EventXml;
 import com.guessmarket.engine.xml.jaxb.GuessMarketXml;
 import com.guessmarket.engine.xml.jaxb.UserXml;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -17,6 +19,8 @@ import java.util.Map;
  * cross-entity market-maker check.
  */
 final class MarketAssembler {
+
+    private static final Logger LOG = LogManager.getLogger(MarketAssembler.class);
 
     private MarketAssembler() {}
 
@@ -40,6 +44,7 @@ final class MarketAssembler {
         }
 
         MarketMakerValidator.validate(events, users);
+        LOG.debug("Assembled market from XML: events={}, users={}", events.keySet(), users.keySet());
         return new ParsedMarket(events, users);
     }
 }

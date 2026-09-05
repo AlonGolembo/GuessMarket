@@ -2,6 +2,8 @@ package com.guessmarket.engine.model;
 
 import com.guessmarket.dto.CommissionType;
 import com.guessmarket.dto.EventStatus;
+import com.guessmarket.dto.OrderSide;
+import com.guessmarket.engine.exception.InsufficientFundsException;
 import com.guessmarket.engine.exception.MarketException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -13,6 +15,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 
 /**
  * A prediction-market event: the aggregate root that owns its options, its cash
@@ -55,6 +58,7 @@ public class Event implements Serializable {
     private double totalCommissionCollected;
     private User marketMaker;                     // set on open()
     private Option winningOption;                 // set on close
+    private OrderBook orderBook;                  // non-null iff tradingMethod.usesOrderBook()
 
     public Event(int id, String name, String description, int commissionPercentage,
                  CommissionType commissionType, List<Option> options, TradingMethod tradingMethod) {
@@ -112,12 +116,29 @@ public class Event implements Serializable {
             pool += subsidy;
         }
 
+        int initialShares = tradingMethod.initialShares();
+        if (tradingMethod.usesOrderBook()) {
+            orderBook = new OrderBook();
+            if (initialShares > 0) {
+                // The market maker receives `initialShares` of *each* option (the
+                // pairs just paid for above) and immediately offers them all for
+                // sale, split evenly at half the base value per the spec.
+                options.get(0).addShares(initialShares);
+                options.get(1).addShares(initialShares);
+                holdingsByUser.put(marketMaker.getName(), new int[]{initialShares, initialShares});
+                double askPrice = tradingMethod.baseValue() / 2.0;
+                orderBook.restNew(marketMaker.getName(), 0, OrderSide.ASK, initialShares, askPrice);
+                orderBook.restNew(marketMaker.getName(), 1, OrderSide.ASK, initialShares, askPrice);
+            }
+        }
+
         this.marketMaker = marketMaker;
         participants.put(marketMaker.getName(), marketMaker);
         marketMaker.addParticipatingEvent(this);
         status = EventStatus.ACTIVE;
-        LOG.info("Event {} opened by market maker '{}'; subsidy {} funded into the pool",
-                id, marketMaker.getName(), subsidy);
+        LOG.info("Event {} opened by market maker '{}'; subsidy {} funded into the pool{}",
+                id, marketMaker.getName(), subsidy,
+                initialShares > 0 ? "; " + initialShares + " of each option allocated and posted for sale" : "");
     }
 
     /**
@@ -231,10 +252,213 @@ public class Event implements Serializable {
 
         this.winningOption = winner;
         this.status = EventStatus.CLOSED;
+        if (orderBook != null) {
+            orderBook.clear();      // resting orders don't survive settlement
+        }
 
         LOG.info("Event {} settled: winner '{}', paid {} to {} holder(s), swept {} to market maker '{}'",
                 id, winner.getName(), totalPaidToHolders, paidHolders, marketMakerSweep,
                 marketMaker == null ? "-" : marketMaker.getName());
+    }
+
+    // --- Order Book --------------------------------------------------------
+
+    /**
+     * Places a limit order on this event's {@link OrderBook}: it is matched
+     * immediately, price-then-time, against the opposite side of the same
+     * option, at the resting order's price (price improvement for the
+     * incoming order); whatever doesn't fill rests in the book. No escrow -
+     * cash and shares only move as fills happen, and a resting order that can
+     * no longer be honoured (its owner has since spent the cash or - not
+     * possible for asks, see below - the shares elsewhere) is dropped rather
+     * than filled short.
+     *
+     * <p>Placing an ask requires currently holding at least {@code quantity}
+     * shares of that option net of the user's own other resting asks on it,
+     * so a resting ask can never end up unbacked. Placing a bid requires that
+     * its full {@code quantity * price} (plus on-purchase commission) is
+     * affordable right now; a bid can still go stale later if the same user
+     * has other bids that jointly overcommit their balance; the fill-time
+     * affordability check below then trims or drops it gracefully.
+     *
+     * @param optionIndex 0-based index into {@link #getOptions()}
+     */
+    public OrderOutcome placeOrder(User user, int optionIndex, OrderSide side, int quantity, double price) {
+        if (status != EventStatus.ACTIVE) {
+            throw new MarketException("Event ID " + id + " is not open for trading (state: " + status + ").");
+        }
+        if (orderBook == null) {
+            throw new MarketException("Event ID " + id + " does not trade through an order book.");
+        }
+        if (optionIndex < 0 || optionIndex >= options.size()) {
+            throw new MarketException("Invalid option index: " + optionIndex);
+        }
+        if (quantity <= 0) {
+            throw new MarketException("Quantity must be strictly positive, got: " + quantity);
+        }
+        double baseValue = tradingMethod.baseValue();
+        if (Double.isNaN(price) || price <= 0 || price > baseValue) {
+            throw new MarketException("Price must be in (0, " + baseValue + "], got: " + price);
+        }
+
+        if (side == OrderSide.ASK) {
+            int free = freeSharesOf(user.getName(), optionIndex);
+            if (quantity > free) {
+                throw new MarketException("User '" + user.getName() + "' only has " + free
+                        + " free share(s) of '" + options.get(optionIndex).getName() + "' to sell.");
+            }
+        } else {
+            double perUnit = commissionType == CommissionType.ON_PURCHASE
+                    ? price * (1.0 + commissionPercentage / 100.0)
+                    : price;
+            double totalCost = quantity * perUnit;
+            if (totalCost > user.getAccountBalance() + 1e-9) {
+                throw new InsufficientFundsException(totalCost, user.getAccountBalance());
+            }
+        }
+
+        participants.put(user.getName(), user);
+        user.addParticipatingEvent(this);
+
+        LimitOrder incoming = orderBook.createOrder(user.getName(), optionIndex, side, quantity, price);
+        matchDirect(incoming, user);
+        // Minting (Phase 3): when incoming is a bid and its remainder can pair
+        // with a resting bid on the other option, new share pairs get created
+        // here instead of just resting.
+
+        if (incoming.getRemaining() > 0) {
+            orderBook.rest(incoming);
+        }
+
+        int filled = quantity - incoming.getRemaining();
+        LOG.info("Event {}: '{}' placed {} {} '{}' @ {}; filled {}, resting {}",
+                id, user.getName(), side, quantity, options.get(optionIndex).getName(), price,
+                filled, incoming.getRemaining());
+        return new OrderOutcome(incoming.getId(), filled, incoming.getRemaining());
+    }
+
+    /** Cancels a still-resting order; only its own owner may cancel it. */
+    public void cancelOrder(User user, long orderId) {
+        if (orderBook == null) {
+            throw new MarketException("Event ID " + id + " does not trade through an order book.");
+        }
+        if (status != EventStatus.ACTIVE) {
+            throw new MarketException("Event ID " + id + " is not open for trading (state: " + status + ").");
+        }
+        LimitOrder order = orderBook.findById(orderId);
+        if (order == null) {
+            throw new MarketException("No resting order with id " + orderId + " in event ID " + id + ".");
+        }
+        if (!order.getUserName().equals(user.getName())) {
+            throw new MarketException("User '" + user.getName() + "' does not own order " + orderId + ".");
+        }
+        orderBook.remove(order);
+        LOG.info("Event {}: '{}' cancelled order {}", id, user.getName(), orderId);
+    }
+
+    /** The live order book, or {@code null} for an event not using this trading method. */
+    OrderBook getOrderBook() {
+        return orderBook;
+    }
+
+    /**
+     * Walks the opposite side of {@code incoming}'s option, best price first,
+     * executing trades while prices cross, until {@code incoming} is filled,
+     * the book runs dry, or no more resting order there can be honoured.
+     */
+    private void matchDirect(LimitOrder incoming, User incomingUser) {
+        int optionIndex = incoming.getOptionIndex();
+        boolean incomingIsBid = incoming.getSide() == OrderSide.BID;
+
+        while (incoming.getRemaining() > 0) {
+            Optional<LimitOrder> counterpart = incomingIsBid
+                    ? orderBook.bestAsk(optionIndex)
+                    : orderBook.bestBid(optionIndex);
+            if (counterpart.isEmpty()) {
+                break;
+            }
+            LimitOrder resting = counterpart.get();
+
+            boolean crosses = incomingIsBid
+                    ? incoming.getPrice() >= resting.getPrice()
+                    : incoming.getPrice() <= resting.getPrice();
+            if (!crosses) {
+                break;
+            }
+
+            User buyer = incomingIsBid ? incomingUser : getParticipantByName(resting.getUserName());
+            User seller = incomingIsBid ? getParticipantByName(resting.getUserName()) : incomingUser;
+            double execPrice = resting.getPrice();
+
+            int quantity = Math.min(incoming.getRemaining(), resting.getRemaining());
+            quantity = Math.min(quantity, holdingsOf(seller.getName())[optionIndex]);
+            quantity = Math.min(quantity, affordableQuantity(buyer, execPrice));
+
+            if (quantity <= 0) {
+                // Its owner can no longer honour this resting order (balance or
+                // shares have since moved elsewhere) - drop it and try the next.
+                LOG.warn("Event {}: dropping stale resting order {} (no longer honourable)", id, resting.getId());
+                orderBook.remove(resting);
+                continue;
+            }
+
+            executeTrade(buyer, seller, optionIndex, quantity, execPrice);
+            incoming.reduce(quantity);
+            resting.reduce(quantity);
+            if (resting.isFilled()) {
+                orderBook.remove(resting);
+            }
+        }
+    }
+
+    /** Moves cash and shares for one fill and records it; commission goes straight to the market maker. */
+    private void executeTrade(User buyer, User seller, int optionIndex, int quantity, double execPrice) {
+        double shareCost = quantity * execPrice;
+        double commission = commissionType == CommissionType.ON_PURCHASE
+                ? shareCost * (commissionPercentage / 100.0)
+                : 0.0;
+
+        buyer.debit(shareCost + commission);
+        seller.credit(shareCost);
+        recordCommission(commission);
+
+        holdingsByUser.computeIfAbsent(seller.getName(), k -> new int[options.size()])[optionIndex] -= quantity;
+        holdingsByUser.computeIfAbsent(buyer.getName(), k -> new int[options.size()])[optionIndex] += quantity;
+
+        participants.put(buyer.getName(), buyer);
+        participants.put(seller.getName(), seller);
+        buyer.addParticipatingEvent(this);
+        seller.addParticipatingEvent(this);
+
+        String optionName = options.get(optionIndex).getName();
+        tradeHistory.add(0, new TradeRecord(buyer.getName(), optionName, quantity, shareCost + commission));
+        orderBook.recordTrade(optionIndex, execPrice);
+
+        LOG.info("Event {}: order-book trade - '{}' bought {} '{}' from '{}' @ {} (cost {}, commission {})",
+                id, buyer.getName(), quantity, optionName, seller.getName(), execPrice, shareCost, commission);
+    }
+
+    /** How many more shares of {@code optionIndex} the user could still sell, net of their own open asks. */
+    private int freeSharesOf(String userName, int optionIndex) {
+        int held = holdingsOf(userName)[optionIndex];
+        int committed = 0;
+        for (LimitOrder order : orderBook.asks(optionIndex)) {
+            if (order.getUserName().equals(userName)) {
+                committed += order.getRemaining();
+            }
+        }
+        return held - committed;
+    }
+
+    /** Largest quantity {@code buyer} can afford at {@code execPrice} (including on-purchase commission, if any). */
+    private int affordableQuantity(User buyer, double execPrice) {
+        double perUnit = commissionType == CommissionType.ON_PURCHASE
+                ? execPrice * (1.0 + commissionPercentage / 100.0)
+                : execPrice;
+        if (perUnit <= 0) {
+            return Integer.MAX_VALUE;
+        }
+        return (int) Math.floor(buyer.getAccountBalance() / perUnit + 1e-9);
     }
 
     /**

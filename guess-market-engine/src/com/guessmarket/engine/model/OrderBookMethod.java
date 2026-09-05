@@ -66,6 +66,11 @@ public final class OrderBookMethod implements TradingMethod {
     }
 
     @Override
+    public boolean usesOrderBook() {
+        return true;
+    }
+
+    @Override
     public double priceOf(int optionIndex, List<Option> options) {
         throw new UnsupportedOperationException("Order Book pricing is not implemented yet.");
     }

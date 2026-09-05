@@ -41,6 +41,15 @@ public sealed interface TradingMethod extends Serializable permits LmsrMethod, O
     int initialShares();
 
     /**
+     * Whether this method trades through a public {@link OrderBook} of resting
+     * bids/asks (as opposed to a scoring-rule formula). {@code false} for
+     * LMSR; {@code true} for Order Book.
+     */
+    default boolean usesOrderBook() {
+        return false;
+    }
+
+    /**
      * Current implied price of the option at {@code optionIndex}: a probability
      * in {@code [0, 1]} for scoring-rule methods.
      *

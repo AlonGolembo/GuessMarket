@@ -26,6 +26,21 @@ public sealed interface TradingMethod extends Serializable permits LmsrMethod, O
     double initialSubsidy();
 
     /**
+     * The payout per share of the winning option once the event settles; every
+     * pair of options (one of each) is worth exactly this much. {@code 1.0} for
+     * LMSR; the configured base value ({@code d}) for Order Book.
+     */
+    double baseValue();
+
+    /**
+     * Shares of each option the market maker receives when opening the event
+     * (beyond the cash subsidy). {@code 0} for LMSR; the configured initial
+     * allocation for Order Book, where the market maker receives that many of
+     * *each* option.
+     */
+    int initialShares();
+
+    /**
      * Current implied price of the option at {@code optionIndex}: a probability
      * in {@code [0, 1]} for scoring-rule methods.
      *

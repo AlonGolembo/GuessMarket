@@ -37,6 +37,16 @@ public final class LmsrMethod implements TradingMethod {
     }
 
     @Override
+    public double baseValue() {
+        return 1.0;
+    }
+
+    @Override
+    public int initialShares() {
+        return 0;
+    }
+
+    @Override
     public double priceOf(int optionIndex, List<Option> options) {
         int qTarget = options.get(optionIndex).getSharesOutstanding();
         int qOther = options.get(1 - optionIndex).getSharesOutstanding();

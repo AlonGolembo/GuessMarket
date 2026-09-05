@@ -182,11 +182,13 @@ class EventTest {
 
         e.settleAndClose(0);                                       // Heads wins
 
-        // pool gains the 4.00 on-close commission, loses the 36.00 holder payout,
-        // then the market maker takes the rest.
-        double sweep = poolBeforeSettle + (40 * 0.10) - (40 * 0.90);
+        // The 4.00 on-close commission is credited to the MM directly (not through
+        // the pool); the pool pays the holder 40*0.90=36.00, and whatever's left
+        // in the pool is swept to the MM too.
+        double onCloseCommission = 40 * 0.10;
+        double poolSweep = poolBeforeSettle - (40 * 0.90);
         assertEquals(0.0, e.getEventAccountBalance(), 1e-9);
-        assertEquals(mmAfterOpen + sweep, mm.getAccountBalance(), 1e-9);
+        assertEquals(mmAfterOpen + onCloseCommission + poolSweep, mm.getAccountBalance(), 1e-9);
         assertTrue(mm.getAccountBalance() > mmAfterOpen);          // profit from commission + returned subsidy
     }
 
@@ -195,13 +197,14 @@ class EventTest {
         Event e = event(CommissionType.ON_PURCHASE, 10);
         User mm = user("mm", 10_000, Set.of(1));
         e.open(mm);
-        double mmAfterOpen = mm.getAccountBalance();
-        e.buy(user("t", 1_000, Set.of()), 1, 25);                 // 25 Tails
-        double poolBeforeSettle = e.getEventAccountBalance();     // subsidy + shares cost + 10% commission
+        User trader = user("t", 1_000, Set.of());
+        e.buy(trader, 1, 25);                                     // 25 Tails; 10% commission credited to mm now
+        double mmAfterBuy = mm.getAccountBalance();
+        double poolBeforeSettle = e.getEventAccountBalance();      // subsidy + shares cost only (no commission)
 
         e.settleAndClose(1);                                      // Tails wins, 25 paid at $1.00
 
         assertEquals(0.0, e.getEventAccountBalance(), 1e-9);
-        assertEquals(mmAfterOpen + poolBeforeSettle - 25.0, mm.getAccountBalance(), 1e-9);
+        assertEquals(mmAfterBuy + poolBeforeSettle - 25.0, mm.getAccountBalance(), 1e-9);
     }
 }

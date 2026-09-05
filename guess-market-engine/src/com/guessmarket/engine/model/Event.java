@@ -29,8 +29,9 @@ import java.util.Objects;
  *
  * <p><b>Money</b> is {@code double} dollars, held in a {@code double} pool for
  * now (a follow-up moves it to {@link Account}). The pool holds the market-maker
- * subsidy, trade proceeds and collected commission; on close it pays the winners
- * and then sweeps whatever is left to the market maker.
+ * subsidy and trade proceeds; on close it pays the winners {@link TradingMethod#baseValue()}
+ * per share and sweeps whatever is left to the market maker. Commission is not
+ * part of the pool - it is credited to the market maker's account as it is collected.
  */
 public class Event implements Serializable {
 
@@ -170,11 +171,12 @@ public class Event implements Serializable {
     }
 
     /**
-     * Settles the market from {@code ACTIVE}: takes the on-close commission from
-     * the winning pot if configured, pays every holder of the winning option
-     * their per-share payout from the pool, sweeps whatever remains in the pool
-     * (collected commission + unspent subsidy + net trade proceeds) to the market
-     * maker, records the winner and closes.
+     * Settles the market from {@code ACTIVE}: takes the on-close commission (paid
+     * straight to the market maker) from the winning pot if configured, pays every
+     * holder of the winning option {@link TradingMethod#baseValue()} per share
+     * (minus that commission) from the pool, sweeps whatever remains in the pool
+     * - the unspent subsidy and net trade proceeds - to the market maker, records
+     * the winner and closes.
      *
      * @param winningOptionIndex 0-based index into {@link #getOptions()}
      */
@@ -189,15 +191,17 @@ public class Event implements Serializable {
         Option winner = options.get(winningOptionIndex);
         double commissionFraction = commissionPercentage / 100.0;
 
+        double baseValue = tradingMethod.baseValue();
+
         if (commissionType == CommissionType.ON_CLOSE) {
-            double winningPot = winner.getSharesOutstanding() * 1.0;   // $1.00 per winning share
+            double winningPot = winner.getSharesOutstanding() * baseValue;
             recordCommission(winningPot * commissionFraction);
         }
 
         // On-close: fee comes out of the payout. On-purchase: it was already taken.
         double payoutPerShare = commissionType == CommissionType.ON_CLOSE
-                ? (1.0 - commissionFraction)
-                : 1.0;
+                ? baseValue * (1.0 - commissionFraction)
+                : baseValue;
 
         double totalPaidToHolders = 0.0;
         int paidHolders = 0;
@@ -233,12 +237,20 @@ public class Event implements Serializable {
                 marketMaker == null ? "-" : marketMaker.getName());
     }
 
+    /**
+     * Records a commission charge and pays it straight to the market maker's
+     * account - it is the market maker's fee, not part of the event pool that
+     * gets divided among winning holders.
+     */
     private void recordCommission(double amount) {
         if (amount < 0 || Double.isNaN(amount)) {
             throw new IllegalArgumentException("Commission must be >= 0, got: " + amount);
         }
+        if (amount == 0) {
+            return;
+        }
         totalCommissionCollected += amount;
-        pool += amount;
+        marketMaker.credit(amount);
     }
 
     // --- Accessors --------------------------------------------------------

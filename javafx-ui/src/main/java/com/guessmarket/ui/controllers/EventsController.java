@@ -2,8 +2,12 @@ package com.guessmarket.ui.controllers;
 
 import com.guessmarket.dto.CommissionType;
 import com.guessmarket.dto.EventDTO;
+import com.guessmarket.dto.EventDetailsDTO;
 import com.guessmarket.dto.EventStatus;
 import com.guessmarket.dto.HoldingDTO;
+import com.guessmarket.dto.OrderBookLevelDTO;
+import com.guessmarket.dto.OrderBookQuoteDTO;
+import com.guessmarket.dto.OrderSide;
 import com.guessmarket.dto.TradingMethodType;
 import com.guessmarket.engine.api.MarketDataChangeListener;
 import com.guessmarket.engine.api.MarketEngine;
@@ -17,6 +21,7 @@ import javafx.collections.transformation.FilteredList;
 import javafx.collections.transformation.SortedList;
 import javafx.fxml.FXML;
 import javafx.scene.control.ComboBox;
+import javafx.scene.control.Label;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 import javafx.scene.layout.VBox;
@@ -26,7 +31,7 @@ import java.util.List;
 
 /**
  * Controller for the Events Tab: a filterable events list, and for the selected
- * event its order books (not yet implemented) and participant holdings.
+ * event its order-book depth (Order Book events only) and participant holdings.
  */
 public class EventsController implements MarketDataChangeListener {
 
@@ -52,13 +57,21 @@ public class EventsController implements MarketDataChangeListener {
     // =========================================================================
     @FXML private VBox eventTradeDetailsContainer;
 
-    @FXML private TableView<?> option1OrderBookTable;
-    @FXML private TableColumn<?, ?> opt1PriceCol;
-    @FXML private TableColumn<?, ?> opt1AmountCol;
+    @FXML private VBox orderBookSection;
+    @FXML private Label option1BookLabel;
+    @FXML private Label option2BookLabel;
+    @FXML private Label option1IndicatorsLabel;
+    @FXML private Label option2IndicatorsLabel;
 
-    @FXML private TableView<?> option2OrderBookTable;
-    @FXML private TableColumn<?, ?> opt2PriceCol;
-    @FXML private TableColumn<?, ?> opt2AmountCol;
+    @FXML private TableView<OrderBookLevelDTO> option1OrderBookTable;
+    @FXML private TableColumn<OrderBookLevelDTO, String> opt1SideCol;
+    @FXML private TableColumn<OrderBookLevelDTO, String> opt1PriceCol;
+    @FXML private TableColumn<OrderBookLevelDTO, Integer> opt1AmountCol;
+
+    @FXML private TableView<OrderBookLevelDTO> option2OrderBookTable;
+    @FXML private TableColumn<OrderBookLevelDTO, String> opt2SideCol;
+    @FXML private TableColumn<OrderBookLevelDTO, String> opt2PriceCol;
+    @FXML private TableColumn<OrderBookLevelDTO, Integer> opt2AmountCol;
 
     @FXML private TableView<HoldingDTO> participationsTableView;
     @FXML private TableColumn<HoldingDTO, String> partUserCol;
@@ -72,6 +85,8 @@ public class EventsController implements MarketDataChangeListener {
     private final ObservableList<EventDTO> eventsList = FXCollections.observableArrayList();
     private final FilteredList<EventDTO> filteredEvents = new FilteredList<>(eventsList);
     private final ObservableList<HoldingDTO> participationsList = FXCollections.observableArrayList();
+    private final ObservableList<OrderBookLevelDTO> option1Levels = FXCollections.observableArrayList();
+    private final ObservableList<OrderBookLevelDTO> option2Levels = FXCollections.observableArrayList();
 
     // =========================================================================
     // Lifecycle & Initialization
@@ -83,9 +98,12 @@ public class EventsController implements MarketDataChangeListener {
         sortedEvents.comparatorProperty().bind(eventsTableView.comparatorProperty());
         eventsTableView.setItems(sortedEvents);
         participationsTableView.setItems(participationsList);
+        option1OrderBookTable.setItems(option1Levels);
+        option2OrderBookTable.setItems(option2Levels);
 
         setupEventsTableColumns();
         setupParticipationsColumns();
+        setupOrderBookColumns();
         setupFilters();
 
         eventsTableView.getSelectionModel().selectedItemProperty().addListener(
@@ -112,6 +130,22 @@ public class EventsController implements MarketDataChangeListener {
                 new SimpleStringProperty(cellData.getValue().optionName()));
         partSharesCol.setCellValueFactory(cellData ->
                 new SimpleObjectProperty<>(cellData.getValue().shares()));
+    }
+
+    private void setupOrderBookColumns() {
+        setupOrderBookColumns(opt1SideCol, opt1PriceCol, opt1AmountCol);
+        setupOrderBookColumns(opt2SideCol, opt2PriceCol, opt2AmountCol);
+    }
+
+    private static void setupOrderBookColumns(TableColumn<OrderBookLevelDTO, String> sideCol,
+                                               TableColumn<OrderBookLevelDTO, String> priceCol,
+                                               TableColumn<OrderBookLevelDTO, Integer> amountCol) {
+        sideCol.setCellValueFactory(cellData ->
+                new SimpleStringProperty(cellData.getValue().side() == OrderSide.BID ? "Bid" : "Ask"));
+        priceCol.setCellValueFactory(cellData ->
+                new SimpleStringProperty(String.format("$%.2f", cellData.getValue().price())));
+        amountCol.setCellValueFactory(cellData ->
+                new SimpleObjectProperty<>(cellData.getValue().quantity()));
     }
 
     // =========================================================================
@@ -189,8 +223,52 @@ public class EventsController implements MarketDataChangeListener {
         }
         if (selectedEvent == null || marketEngine == null) {
             participationsList.clear();
+            option1Levels.clear();
+            option2Levels.clear();
+            orderBookSection.setVisible(false);
+            orderBookSection.setManaged(false);
             return;
         }
-        participationsList.setAll(marketEngine.getEventDetails(selectedEvent.id()).participantHoldings());
+
+        EventDetailsDTO details = marketEngine.getEventDetails(selectedEvent.id());
+        participationsList.setAll(details.participantHoldings());
+
+        boolean isOrderBook = selectedEvent.tradingMethod() == TradingMethodType.ORDERBOOK;
+        orderBookSection.setVisible(isOrderBook);
+        orderBookSection.setManaged(isOrderBook);
+        if (isOrderBook && selectedEvent.options().size() == 2) {
+            String option1 = selectedEvent.options().get(0);
+            String option2 = selectedEvent.options().get(1);
+            option1BookLabel.setText(option1 + " Order Book");
+            option2BookLabel.setText(option2 + " Order Book");
+            option1Levels.setAll(levelsFor(details, option1));
+            option2Levels.setAll(levelsFor(details, option2));
+            option1IndicatorsLabel.setText(indicatorsText(details, option1));
+            option2IndicatorsLabel.setText(indicatorsText(details, option2));
+        } else {
+            option1Levels.clear();
+            option2Levels.clear();
+        }
+    }
+
+    private static List<OrderBookLevelDTO> levelsFor(EventDetailsDTO details, String optionName) {
+        return details.orderBookLevels().stream()
+                .filter(level -> level.optionName().equals(optionName))
+                .toList();
+    }
+
+    /** Renders the five order-book indicators for one option; {@code null} fields show as "-". */
+    private static String indicatorsText(EventDetailsDTO details, String optionName) {
+        OrderBookQuoteDTO quote = details.orderBookQuotes().get(optionName);
+        if (quote == null) {
+            return "Last: - | Bid: - | Ask: - | Mid: - | Spread: -";
+        }
+        return String.format("Last: %s | Bid: %s | Ask: %s | Mid: %s | Spread: %s",
+                money(quote.lastTrade()), money(quote.bestBid()), money(quote.bestAsk()),
+                money(quote.mid()), money(quote.spread()));
+    }
+
+    private static String money(Double value) {
+        return value == null ? "-" : String.format("$%.2f", value);
     }
 }

@@ -2,8 +2,12 @@ package com.guessmarket.ui.controllers;
 
 import com.guessmarket.dto.EventDTO;
 import com.guessmarket.dto.EventDetailsDTO;
+import com.guessmarket.dto.LimitOrderDTO;
+import com.guessmarket.dto.OrderResultDTO;
+import com.guessmarket.dto.OrderSide;
 import com.guessmarket.dto.TradeHistoryDTO;
 import com.guessmarket.dto.TradeQuoteDTO;
+import com.guessmarket.dto.TradingMethodType;
 import com.guessmarket.dto.UserDTO;
 import com.guessmarket.engine.api.MarketDataChangeListener;
 import com.guessmarket.engine.api.MarketEngine;
@@ -69,6 +73,23 @@ public class UsersController implements MarketDataChangeListener {
     @FXML private Label payNowOrLaterLabel;
 
     // =========================================================================
+    // FXML UI Controls - Order Book Limit-Order Entry (Order Book events only)
+    // =========================================================================
+    @FXML private VBox orderEntrySection;
+    @FXML private RadioButton bidRadioButton;
+    @FXML private RadioButton askRadioButton;
+    @FXML private TextField orderPriceField;
+    @FXML private Spinner<Integer> orderQuantitySpinner;
+    @FXML private Button placeOrderButton;
+    @FXML private Label orderEntryStatusLabel;
+    @FXML private TableView<LimitOrderDTO> myOpenOrdersTable;
+    @FXML private TableColumn<LimitOrderDTO, String> myOrderOptionCol;
+    @FXML private TableColumn<LimitOrderDTO, String> myOrderSideCol;
+    @FXML private TableColumn<LimitOrderDTO, String> myOrderPriceCol;
+    @FXML private TableColumn<LimitOrderDTO, Integer> myOrderRemainingCol;
+    @FXML private Button cancelOrderButton;
+
+    // =========================================================================
     // FXML UI Controls - Purchase History table
     // =========================================================================
 
@@ -90,6 +111,7 @@ public class UsersController implements MarketDataChangeListener {
     private final ObservableList<EventDTO> participatingEventsList = FXCollections.observableArrayList();
     private final ObservableList<String> availableOptionsList = FXCollections.observableArrayList();
     private final ObservableList<TradeHistoryDTO> tradeHistoryList = FXCollections.observableArrayList();
+    private final ObservableList<LimitOrderDTO> myOpenOrdersList = FXCollections.observableArrayList();
 
     // Observable properties
     private final DoubleProperty userBalance = new SimpleDoubleProperty(0.0);
@@ -109,6 +131,7 @@ public class UsersController implements MarketDataChangeListener {
         setupBindingsAndListeners();
         setupSpinner();
         setupPurchaseHistoryTableView();
+        setupOrderEntry();
     }
 
     /**
@@ -402,6 +425,7 @@ public class UsersController implements MarketDataChangeListener {
         if (selectedUser == null) {
             userBalance.set(0.0);
             participatingEventsList.clear();
+            refreshMyOpenOrders();
             return;
         }
         userBalance.set(selectedUser.balance());
@@ -414,6 +438,7 @@ public class UsersController implements MarketDataChangeListener {
                     .filter(e -> ids.contains(e.id()))
                     .toList());
         }
+        refreshMyOpenOrders();
     }
 
     /** Total shares the given user holds in the given event, across all options. */
@@ -462,10 +487,10 @@ public class UsersController implements MarketDataChangeListener {
         sharesCountSpinner.setEditable(true);
 
         // 2. Commit typed text immediately when the user presses Enter or clicks away (loses focus)
-        sharesCountSpinner.getEditor().setOnAction(event -> commitEditorText());
+        sharesCountSpinner.getEditor().setOnAction(event -> commitEditorText(sharesCountSpinner));
         sharesCountSpinner.focusedProperty().addListener((obs, wasFocused, isNowFocused) -> {
             if (!isNowFocused) {
-                commitEditorText();
+                commitEditorText(sharesCountSpinner);
             }
         });
 
@@ -501,18 +526,18 @@ public class UsersController implements MarketDataChangeListener {
     }
 
     /**
-     * Safely parses and commits typed text into the SpinnerValueFactory.
+     * Safely parses and commits typed text into the given spinner's value factory.
      */
-    private void commitEditorText() {
-        String text = sharesCountSpinner.getEditor().getText();
-        SpinnerValueFactory<Integer> factory = sharesCountSpinner.getValueFactory();
+    private void commitEditorText(Spinner<Integer> spinner) {
+        String text = spinner.getEditor().getText();
+        SpinnerValueFactory<Integer> factory = spinner.getValueFactory();
         if (factory != null && factory.getConverter() != null) {
             try {
                 Integer value = factory.getConverter().fromString(text);
                 factory.setValue(value);
             } catch (Exception ex) {
                 // Revert invalid text (e.g., non-numeric) back to current factory value
-                sharesCountSpinner.getEditor().setText(factory.getConverter().toString(factory.getValue()));
+                spinner.getEditor().setText(factory.getConverter().toString(factory.getValue()));
             }
         }
     }
@@ -523,7 +548,7 @@ public class UsersController implements MarketDataChangeListener {
     @FXML
     private void handleExecuteTrade() {
         // 1. Ensure any typed text in the spinner is committed
-        commitEditorText();
+        commitEditorText(sharesCountSpinner);
 
         UserDTO selectedUser = usersTableView.getSelectionModel().getSelectedItem();
         EventDTO selectedEvent = eventsComboBox.getValue();
@@ -624,6 +649,123 @@ public class UsersController implements MarketDataChangeListener {
         } catch (RuntimeException ex) {
             LOG.warn("End event {} failed: {}", selectedEvent.id(), ex.getMessage());
             Dialogs.error("Could not close event", ex);
+        }
+    }
+
+    // =========================================================================
+    // Order Book: limit-order entry, open orders, cancel
+    // =========================================================================
+
+    /**
+     * Wires the limit-order entry panel: it's shown only while the selected
+     * event trades through an Order Book, and its "My Open Orders" table
+     * always reflects the currently selected user's own resting orders on
+     * whichever event is selected.
+     */
+    private void setupOrderEntry() {
+        orderQuantitySpinner.setValueFactory(
+                new SpinnerValueFactory.IntegerSpinnerValueFactory(1, 1_000_000, 1, 1));
+        orderQuantitySpinner.setEditable(true);
+        orderQuantitySpinner.getEditor().setOnAction(event -> commitEditorText(orderQuantitySpinner));
+        orderQuantitySpinner.focusedProperty().addListener((obs, wasFocused, isNowFocused) -> {
+            if (!isNowFocused) {
+                commitEditorText(orderQuantitySpinner);
+            }
+        });
+
+        myOrderOptionCol.setCellValueFactory(cellData ->
+                new SimpleStringProperty(cellData.getValue().optionName()));
+        myOrderSideCol.setCellValueFactory(cellData ->
+                new SimpleStringProperty(cellData.getValue().side() == OrderSide.BID ? "Bid" : "Ask"));
+        myOrderPriceCol.setCellValueFactory(cellData ->
+                new SimpleStringProperty(String.format("$%.2f", cellData.getValue().price())));
+        myOrderRemainingCol.setCellValueFactory(cellData ->
+                new SimpleObjectProperty<>(cellData.getValue().remaining()));
+        myOpenOrdersTable.setItems(myOpenOrdersList);
+
+        orderEntrySection.visibleProperty().bind(Bindings.createBooleanBinding(
+                () -> {
+                    EventDetailsDTO details = selectedEventDetails.get();
+                    return details != null && details.eventInfo() != null
+                            && details.eventInfo().tradingMethod() == TradingMethodType.ORDERBOOK;
+                },
+                selectedEventDetails));
+        orderEntrySection.managedProperty().bind(orderEntrySection.visibleProperty());
+
+        selectedEventDetails.addListener((obs, oldDetails, newDetails) -> {
+            orderEntryStatusLabel.setText(" ");
+            refreshMyOpenOrders();
+        });
+    }
+
+    /** Resting orders belonging to the selected user, on the currently selected event. */
+    private void refreshMyOpenOrders() {
+        EventDetailsDTO details = selectedEventDetails.get();
+        UserDTO selectedUser = usersTableView.getSelectionModel().getSelectedItem();
+        if (details == null || selectedUser == null || details.restingOrders() == null) {
+            myOpenOrdersList.clear();
+            return;
+        }
+        myOpenOrdersList.setAll(details.restingOrders().stream()
+                .filter(order -> order.userName().equals(selectedUser.name()))
+                .toList());
+    }
+
+    @FXML
+    private void handlePlaceOrder() {
+        commitEditorText(orderQuantitySpinner);
+
+        UserDTO selectedUser = usersTableView.getSelectionModel().getSelectedItem();
+        EventDTO selectedEvent = eventsComboBox.getValue();
+        String selectedOption = tradeOptionComboBox.getValue();
+        int optionIndex1Based = tradeOptionComboBox.getItems().indexOf(selectedOption) + 1;
+        int quantity = orderQuantitySpinner.getValue() == null ? 0 : orderQuantitySpinner.getValue();
+        OrderSide side = bidRadioButton.isSelected() ? OrderSide.BID : OrderSide.ASK;
+
+        if (selectedUser == null || selectedEvent == null || optionIndex1Based == 0 || quantity <= 0 || marketEngine == null) {
+            Dialogs.error("Invalid Selection", "Select a user, an active Order Book event, an option, and a valid quantity.");
+            return;
+        }
+
+        double price;
+        try {
+            price = Double.parseDouble(orderPriceField.getText().trim());
+        } catch (NumberFormatException | NullPointerException ex) {
+            Dialogs.error("Invalid Price", "Enter a numeric price.");
+            return;
+        }
+
+        LOG.info("Order requested: user='{}', event={}, option#={}, side={}, qty={}, price={}",
+                selectedUser.name(), selectedEvent.id(), optionIndex1Based, side, quantity, price);
+        try {
+            OrderResultDTO result = marketEngine.placeOrder(
+                    selectedUser, selectedEvent, optionIndex1Based, side, quantity, price);
+            orderEntryStatusLabel.setText(String.format(
+                    "Filled %d, resting %d.", result.filledQuantity(), result.restingQuantity()));
+        } catch (RuntimeException ex) {
+            LOG.warn("Place order failed for user '{}' on event {}: {}",
+                    selectedUser.name(), selectedEvent.id(), ex.getMessage());
+            Dialogs.error("Order Failed", ex);
+        }
+    }
+
+    @FXML
+    private void handleCancelOrder() {
+        UserDTO selectedUser = usersTableView.getSelectionModel().getSelectedItem();
+        EventDTO selectedEvent = eventsComboBox.getValue();
+        LimitOrderDTO selectedOrder = myOpenOrdersTable.getSelectionModel().getSelectedItem();
+
+        if (selectedUser == null || selectedEvent == null || selectedOrder == null || marketEngine == null) {
+            Dialogs.error("Invalid Selection", "Select one of your open orders to cancel.");
+            return;
+        }
+
+        LOG.info("Cancel order {} requested by '{}' on event {}", selectedOrder.id(), selectedUser.name(), selectedEvent.id());
+        try {
+            marketEngine.cancelOrder(selectedUser, selectedEvent, selectedOrder.id());
+        } catch (RuntimeException ex) {
+            LOG.warn("Cancel order {} failed: {}", selectedOrder.id(), ex.getMessage());
+            Dialogs.error("Cancel Failed", ex);
         }
     }
 }

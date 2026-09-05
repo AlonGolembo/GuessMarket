@@ -8,12 +8,12 @@ import java.time.Instant;
 /**
  * One resting or matched limit order in an {@link OrderBook}: an offer by
  * {@code userName} to buy or sell {@code quantity} shares of one option at
- * {@code price}. Mutable only in {@link #remaining} - it shrinks as the order
- * is filled and never grows back. Package-private: {@link OrderBook} creates
- * and orders these, {@link Event} matches them; nothing outside
- * {@code engine.model} needs to see one directly yet.
+ * {@code price}. Mutable only in {@link #getRemaining()} - it shrinks as the
+ * order is filled and never grows back. Only {@link OrderBook} creates one
+ * and only {@link Event} matches/cancels one; the read accessors are public
+ * so {@code engine.mapper} can read a live book to build its DTOs.
  */
-final class LimitOrder implements Serializable {
+public final class LimitOrder implements Serializable {
 
     private final long id;
     private final String userName;
@@ -35,35 +35,35 @@ final class LimitOrder implements Serializable {
         this.placedAt = Instant.now();
     }
 
-    long getId() {
+    public long getId() {
         return id;
     }
 
-    String getUserName() {
+    public String getUserName() {
         return userName;
     }
 
-    int getOptionIndex() {
+    public int getOptionIndex() {
         return optionIndex;
     }
 
-    OrderSide getSide() {
+    public OrderSide getSide() {
         return side;
     }
 
-    int getQuantity() {
+    public int getQuantity() {
         return quantity;
     }
 
-    int getRemaining() {
+    public int getRemaining() {
         return remaining;
     }
 
-    double getPrice() {
+    public double getPrice() {
         return price;
     }
 
-    Instant getPlacedAt() {
+    public Instant getPlacedAt() {
         return placedAt;
     }
 

@@ -418,20 +418,22 @@ public class Event implements Serializable {
         user.addParticipatingEvent(this);
 
         LimitOrder incoming = orderBook.createOrder(user.getName(), optionIndex, side, quantity, price);
-        matchDirect(incoming, user);
-        if (side == OrderSide.BID && tradingMethod.allowsMinting()) {
-            tryMint(incoming, user);
-        }
+        Fill direct = matchDirect(incoming, user);
+        Fill mint = side == OrderSide.BID && tradingMethod.allowsMinting()
+                ? tryMint(incoming, user)
+                : new Fill(0.0, 0.0);
 
         if (incoming.getRemaining() > 0) {
             orderBook.rest(incoming);
         }
 
         int filled = quantity - incoming.getRemaining();
+        double cashMoved = direct.shareCost() + mint.shareCost();
+        double commission = direct.commission() + mint.commission();
         LOG.info("Event {}: '{}' placed {} {} '{}' @ {}; filled {}, resting {}",
                 id, user.getName(), side, quantity, options.get(optionIndex).getName(), price,
                 filled, incoming.getRemaining());
-        return new OrderOutcome(incoming.getId(), filled, incoming.getRemaining());
+        return new OrderOutcome(incoming.getId(), filled, incoming.getRemaining(), cashMoved, commission);
     }
 
     /** Cancels a still-resting order; only its own owner may cancel it. */
@@ -454,7 +456,7 @@ public class Event implements Serializable {
     }
 
     /** The live order book, or {@code null} for an event not using this trading method. */
-    OrderBook getOrderBook() {
+    public OrderBook getOrderBook() {
         return orderBook;
     }
 
@@ -462,10 +464,14 @@ public class Event implements Serializable {
      * Walks the opposite side of {@code incoming}'s option, best price first,
      * executing trades while prices cross, until {@code incoming} is filled,
      * the book runs dry, or no more resting order there can be honoured.
+     * Returns what {@code incomingUser} themselves paid or received and
+     * (only if they were the buyer) the commission within that.
      */
-    private void matchDirect(LimitOrder incoming, User incomingUser) {
+    private Fill matchDirect(LimitOrder incoming, User incomingUser) {
         int optionIndex = incoming.getOptionIndex();
         boolean incomingIsBid = incoming.getSide() == OrderSide.BID;
+        double cashMoved = 0.0;
+        double commissionPaid = 0.0;
 
         while (incoming.getRemaining() > 0) {
             Optional<LimitOrder> counterpart = incomingIsBid
@@ -499,13 +505,18 @@ public class Event implements Serializable {
                 continue;
             }
 
-            executeTrade(buyer, seller, optionIndex, quantity, execPrice);
+            Fill fill = executeTrade(buyer, seller, optionIndex, quantity, execPrice);
+            cashMoved += fill.shareCost();
+            if (incomingIsBid) {
+                commissionPaid += fill.commission();
+            }
             incoming.reduce(quantity);
             resting.reduce(quantity);
             if (resting.isFilled()) {
                 orderBook.remove(resting);
             }
         }
+        return new Fill(cashMoved, commissionPaid);
     }
 
     /** Cost breakdown of one order-book fill, returned so callers can total up a multi-fill order. */
@@ -555,12 +566,15 @@ public class Event implements Serializable {
      * at placement (its actual mint price is always <= its declared price,
      * exactly as with matching), so only the resting bid's owner can turn out
      * to be unable to pay - in which case that resting bid is dropped rather
-     * than mint short.
+     * than mint short. Returns what {@code incomingUser} paid across every
+     * mint, and the commission within that.
      */
-    private void tryMint(LimitOrder incoming, User incomingUser) {
+    private Fill tryMint(LimitOrder incoming, User incomingUser) {
         int optionA = incoming.getOptionIndex();
         int optionB = 1 - optionA;
         double baseValue = tradingMethod.baseValue();
+        double cashMoved = 0.0;
+        double commissionPaid = 0.0;
 
         while (incoming.getRemaining() > 0) {
             Optional<LimitOrder> counterpart = orderBook.bestBid(optionB);
@@ -586,17 +600,20 @@ public class Event implements Serializable {
                 continue;
             }
 
-            mintPair(incomingUser, optionA, priceA, otherUser, optionB, priceB, quantity);
+            Fill fill = mintPair(incomingUser, optionA, priceA, otherUser, optionB, priceB, quantity);
+            cashMoved += fill.shareCost();
+            commissionPaid += fill.commission();
             incoming.reduce(quantity);
             otherBid.reduce(quantity);
             if (otherBid.isFilled()) {
                 orderBook.remove(otherBid);
             }
         }
+        return new Fill(cashMoved, commissionPaid);
     }
 
-    /** Creates {@code quantity} brand-new shares of each option, charging each buyer their own price. */
-    private void mintPair(User userA, int optionA, double priceA, User userB, int optionB, double priceB,
+    /** Creates {@code quantity} brand-new shares of each option, charging each buyer their own price; returns userA's own spend. */
+    private Fill mintPair(User userA, int optionA, double priceA, User userB, int optionB, double priceB,
                            int quantity) {
         double costA = quantity * priceA;
         double costB = quantity * priceB;
@@ -627,6 +644,7 @@ public class Event implements Serializable {
         LOG.info("Event {}: minted {} pair(s) - '{}' bought '{}' @ {}, '{}' bought '{}' @ {}",
                 id, quantity, userA.getName(), options.get(optionA).getName(), priceA,
                 userB.getName(), options.get(optionB).getName(), priceB);
+        return new Fill(costA + commissionA, commissionA);
     }
 
     /** How many more shares of {@code optionIndex} the user could still sell, net of their own open asks. */

@@ -3,6 +3,8 @@ package com.guessmarket.engine.api;
 import com.guessmarket.dto.EventDTO;
 import com.guessmarket.dto.EventDetailsDTO;
 import com.guessmarket.dto.EventStatus;
+import com.guessmarket.dto.OrderResultDTO;
+import com.guessmarket.dto.OrderSide;
 import com.guessmarket.dto.TradeQuoteDTO;
 import com.guessmarket.dto.TradeResultDTO;
 import com.guessmarket.dto.UserDTO;
@@ -10,6 +12,7 @@ import com.guessmarket.engine.exception.MarketException;
 import com.guessmarket.engine.mapper.EventMapper;
 import com.guessmarket.engine.mapper.UserMapper;
 import com.guessmarket.engine.model.Event;
+import com.guessmarket.engine.model.OrderOutcome;
 import com.guessmarket.engine.model.TradeReceipt;
 import com.guessmarket.engine.model.User;
 import com.guessmarket.engine.serialization.MarketSnapshot;
@@ -147,6 +150,31 @@ public class MarketEngineImpl implements MarketEngine {
         return new TradeResultDTO(
                 receipt.sharesCost(), receipt.commission(), receipt.totalPaid(), receipt.filledQuantity(),
                 EventMapper.toEventDetailsDTO(event));
+    }
+
+    @Override
+    public OrderResultDTO placeOrder(UserDTO userDTO, EventDTO eventDTO, int optionIndex1Based, OrderSide side,
+                                      int quantity, double price) throws MarketException {
+        Event event = catalog.event(eventDTO.id());
+        User user = catalog.user(userDTO.name());
+        OrderOutcome outcome = event.placeOrder(user, optionIndex1Based - 1, side, quantity, price);
+        logger.info("'{}' placed a {} order for {} share(s) of option #{} in event {} @ {}: filled {}, resting {}",
+                user.getName(), side, quantity, optionIndex1Based, event.getId(), price,
+                outcome.filledQuantity(), outcome.restingQuantity());
+        publisher.publish();
+        return new OrderResultDTO(
+                outcome.filledQuantity(), outcome.restingQuantity(), outcome.cashMoved(), outcome.commission(),
+                outcome.restingQuantity() > 0 ? outcome.orderId() : null,
+                EventMapper.toEventDetailsDTO(event));
+    }
+
+    @Override
+    public void cancelOrder(UserDTO userDTO, EventDTO eventDTO, long orderId) throws MarketException {
+        Event event = catalog.event(eventDTO.id());
+        User user = catalog.user(userDTO.name());
+        event.cancelOrder(user, orderId);
+        logger.info("'{}' cancelled order {} in event {}", user.getName(), orderId, event.getId());
+        publisher.publish();
     }
 
     @Override

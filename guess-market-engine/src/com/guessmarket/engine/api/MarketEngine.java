@@ -2,6 +2,8 @@ package com.guessmarket.engine.api;
 
 import com.guessmarket.dto.EventDTO;
 import com.guessmarket.dto.EventDetailsDTO;
+import com.guessmarket.dto.OrderResultDTO;
+import com.guessmarket.dto.OrderSide;
 import com.guessmarket.dto.TradeQuoteDTO;
 import com.guessmarket.dto.TradeResultDTO;
 import com.guessmarket.dto.UserDTO;
@@ -42,6 +44,14 @@ public interface MarketEngine {
     // Buys shares for a specific active event
     // optionIndex1Based is the required option index but starting with 1 to be user-friendly
     TradeResultDTO buyShares(UserDTO buyer, EventDTO event, int optionIndex1Based, int quantity) throws MarketException;
+
+    // Places a limit order on an Order Book event; matched immediately against
+    // the book, remainder rests. optionIndex1Based starts at 1.
+    OrderResultDTO placeOrder(UserDTO user, EventDTO event, int optionIndex1Based, OrderSide side,
+                               int quantity, double price) throws MarketException;
+
+    // Cancels a still-resting order the given user placed on an Order Book event.
+    void cancelOrder(UserDTO user, EventDTO event, long orderId) throws MarketException;
 
     // Closes an event and declares the winning option
     void closeEvent(int eventId, int winningOptionIndex1Based) throws MarketException;

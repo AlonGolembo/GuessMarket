@@ -16,10 +16,11 @@ import java.util.Optional;
  * <p>Pure book-keeping - it knows nothing about money, holdings or
  * commission. {@link Event} owns the matching rules and applies those
  * effects; this class only tracks which orders exist, in what order, and
- * assigns each a unique id. Package-private for the same reason as
- * {@link LimitOrder}.
+ * assigns each a unique id. The read accessors are public so
+ * {@code engine.mapper} can read a live book to build its DTOs; only
+ * {@link Event} mutates one.
  */
-final class OrderBook implements Serializable {
+public final class OrderBook implements Serializable {
 
     private long nextOrderId = 1;
     private final Book[] books = {new Book(), new Book()};
@@ -63,26 +64,28 @@ final class OrderBook implements Serializable {
         sideList(order.getOptionIndex(), order.getSide()).remove(order);
     }
 
-    List<LimitOrder> bids(int optionIndex) {
-        return books[optionIndex].bids;
+    /** Resting bids on this option, price-descending then by arrival, unmodifiable. */
+    public List<LimitOrder> bids(int optionIndex) {
+        return java.util.Collections.unmodifiableList(books[optionIndex].bids);
     }
 
-    List<LimitOrder> asks(int optionIndex) {
-        return books[optionIndex].asks;
+    /** Resting asks on this option, price-ascending then by arrival, unmodifiable. */
+    public List<LimitOrder> asks(int optionIndex) {
+        return java.util.Collections.unmodifiableList(books[optionIndex].asks);
     }
 
-    Optional<LimitOrder> bestBid(int optionIndex) {
-        List<LimitOrder> bids = bids(optionIndex);
+    public Optional<LimitOrder> bestBid(int optionIndex) {
+        List<LimitOrder> bids = books[optionIndex].bids;
         return bids.isEmpty() ? Optional.empty() : Optional.of(bids.get(0));
     }
 
-    Optional<LimitOrder> bestAsk(int optionIndex) {
-        List<LimitOrder> asks = asks(optionIndex);
+    public Optional<LimitOrder> bestAsk(int optionIndex) {
+        List<LimitOrder> asks = books[optionIndex].asks;
         return asks.isEmpty() ? Optional.empty() : Optional.of(asks.get(0));
     }
 
     /** {@code NaN} until the first trade on this option. */
-    double lastTradePrice(int optionIndex) {
+    public double lastTradePrice(int optionIndex) {
         return books[optionIndex].lastTradePrice;
     }
 
@@ -115,7 +118,9 @@ final class OrderBook implements Serializable {
         }
     }
 
+    /** The live, mutable list for a side - unlike {@link #bids}/{@link #asks}, which return read-only views. */
     private List<LimitOrder> sideList(int optionIndex, OrderSide side) {
-        return side == OrderSide.BID ? bids(optionIndex) : asks(optionIndex);
+        Book book = books[optionIndex];
+        return side == OrderSide.BID ? book.bids : book.asks;
     }
 }

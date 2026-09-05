@@ -28,14 +28,25 @@ Guidance for working in this repository.
   publishes a change notification (`MarketEventPublisher`).
 - **`TradingMethod`** is the only place method-specific behaviour (pricing,
   trade cost, subsidy, config validation) belongs — never switch on its
-  concrete type.
+  concrete type. `Event.open()`'s one deliberate exception is asking
+  `usesOrderBook()`/`allowsMinting()` rather than reaching into `Event`
+  through the method.
+- **Order Book** (`OrderBookMethod`) trades through `OrderBook`/`LimitOrder`
+  (per-option bid/ask books, price-then-time priority) instead of a pricing
+  formula — `Event.placeOrder`/`cancelOrder`/`marketBuy` own the matching,
+  minting and no-escrow fill-time clamping; `OrderBookMethod.priceOf`/
+  `costToBuy` are unreachable in practice. `OrderBook`/`LimitOrder` are
+  package-private to mutate but expose public read accessors so
+  `engine.mapper` can build DTOs from a live book.
 - **DTOs are flat**: an `EventDTO` never references a `UserDTO` and vice versa
   (events/users cross-reference by id/name).
 - **Mappers convert domain → DTO only**, one direction, no recursion.
 - **Persistence** is `MarketSnapshot(events, users)` via Java serialization;
   every model type on that graph is `Serializable`.
-- `quoteTrade` and `buyShares` price through the same `Event.quote()` path, so
-  the number the UI shows equals the number charged.
+- `quoteTrade` and `buyShares` price a trade the same way `buy()` charges it —
+  for LMSR literally the same `Event.quote()` call; for Order Book,
+  `quoteOrderBook()`/`marketBuy()` walk the ask book identically (read-only vs.
+  mutating), covered by a same-numbers test rather than one shared method.
 
 ## Conventions
 

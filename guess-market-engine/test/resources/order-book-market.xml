@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Sample Order Book market: a d=1 event (each YES+NO pair worth $1, so prices
+  read like probabilities). The market maker allocates 100 shares of each
+  option at open (buying 100 pairs for $100, immediately posted for sale as
+  two resting asks at $0.50) and allows minting.
+
+  See README.md's "Order Book" section for what each GM-order-book attribute
+  means, and CLAUDE.md's Architecture section for how Event/OrderBook trade it.
+-->
+<Guess-Market>
+  <GM-events>
+    <GM-event name="Will it rain tomorrow?">
+      <id>1</id>
+      <description>Order Book market over tomorrow's weather, base value $1.</description>
+      <commission type="on-purchase">5</commission>
+      <GM-options>
+        <GM-option>Rain</GM-option>
+        <GM-option>No rain</GM-option>
+      </GM-options>
+      <GM-method>
+        <GM-order-book d="1" initial="100" allow-mint="true"/>
+      </GM-method>
+    </GM-event>
+  </GM-events>
+  <GM-users>
+    <GM-user name="mm">
+      <initial-cash>1000</initial-cash>
+      <GM-market-maker><event id="1"/></GM-market-maker>
+    </GM-user>
+    <GM-user name="alice"><initial-cash>500</initial-cash></GM-user>
+    <GM-user name="bob"><initial-cash>500</initial-cash></GM-user>
+  </GM-users>
+</Guess-Market>

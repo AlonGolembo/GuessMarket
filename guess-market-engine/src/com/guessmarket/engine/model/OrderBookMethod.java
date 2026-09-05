@@ -8,10 +8,11 @@ import java.util.List;
 /**
  * Order-book trading: a public book of bids/asks per option, matched
  * price-then-time, with share minting when cross-option demand covers the base
- * value. The configuration is captured from the XML and validated here; the
- * book, matching and minting themselves live on {@link Event} /
- * {@link OrderBook} (a follow-up phase). {@link #priceOf} / {@link #costToBuy}
- * still throw until that lands.
+ * value. This class only captures the configuration from the XML and
+ * validates it; the book, matching and minting themselves live on
+ * {@link Event} / {@link OrderBook}, which price and trade directly against
+ * the live book rather than through {@link #priceOf} / {@link #costToBuy} -
+ * those two are unreachable for an Order Book event and always throw.
  *
  * @see #d() the base value: what a winning share pays out, and what a YES+NO
  *      pair is always worth together
@@ -75,14 +76,23 @@ public final class OrderBookMethod implements TradingMethod {
         return allowMint;
     }
 
+    /**
+     * Not applicable: an Order Book event has no single formula price.
+     * {@code Event}/{@code EventMapper} read the live book directly instead
+     * (mid price, falling back to last trade then half the base value).
+     */
     @Override
     public double priceOf(int optionIndex, List<Option> options) {
-        throw new UnsupportedOperationException("Order Book pricing is not implemented yet.");
+        throw new UnsupportedOperationException("Order Book has no formula price; see the live OrderBook instead.");
     }
 
+    /**
+     * Not applicable: {@link Event#buy} routes an Order Book event through a
+     * market order against the live ask book instead of calling this.
+     */
     @Override
     public double costToBuy(int optionIndex, int quantity, List<Option> options) {
-        throw new UnsupportedOperationException("Order Book trading is not implemented yet.");
+        throw new UnsupportedOperationException("Order Book trades against the live book, not a cost formula.");
     }
 
     @Override

@@ -131,7 +131,7 @@ public class MarketEngineImpl implements MarketEngine {
     public TradeQuoteDTO quoteTrade(UserDTO buyerDTO, EventDTO eventDTO, int optionIndex1Based, int quantity)
             throws MarketException {
         TradeReceipt r = catalog.event(eventDTO.id()).quote(optionIndex1Based - 1, quantity);
-        return new TradeQuoteDTO(r.sharesCost(), r.commission(), r.totalPaid());
+        return new TradeQuoteDTO(r.sharesCost(), r.commission(), r.totalPaid(), r.filledQuantity());
     }
 
     @Override
@@ -140,12 +140,12 @@ public class MarketEngineImpl implements MarketEngine {
         Event event = catalog.event(eventDTO.id());
         User buyer = catalog.user(buyerDTO.name());
         TradeReceipt receipt = event.buy(buyer, optionIndex1Based - 1, quantity);
-        logger.info("'{}' bought {} share(s) of option #{} in event {} for {} (cost {}, commission {})",
-                buyer.getName(), quantity, optionIndex1Based, event.getId(),
+        logger.info("'{}' bought {} of {} requested share(s) of option #{} in event {} for {} (cost {}, commission {})",
+                buyer.getName(), receipt.filledQuantity(), quantity, optionIndex1Based, event.getId(),
                 receipt.totalPaid(), receipt.sharesCost(), receipt.commission());
         publisher.publish();
         return new TradeResultDTO(
-                receipt.sharesCost(), receipt.commission(), receipt.totalPaid(),
+                receipt.sharesCost(), receipt.commission(), receipt.totalPaid(), receipt.filledQuantity(),
                 EventMapper.toEventDetailsDTO(event));
     }
 

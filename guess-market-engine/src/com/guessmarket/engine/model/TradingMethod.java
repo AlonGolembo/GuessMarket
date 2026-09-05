@@ -50,6 +50,15 @@ public sealed interface TradingMethod extends Serializable permits LmsrMethod, O
     }
 
     /**
+     * Whether new share pairs may be minted from matching cross-option bids
+     * (see the Order Book spec). {@code false} for LMSR and for an Order Book
+     * configured with minting disabled.
+     */
+    default boolean allowsMinting() {
+        return false;
+    }
+
+    /**
      * Current implied price of the option at {@code optionIndex}: a probability
      * in {@code [0, 1]} for scoring-rule methods.
      *

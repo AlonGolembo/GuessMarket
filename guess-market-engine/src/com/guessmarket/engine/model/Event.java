@@ -147,11 +147,19 @@ public class Event implements Serializable {
      * records the holding and the trade. Atomic: the buyer is debited first, so
      * an unaffordable trade throws before anything else changes.
      *
+     * <p>For an Order Book event this is a market buy (see {@link #marketBuy}):
+     * it sweeps the cheapest asks up to {@code quantity} and never mints or
+     * rests a remainder, so {@link TradeReceipt#filledQuantity()} may be less
+     * than requested if the book runs dry.
+     *
      * @param optionIndex 0-based index into {@link #getOptions()}
      */
     public TradeReceipt buy(User buyer, int optionIndex, int quantity) {
         if (status != EventStatus.ACTIVE) {
             throw new MarketException("Event ID " + id + " is not open for trading (state: " + status + ").");
+        }
+        if (orderBook != null) {
+            return marketBuy(buyer, optionIndex, quantity);
         }
 
         TradeReceipt receipt = quote(optionIndex, quantity);   // also validates optionIndex / quantity
@@ -175,7 +183,9 @@ public class Event implements Serializable {
 
     /**
      * Prices a prospective trade without changing anything. {@link #buy} charges
-     * exactly this breakdown.
+     * exactly this breakdown. For an Order Book event this walks the ask book
+     * read-only (see {@link #marketBuy}), so {@link TradeReceipt#filledQuantity()}
+     * may be less than requested.
      */
     public TradeReceipt quote(int optionIndex, int quantity) {
         if (quantity <= 0) {
@@ -184,11 +194,94 @@ public class Event implements Serializable {
         if (optionIndex < 0 || optionIndex >= options.size()) {
             throw new MarketException("Invalid option index: " + optionIndex);
         }
+        if (orderBook != null) {
+            return quoteOrderBook(optionIndex, quantity);
+        }
         double sharesCost = tradingMethod.costToBuy(optionIndex, quantity, options);
         double commission = commissionType == CommissionType.ON_PURCHASE
                 ? sharesCost * (commissionPercentage / 100.0)
                 : 0.0;
-        return new TradeReceipt(sharesCost, commission, sharesCost + commission);
+        return new TradeReceipt(sharesCost, commission, sharesCost + commission, quantity);
+    }
+
+    /** Read-only walk of the ask book, cheapest first, up to {@code quantity} shares. */
+    private TradeReceipt quoteOrderBook(int optionIndex, int quantity) {
+        int remaining = quantity;
+        double sharesCost = 0.0;
+        for (LimitOrder ask : orderBook.asks(optionIndex)) {
+            if (remaining <= 0) {
+                break;
+            }
+            int take = Math.min(remaining, ask.getRemaining());
+            sharesCost += take * ask.getPrice();
+            remaining -= take;
+        }
+        int filled = quantity - remaining;
+        double commission = commissionType == CommissionType.ON_PURCHASE
+                ? sharesCost * (commissionPercentage / 100.0)
+                : 0.0;
+        return new TradeReceipt(sharesCost, commission, sharesCost + commission, filled);
+    }
+
+    /**
+     * A market buy for an Order Book event: sweeps the ask book cheapest-first,
+     * clamping each fill to what its seller can currently deliver and its buyer
+     * can currently afford exactly like {@link #matchDirect}, until
+     * {@code quantity} is filled, the book runs dry, or the buyer can't afford
+     * any more. Never mints and never rests a remainder - what didn't fill is
+     * simply not bought; the receipt's {@link TradeReceipt#filledQuantity()}
+     * reports how much actually was.
+     */
+    private TradeReceipt marketBuy(User buyer, int optionIndex, int quantity) {
+        if (quantity <= 0) {
+            throw new MarketException("Quantity to buy must be strictly positive (> 0), got: " + quantity);
+        }
+        if (optionIndex < 0 || optionIndex >= options.size()) {
+            throw new MarketException("Invalid option index: " + optionIndex);
+        }
+
+        int remaining = quantity;
+        double totalSharesCost = 0.0;
+        double totalCommission = 0.0;
+
+        while (remaining > 0) {
+            Optional<LimitOrder> best = orderBook.bestAsk(optionIndex);
+            if (best.isEmpty()) {
+                break;
+            }
+            LimitOrder ask = best.get();
+            User seller = getParticipantByName(ask.getUserName());
+            double execPrice = ask.getPrice();
+
+            int fillQty = Math.min(remaining, ask.getRemaining());
+            fillQty = Math.min(fillQty, holdingsOf(seller.getName())[optionIndex]);
+            fillQty = Math.min(fillQty, affordableQuantity(buyer, execPrice));
+
+            if (fillQty <= 0) {
+                if (affordableQuantity(buyer, execPrice) <= 0) {
+                    break;   // the buyer can't afford even the cheapest remaining ask - stop, don't drop it
+                }
+                LOG.warn("Event {}: dropping stale resting order {} (no longer honourable)", id, ask.getId());
+                orderBook.remove(ask);
+                continue;
+            }
+
+            Fill fill = executeTrade(buyer, seller, optionIndex, fillQty, execPrice);
+            totalSharesCost += fill.shareCost();
+            totalCommission += fill.commission();
+
+            ask.reduce(fillQty);
+            if (ask.isFilled()) {
+                orderBook.remove(ask);
+            }
+            remaining -= fillQty;
+        }
+
+        int filled = quantity - remaining;
+        LOG.info("Event {}: '{}' market-bought {} of {} requested '{}' for {} (commission {})",
+                id, buyer.getName(), filled, quantity, options.get(optionIndex).getName(),
+                totalSharesCost, totalCommission);
+        return new TradeReceipt(totalSharesCost, totalCommission, totalSharesCost + totalCommission, filled);
     }
 
     /**
@@ -273,6 +366,10 @@ public class Event implements Serializable {
      * possible for asks, see below - the shares elsewhere) is dropped rather
      * than filled short.
      *
+     * <p>A bid that isn't fully filled by direct matching, and whose method
+     * {@link TradingMethod#allowsMinting() allows minting}, is then offered to
+     * {@link #tryMint} before whatever's left is rested.
+     *
      * <p>Placing an ask requires currently holding at least {@code quantity}
      * shares of that option net of the user's own other resting asks on it,
      * so a resting ask can never end up unbacked. Placing a bid requires that
@@ -322,9 +419,9 @@ public class Event implements Serializable {
 
         LimitOrder incoming = orderBook.createOrder(user.getName(), optionIndex, side, quantity, price);
         matchDirect(incoming, user);
-        // Minting (Phase 3): when incoming is a bid and its remainder can pair
-        // with a resting bid on the other option, new share pairs get created
-        // here instead of just resting.
+        if (side == OrderSide.BID && tradingMethod.allowsMinting()) {
+            tryMint(incoming, user);
+        }
 
         if (incoming.getRemaining() > 0) {
             orderBook.rest(incoming);
@@ -411,8 +508,11 @@ public class Event implements Serializable {
         }
     }
 
+    /** Cost breakdown of one order-book fill, returned so callers can total up a multi-fill order. */
+    private record Fill(double shareCost, double commission) {}
+
     /** Moves cash and shares for one fill and records it; commission goes straight to the market maker. */
-    private void executeTrade(User buyer, User seller, int optionIndex, int quantity, double execPrice) {
+    private Fill executeTrade(User buyer, User seller, int optionIndex, int quantity, double execPrice) {
         double shareCost = quantity * execPrice;
         double commission = commissionType == CommissionType.ON_PURCHASE
                 ? shareCost * (commissionPercentage / 100.0)
@@ -436,6 +536,97 @@ public class Event implements Serializable {
 
         LOG.info("Event {}: order-book trade - '{}' bought {} '{}' from '{}' @ {} (cost {}, commission {})",
                 id, buyer.getName(), quantity, optionName, seller.getName(), execPrice, shareCost, commission);
+        return new Fill(shareCost, commission);
+    }
+
+    /**
+     * Attempts to mint new share pairs for {@code incoming}'s remaining
+     * quantity: while the best resting bid on the *other* option prices high
+     * enough that the two prices together cover the base value, mints
+     * {@code min(both remainders, both affordabilities)} new shares of each
+     * option - {@code incoming} pays the complement of the resting bid's
+     * price, the resting bid pays its own price in full - and pours
+     * {@code quantity * baseValue} into the pool to back them. Bids are
+     * price-ordered, so the first one that doesn't qualify means none of the
+     * rest will either.
+     *
+     * <p>Both buyers are validated for affordability the same way a direct
+     * match is; {@code incoming}'s own affordability was already guaranteed
+     * at placement (its actual mint price is always <= its declared price,
+     * exactly as with matching), so only the resting bid's owner can turn out
+     * to be unable to pay - in which case that resting bid is dropped rather
+     * than mint short.
+     */
+    private void tryMint(LimitOrder incoming, User incomingUser) {
+        int optionA = incoming.getOptionIndex();
+        int optionB = 1 - optionA;
+        double baseValue = tradingMethod.baseValue();
+
+        while (incoming.getRemaining() > 0) {
+            Optional<LimitOrder> counterpart = orderBook.bestBid(optionB);
+            if (counterpart.isEmpty()) {
+                break;
+            }
+            LimitOrder otherBid = counterpart.get();
+            if (incoming.getPrice() + otherBid.getPrice() < baseValue) {
+                break;
+            }
+
+            User otherUser = getParticipantByName(otherBid.getUserName());
+            double priceA = baseValue - otherBid.getPrice();   // incoming pays the complement
+            double priceB = otherBid.getPrice();               // resting pays its own bid in full
+
+            int quantity = Math.min(incoming.getRemaining(), otherBid.getRemaining());
+            quantity = Math.min(quantity, affordableQuantity(incomingUser, priceA));
+            quantity = Math.min(quantity, affordableQuantity(otherUser, priceB));
+
+            if (quantity <= 0) {
+                LOG.warn("Event {}: dropping stale resting bid {} (mint no longer affordable)", id, otherBid.getId());
+                orderBook.remove(otherBid);
+                continue;
+            }
+
+            mintPair(incomingUser, optionA, priceA, otherUser, optionB, priceB, quantity);
+            incoming.reduce(quantity);
+            otherBid.reduce(quantity);
+            if (otherBid.isFilled()) {
+                orderBook.remove(otherBid);
+            }
+        }
+    }
+
+    /** Creates {@code quantity} brand-new shares of each option, charging each buyer their own price. */
+    private void mintPair(User userA, int optionA, double priceA, User userB, int optionB, double priceB,
+                           int quantity) {
+        double costA = quantity * priceA;
+        double costB = quantity * priceB;
+        double commissionA = commissionType == CommissionType.ON_PURCHASE ? costA * (commissionPercentage / 100.0) : 0.0;
+        double commissionB = commissionType == CommissionType.ON_PURCHASE ? costB * (commissionPercentage / 100.0) : 0.0;
+
+        userA.debit(costA + commissionA);
+        userB.debit(costB + commissionB);
+        recordCommission(commissionA + commissionB);
+
+        options.get(optionA).addShares(quantity);
+        options.get(optionB).addShares(quantity);
+        pool += quantity * tradingMethod.baseValue();   // == costA + costB before commission
+
+        holdingsByUser.computeIfAbsent(userA.getName(), k -> new int[options.size()])[optionA] += quantity;
+        holdingsByUser.computeIfAbsent(userB.getName(), k -> new int[options.size()])[optionB] += quantity;
+
+        participants.put(userA.getName(), userA);
+        participants.put(userB.getName(), userB);
+        userA.addParticipatingEvent(this);
+        userB.addParticipatingEvent(this);
+
+        tradeHistory.add(0, new TradeRecord(userA.getName(), options.get(optionA).getName(), quantity, costA + commissionA));
+        tradeHistory.add(0, new TradeRecord(userB.getName(), options.get(optionB).getName(), quantity, costB + commissionB));
+        orderBook.recordTrade(optionA, priceA);
+        orderBook.recordTrade(optionB, priceB);
+
+        LOG.info("Event {}: minted {} pair(s) - '{}' bought '{}' @ {}, '{}' bought '{}' @ {}",
+                id, quantity, userA.getName(), options.get(optionA).getName(), priceA,
+                userB.getName(), options.get(optionB).getName(), priceB);
     }
 
     /** How many more shares of {@code optionIndex} the user could still sell, net of their own open asks. */

@@ -22,13 +22,16 @@
 
 <ScrollPane fitToHeight="true" fitToWidth="true" xmlns="http://javafx.com/javafx/26" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.guessmarket.ui.controllers.UsersController">
     <content>
-        <VBox spacing="10.0">
+        <!-- fitToHeight/Width keep the content filling the viewport while it's
+             large enough; once the window shrinks past these minimums the
+             ScrollPane shows scrollbars instead of clipping a section. -->
+        <VBox minHeight="720.0" minWidth="760.0" spacing="10.0">
             <padding>
                 <Insets bottom="10.0" left="10.0" right="10.0" top="10.0" />
             </padding>
             <children>
                 <!-- Top Section: Users Table & User Details -->
-                <SplitPane dividerPositions="0.35" VBox.vgrow="ALWAYS">
+                <SplitPane dividerPositions="0.35" minHeight="260.0" prefHeight="360.0" VBox.vgrow="ALWAYS">
                     <items>
                         <!-- Left: Users List -->
                         <VBox spacing="8.0">
@@ -127,15 +130,15 @@
                             </children>
                         </HBox>
 
-                        <!-- Trade & Details Grid -->
+                        <!-- Event details: overview + purchase history. The trade
+                             panels are no longer a column here - they sit below,
+                             replacing each other by trading method. -->
                         <GridPane fx:id="eventDetailsAndTrade" hgap="16.0" vgap="10.0">
                             <columnConstraints>
                                 <!-- Left Column: Metadata & Metrics -->
-                                <ColumnConstraints hgrow="SOMETIMES" minWidth="280.0" prefWidth="300.0" />
-                                <!-- Middle Column: Purchase History Table -->
-                                <ColumnConstraints hgrow="SOMETIMES" minWidth="320.0" prefWidth="380.0" />
-                                <!-- Right Column: Trade Action Panel -->
-                                <ColumnConstraints hgrow="SOMETIMES" minWidth="280.0" prefWidth="300.0" />
+                                <ColumnConstraints hgrow="SOMETIMES" minWidth="260.0" prefWidth="320.0" />
+                                <!-- Right Column: Purchase History Table -->
+                                <ColumnConstraints hgrow="ALWAYS" minWidth="320.0" prefWidth="440.0" />
                             </columnConstraints>
                             <rowConstraints>
                                 <RowConstraints minHeight="20.0" vgrow="NEVER" />
@@ -202,83 +205,86 @@
                                         </TableView>
                                     </children>
                                 </VBox>
+                            </children>
+                        </GridPane>
 
-                                <!-- Column 3 Header: LMSR trade terminal (shown only for LMSR events) -->
-                                <Label fx:id="buySharesHeaderLabel" managed="false" text="Buy Shares (LMSR)" visible="false" GridPane.columnIndex="2" GridPane.rowIndex="0">
+                        <!-- Trade panels: exactly one is visible at a time, bound
+                             to the selected event's trading method, so they
+                             replace each other in this slot. -->
+
+                        <!-- LMSR: buy shares priced by the market maker -->
+                        <VBox fx:id="buySharesSection" managed="false" maxWidth="700.0" spacing="12.0" style="-fx-border-color: #dcdcdc; -fx-border-radius: 4; -fx-padding: 12;" visible="false">
+                            <children>
+                                <Label text="Buy Shares (LMSR)">
                                     <font>
                                         <Font name="System Bold" size="13.0" />
                                     </font>
                                 </Label>
-                                <!-- Column 3 Content: LMSR Action Box (shown only for LMSR events) -->
-                                <VBox fx:id="buySharesSection" managed="false" spacing="12.0" style="-fx-border-color: #dcdcdc; -fx-border-radius: 4; -fx-padding: 12;" visible="false" GridPane.columnIndex="2" GridPane.rowIndex="1">
+                                <VBox spacing="4.0">
                                     <children>
-                                        <VBox spacing="4.0">
-                                            <children>
-                                                <Label text="Option:" />
-                                                <ComboBox fx:id="tradeOptionComboBox" maxWidth="1.7976931348623157E308" promptText="Select outcome..." />
-                                            </children>
-                                        </VBox>
+                                        <Label text="Option:" />
+                                        <ComboBox fx:id="tradeOptionComboBox" maxWidth="1.7976931348623157E308" promptText="Select outcome..." />
+                                    </children>
+                                </VBox>
 
-                                        <VBox spacing="4.0">
-                                            <children>
-                                                <HBox alignment="CENTER_LEFT" spacing="8.0">
-                                                    <children>
-                                                        <Label text="Price (Prob %):">
-                                                            <font>
-                                                                <Font name="System Bold" size="12.0" />
-                                                            </font>
-                                                        </Label>
-                                                        <Label fx:id="optionPriceLabel" text="\$0.00">
-                                                            <font>
-                                                                <Font name="System Bold" size="14.0" />
-                                                            </font>
-                                                        </Label>
-                                                    </children>
-                                                </HBox>
-                                                <Label text="Shares Quantity:" />
-                                                <!-- Spinner with numeric up/down arrows -->
-                                                <Spinner fx:id="sharesCountSpinner" editable="true" maxWidth="1.7976931348623157E308" />
-                                            </children>
-                                        </VBox>
-                              <HBox alignment="CENTER_LEFT" spacing="8.0">
-                                 <children>
-                                    <Label text="Commission:">
-                                       <font>
-                                          <Font name="System Bold" size="12.0" />
-                                       </font>
-                                    </Label>
-                                    <Label fx:id="commissionToPayLabel" text="\$0.00">
-                                       <font>
-                                          <Font name="System Bold" size="12.0" />
-                                       </font>
-                                    </Label>
-                                    <Label fx:id="payNowOrLaterLabel" text="(Pay now)" />
-                                 </children>
-                              </HBox>
-
+                                <VBox spacing="4.0">
+                                    <children>
                                         <HBox alignment="CENTER_LEFT" spacing="8.0">
                                             <children>
-                                                <Label text="Total Price:">
+                                                <Label text="Price (Prob %):">
                                                     <font>
                                                         <Font name="System Bold" size="12.0" />
                                                     </font>
                                                 </Label>
-                                                <Label fx:id="totalSharesPrice" text="\$0.00" textFill="#d32f2f">
+                                                <Label fx:id="optionPriceLabel" text="\$0.00">
                                                     <font>
                                                         <Font name="System Bold" size="14.0" />
                                                     </font>
                                                 </Label>
                                             </children>
                                         </HBox>
-
-                                        <Button fx:id="executeTradeButton" maxWidth="1.7976931348623157E308" mnemonicParsing="false" onAction="#handleExecuteTrade" style="-fx-background-color: #979797; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 8;" text="Execute Purchase" />
+                                        <Label text="Shares Quantity:" />
+                                        <Spinner fx:id="sharesCountSpinner" editable="true" maxWidth="1.7976931348623157E308" />
                                     </children>
                                 </VBox>
-                            </children>
-                        </GridPane>
 
-                        <!-- Order Book limit-order entry: shown only for Order Book events -->
-                        <VBox fx:id="orderEntrySection" managed="false" spacing="10.0" style="-fx-border-color: #dcdcdc; -fx-border-radius: 4; -fx-padding: 12;" visible="false">
+                                <HBox alignment="CENTER_LEFT" spacing="8.0">
+                                    <children>
+                                        <Label text="Commission:">
+                                            <font>
+                                                <Font name="System Bold" size="12.0" />
+                                            </font>
+                                        </Label>
+                                        <Label fx:id="commissionToPayLabel" text="\$0.00">
+                                            <font>
+                                                <Font name="System Bold" size="12.0" />
+                                            </font>
+                                        </Label>
+                                        <Label fx:id="payNowOrLaterLabel" text="(Pay now)" />
+                                    </children>
+                                </HBox>
+
+                                <HBox alignment="CENTER_LEFT" spacing="8.0">
+                                    <children>
+                                        <Label text="Total Price:">
+                                            <font>
+                                                <Font name="System Bold" size="12.0" />
+                                            </font>
+                                        </Label>
+                                        <Label fx:id="totalSharesPrice" text="\$0.00" textFill="#d32f2f">
+                                            <font>
+                                                <Font name="System Bold" size="14.0" />
+                                            </font>
+                                        </Label>
+                                    </children>
+                                </HBox>
+
+                                <Button fx:id="executeTradeButton" maxWidth="1.7976931348623157E308" mnemonicParsing="false" onAction="#handleExecuteTrade" style="-fx-background-color: #979797; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 8;" text="Execute Purchase" />
+                            </children>
+                        </VBox>
+
+                        <!-- Order Book: place limit orders against the public book -->
+                        <VBox fx:id="orderEntrySection" managed="false" maxWidth="700.0" spacing="10.0" style="-fx-border-color: #dcdcdc; -fx-border-radius: 4; -fx-padding: 12;" visible="false">
                             <children>
                                 <Label text="Place a Limit Order (Order Book)">
                                     <font>

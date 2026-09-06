@@ -63,7 +63,6 @@ public class UsersController implements MarketDataChangeListener {
     @FXML private Label eventDescriptionLabel;
 
     // --- LMSR trade section (shown only for LMSR events) ---
-    @FXML private Label buySharesHeaderLabel;
     @FXML private ComboBox<String> tradeOptionComboBox;
     @FXML private Label optionPriceLabel;
     @FXML private Spinner<Integer> sharesCountSpinner;
@@ -275,7 +274,6 @@ public class UsersController implements MarketDataChangeListener {
         // The LMSR trade section is shown only for an LMSR event, and within
         // that is enabled only for a non-market-maker on an open event.
         bindVisibleToMethod(buySharesSection, TradingMethodType.LMSR);
-        bindVisibleToMethod(buySharesHeaderLabel, TradingMethodType.LMSR);
         buySharesSection.disableProperty().bind(
                 Bindings.createBooleanBinding(
                         () -> !TradeRules.canTrade(

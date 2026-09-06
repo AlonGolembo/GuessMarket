@@ -61,6 +61,9 @@ public class UsersController implements MarketDataChangeListener {
     @FXML private Label eventCommissionLabel;
     @FXML private Label eventStatusOrWinningOption;
     @FXML private Label eventDescriptionLabel;
+
+    // --- LMSR trade section (shown only for LMSR events) ---
+    @FXML private Label buySharesHeaderLabel;
     @FXML private ComboBox<String> tradeOptionComboBox;
     @FXML private Label optionPriceLabel;
     @FXML private Spinner<Integer> sharesCountSpinner;
@@ -76,6 +79,7 @@ public class UsersController implements MarketDataChangeListener {
     // FXML UI Controls - Order Book Limit-Order Entry (Order Book events only)
     // =========================================================================
     @FXML private VBox orderEntrySection;
+    @FXML private ComboBox<String> orderOptionComboBox;
     @FXML private RadioButton bidRadioButton;
     @FXML private RadioButton askRadioButton;
     @FXML private TextField orderPriceField;
@@ -142,6 +146,7 @@ public class UsersController implements MarketDataChangeListener {
         eventsComboBox.setItems(eventsList);
         userEventsTableView.setItems(participatingEventsList);
         tradeOptionComboBox.setItems(availableOptionsList);
+        orderOptionComboBox.setItems(availableOptionsList);
         winningOptionComboBox.setItems(availableOptionsList);
     }
 
@@ -251,21 +256,26 @@ public class UsersController implements MarketDataChangeListener {
 
         selectedEventDetails.addListener((obs, oldDetails, newDetails) -> {
             tradeOptionComboBox.getSelectionModel().clearSelection();
+            orderOptionComboBox.getSelectionModel().clearSelection();
 
             if (newDetails != null && newDetails.eventInfo() != null && newDetails.eventInfo().options() != null) {
                 // Populate with options from the event (e.g., ["Yes", "No"])
                 availableOptionsList.setAll(newDetails.eventInfo().options());
 
-                // Auto-select the first option by default
+                // Auto-select the first option by default in both trade sections
                 if (!availableOptionsList.isEmpty()) {
                     tradeOptionComboBox.getSelectionModel().selectFirst();
+                    orderOptionComboBox.getSelectionModel().selectFirst();
                 }
             } else {
                 availableOptionsList.clear();
             }
         });
 
-        // The trade panel is enabled only for a non-market-maker on an open event.
+        // The LMSR trade section is shown only for an LMSR event, and within
+        // that is enabled only for a non-market-maker on an open event.
+        bindVisibleToMethod(buySharesSection, TradingMethodType.LMSR);
+        bindVisibleToMethod(buySharesHeaderLabel, TradingMethodType.LMSR);
         buySharesSection.disableProperty().bind(
                 Bindings.createBooleanBinding(
                         () -> !TradeRules.canTrade(
@@ -683,19 +693,27 @@ public class UsersController implements MarketDataChangeListener {
                 new SimpleObjectProperty<>(cellData.getValue().remaining()));
         myOpenOrdersTable.setItems(myOpenOrdersList);
 
-        orderEntrySection.visibleProperty().bind(Bindings.createBooleanBinding(
-                () -> {
-                    EventDetailsDTO details = selectedEventDetails.get();
-                    return details != null && details.eventInfo() != null
-                            && details.eventInfo().tradingMethod() == TradingMethodType.ORDERBOOK;
-                },
-                selectedEventDetails));
-        orderEntrySection.managedProperty().bind(orderEntrySection.visibleProperty());
+        bindVisibleToMethod(orderEntrySection, TradingMethodType.ORDERBOOK);
 
         selectedEventDetails.addListener((obs, oldDetails, newDetails) -> {
             orderEntryStatusLabel.setText(" ");
             refreshMyOpenOrders();
         });
+    }
+
+    /**
+     * Binds a section's {@code visible} (and {@code managed}) property so it
+     * shows only while the selected event trades through {@code method}.
+     */
+    private void bindVisibleToMethod(javafx.scene.Node section, TradingMethodType method) {
+        section.visibleProperty().bind(Bindings.createBooleanBinding(
+                () -> {
+                    EventDetailsDTO details = selectedEventDetails.get();
+                    return details != null && details.eventInfo() != null
+                            && details.eventInfo().tradingMethod() == method;
+                },
+                selectedEventDetails));
+        section.managedProperty().bind(section.visibleProperty());
     }
 
     /** Resting orders belonging to the selected user, on the currently selected event. */
@@ -717,8 +735,8 @@ public class UsersController implements MarketDataChangeListener {
 
         UserDTO selectedUser = usersTableView.getSelectionModel().getSelectedItem();
         EventDTO selectedEvent = eventsComboBox.getValue();
-        String selectedOption = tradeOptionComboBox.getValue();
-        int optionIndex1Based = tradeOptionComboBox.getItems().indexOf(selectedOption) + 1;
+        String selectedOption = orderOptionComboBox.getValue();
+        int optionIndex1Based = orderOptionComboBox.getItems().indexOf(selectedOption) + 1;
         int quantity = orderQuantitySpinner.getValue() == null ? 0 : orderQuantitySpinner.getValue();
         OrderSide side = bidRadioButton.isSelected() ? OrderSide.BID : OrderSide.ASK;
 

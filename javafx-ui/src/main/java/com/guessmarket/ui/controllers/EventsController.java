@@ -11,6 +11,7 @@ import com.guessmarket.dto.OrderSide;
 import com.guessmarket.dto.TradingMethodType;
 import com.guessmarket.engine.api.MarketDataChangeListener;
 import com.guessmarket.engine.api.MarketEngine;
+import com.guessmarket.ui.common.Charts;
 import com.guessmarket.ui.common.EventFilters;
 import javafx.application.Platform;
 import javafx.beans.property.SimpleObjectProperty;
@@ -22,8 +23,10 @@ import javafx.collections.transformation.SortedList;
 import javafx.fxml.FXML;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Label;
+import javafx.scene.chart.LineChart;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
+import javafx.scene.layout.AnchorPane;
 import javafx.scene.layout.VBox;
 
 import java.util.ArrayList;
@@ -79,12 +82,21 @@ public class EventsController implements MarketDataChangeListener {
     @FXML private TableColumn<HoldingDTO, Integer> partSharesCol;
 
     // =========================================================================
+    // Graphs Tab
+    // =========================================================================
+
+    @FXML private Label leftGraphLabel;
+    @FXML private Label rightGraphLabel;
+    @FXML private AnchorPane leftGraph;
+    @FXML private AnchorPane rightGraph;
+
+    // =========================================================================
     // Controller State & Observable Collections
     // =========================================================================
     private MarketEngine marketEngine;
     private final ObservableList<EventDTO> eventsList = FXCollections.observableArrayList();
     private final FilteredList<EventDTO> filteredEvents = new FilteredList<>(eventsList);
-    private final ObservableList<HoldingDTO> participationsList = FXCollections.observableArrayList();
+    private final ObservableList<HoldingDTO> participationList = FXCollections.observableArrayList();
     private final ObservableList<OrderBookLevelDTO> option1Levels = FXCollections.observableArrayList();
     private final ObservableList<OrderBookLevelDTO> option2Levels = FXCollections.observableArrayList();
 
@@ -97,12 +109,12 @@ public class EventsController implements MarketDataChangeListener {
         SortedList<EventDTO> sortedEvents = new SortedList<>(filteredEvents);
         sortedEvents.comparatorProperty().bind(eventsTableView.comparatorProperty());
         eventsTableView.setItems(sortedEvents);
-        participationsTableView.setItems(participationsList);
+        participationsTableView.setItems(participationList);
         option1OrderBookTable.setItems(option1Levels);
         option2OrderBookTable.setItems(option2Levels);
 
         setupEventsTableColumns();
-        setupParticipationsColumns();
+        setupParticipationColumns();
         setupOrderBookColumns();
         setupFilters();
 
@@ -123,7 +135,7 @@ public class EventsController implements MarketDataChangeListener {
                 new SimpleStringProperty(cellData.getValue().commissionType().name()));
     }
 
-    private void setupParticipationsColumns() {
+    private void setupParticipationColumns() {
         partUserCol.setCellValueFactory(cellData ->
                 new SimpleStringProperty(cellData.getValue().userName()));
         partOptionCol.setCellValueFactory(cellData ->
@@ -222,16 +234,18 @@ public class EventsController implements MarketDataChangeListener {
             eventTradeDetailsContainer.setVisible(selectedEvent != null);
         }
         if (selectedEvent == null || marketEngine == null) {
-            participationsList.clear();
+            participationList.clear();
             option1Levels.clear();
             option2Levels.clear();
             orderBookSection.setVisible(false);
             orderBookSection.setManaged(false);
+            clearGraphs();
             return;
         }
 
         EventDetailsDTO details = marketEngine.getEventDetails(selectedEvent.id());
-        participationsList.setAll(details.participantHoldings());
+        participationList.setAll(details.participantHoldings());
+        updateGraphs(selectedEvent, details);
 
         boolean isOrderBook = selectedEvent.tradingMethod() == TradingMethodType.ORDERBOOK;
         orderBookSection.setVisible(isOrderBook);
@@ -249,6 +263,38 @@ public class EventsController implements MarketDataChangeListener {
             option1Levels.clear();
             option2Levels.clear();
         }
+    }
+
+    // =========================================================================
+    // Graphs Tab - one price-over-time chart per option
+    // =========================================================================
+
+    /** Renders a price-history chart for each of the event's options. */
+    private void updateGraphs(EventDTO event, EventDetailsDTO details) {
+        List<String> options = event.options();
+        if (options.size() < 2) {
+            clearGraphs();
+            return;
+        }
+        renderGraph(leftGraph, leftGraphLabel, options.get(0), details);
+        renderGraph(rightGraph, rightGraphLabel, options.get(1), details);
+    }
+
+    private static void renderGraph(AnchorPane host, Label label, String optionName, EventDetailsDTO details) {
+        label.setText(optionName + " Price");
+        LineChart<String, Number> chart = Charts.createPriceHistoryChart(optionName, details);
+        AnchorPane.setTopAnchor(chart, 0.0);
+        AnchorPane.setRightAnchor(chart, 0.0);
+        AnchorPane.setBottomAnchor(chart, 0.0);
+        AnchorPane.setLeftAnchor(chart, 0.0);
+        host.getChildren().setAll(chart);
+    }
+
+    private void clearGraphs() {
+        leftGraph.getChildren().clear();
+        rightGraph.getChildren().clear();
+        leftGraphLabel.setText("Option 1 Price");
+        rightGraphLabel.setText("Option 2 Price");
     }
 
     private static List<OrderBookLevelDTO> levelsFor(EventDetailsDTO details, String optionName) {

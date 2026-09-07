@@ -1,0 +1,61 @@
+/*
+ * Dark skin - a low-glare charcoal palette with a teal accent.
+ * Driven mostly by -fx-base / -fx-background on .root; a few explicit
+ * rules fix the surfaces Modena paints with hard-coded whites.
+ */
+
+.root {
+    -fx-base: #3c3f43;
+    -fx-background: #2b2d30;
+    -fx-control-inner-background: #313438;
+    -fx-control-inner-background-alt: #2b2d30;
+
+    -fx-accent: #4db6ac;
+    -fx-focus-color: #4db6ac;
+    -fx-faint-focus-color: #4db6ac33;
+    -fx-selection-bar: #4db6ac;
+    -fx-selection-bar-non-focused: #45484c;
+
+    -fx-text-base-color: #e6e6e6;
+    -fx-text-background-color: #e6e6e6;
+    -fx-text-fill: #e6e6e6;
+    -fx-font-size: 13px;
+}
+
+.root > .top > .v-box {
+    -fx-background-color: #2b2d30;
+    -fx-border-color: transparent transparent #1f2022 transparent;
+}
+
+.label {
+    -fx-text-fill: #e6e6e6;
+}
+
+.menu-bar {
+    -fx-background-color: #26282b;
+    -fx-border-color: transparent transparent #1f2022 transparent;
+}
+
+.menu-bar .label {
+    -fx-text-fill: #e6e6e6;
+}
+
+.text-field, .text-area {
+    -fx-prompt-text-fill: #8a8d91;
+}
+
+.tab-pane .tab-header-area .tab-header-background {
+    -fx-background-color: #26282b;
+}
+
+.table-view .column-header-background {
+    -fx-background-color: #26282b;
+}
+
+.table-view .column-header .label {
+    -fx-text-fill: #e6e6e6;
+}
+
+.progress-bar > .track {
+    -fx-background-color: #45484c;
+}

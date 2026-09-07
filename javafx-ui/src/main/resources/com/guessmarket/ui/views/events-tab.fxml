@@ -6,17 +6,21 @@
 <?import javafx.scene.control.ScrollPane?>
 <?import javafx.scene.control.Separator?>
 <?import javafx.scene.control.SplitPane?>
+<?import javafx.scene.control.Tab?>
+<?import javafx.scene.control.TabPane?>
 <?import javafx.scene.control.TableColumn?>
 <?import javafx.scene.control.TableView?>
+<?import javafx.scene.layout.AnchorPane?>
+<?import javafx.scene.layout.ColumnConstraints?>
+<?import javafx.scene.layout.GridPane?>
 <?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.RowConstraints?>
 <?import javafx.scene.layout.VBox?>
 <?import javafx.scene.text.Font?>
 
 <ScrollPane fitToHeight="true" fitToWidth="true" xmlns="http://javafx.com/javafx/26" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.guessmarket.ui.controllers.EventsController">
     <content>
-        <!-- Scrollbars appear once the window shrinks past these minimums,
-             rather than the split pane clipping its detail panels. -->
-        <VBox minHeight="520.0" minWidth="700.0" spacing="8.0">
+        <VBox spacing="8.0">
             <children>
                 <!-- Filters -->
                 <HBox alignment="CENTER_LEFT" spacing="12.0">
@@ -37,7 +41,7 @@
                 <Separator />
 
                 <!-- Master-Detail Split Pane -->
-                <SplitPane dividerPositions="0.5" minHeight="360.0" VBox.vgrow="ALWAYS">
+                <SplitPane dividerPositions="0.5" VBox.vgrow="ALWAYS">
                     <items>
                         <!-- Left: Events Overview -->
                         <VBox minWidth="260.0" spacing="8.0">
@@ -64,83 +68,109 @@
                                 <Insets bottom="8.0" left="8.0" right="8.0" top="8.0" />
                             </padding>
                         </VBox>
-
-                        <!-- Right: Details, Trades & Participations -->
-                        <VBox minWidth="380.0" spacing="10.0">
-                            <padding>
-                                <Insets bottom="8.0" left="8.0" right="8.0" top="8.0" />
-                            </padding>
-                            <children>
-                                <Label text="Event Details &amp; Trade">
-                                    <font>
-                                        <Font name="System Bold" size="14.0" />
-                                    </font>
-                                </Label>
-
-                                <!-- Side by Side Order Books (Order Book events only; empty/hidden for LMSR) -->
-                                <VBox fx:id="orderBookSection" spacing="6.0">
-                                    <children>
-                                        <HBox spacing="10.0">
-                                            <children>
-                                                <VBox spacing="4.0" HBox.hgrow="ALWAYS">
-                                                    <children>
-                                                        <Label fx:id="option1BookLabel" text="Option 1 Order Book" />
-                                                        <TableView fx:id="option1OrderBookTable" minHeight="120.0" prefHeight="130.0">
-                                                            <columns>
-                                                                <TableColumn fx:id="opt1SideCol" prefWidth="55.0" text="Side" />
-                                                                <TableColumn fx:id="opt1PriceCol" prefWidth="75.0" text="Price" />
-                                                                <TableColumn fx:id="opt1AmountCol" prefWidth="75.0" text="Amount" />
-                                                            </columns>
-                                                            <columnResizePolicy>
-                                                                <TableView fx:constant="CONSTRAINED_RESIZE_POLICY" />
-                                                            </columnResizePolicy>
-                                                        </TableView>
-                                                        <Label fx:id="option1IndicatorsLabel" style="-fx-font-size: 11px; -fx-text-fill: #666666;" text="Last: - | Bid: - | Ask: - | Mid: - | Spread: -" wrapText="true" />
-                                                    </children>
-                                                </VBox>
-                                                <VBox spacing="4.0" HBox.hgrow="ALWAYS">
-                                                    <children>
-                                                        <Label fx:id="option2BookLabel" text="Option 2 Order Book" />
-                                                        <TableView fx:id="option2OrderBookTable" minHeight="120.0" prefHeight="130.0">
-                                                            <columns>
-                                                                <TableColumn fx:id="opt2SideCol" prefWidth="55.0" text="Side" />
-                                                                <TableColumn fx:id="opt2PriceCol" prefWidth="75.0" text="Price" />
-                                                                <TableColumn fx:id="opt2AmountCol" prefWidth="75.0" text="Amount" />
-                                                            </columns>
-                                                            <columnResizePolicy>
-                                                                <TableView fx:constant="CONSTRAINED_RESIZE_POLICY" />
-                                                            </columnResizePolicy>
-                                                        </TableView>
-                                                        <Label fx:id="option2IndicatorsLabel" style="-fx-font-size: 11px; -fx-text-fill: #666666;" text="Last: - | Bid: - | Ask: - | Mid: - | Spread: -" wrapText="true" />
-                                                    </children>
-                                                </VBox>
-                                            </children>
-                                        </HBox>
-                                    </children>
-                                </VBox>
-
-                                <!-- Participations Table -->
-                                <VBox spacing="4.0" VBox.vgrow="ALWAYS">
-                                    <children>
-                                        <Label text="Participations Information">
-                                            <font>
-                                                <Font name="System Bold" size="12.0" />
-                                            </font>
-                                        </Label>
-                                        <TableView fx:id="participationsTableView" minHeight="120.0" prefHeight="140.0" VBox.vgrow="ALWAYS">
-                                            <columns>
-                                                <TableColumn fx:id="partUserCol" prefWidth="110.0" style="-fx-alignment: CENTER;" text="User" />
-                                                <TableColumn fx:id="partOptionCol" prefWidth="100.0" style="-fx-alignment: CENTER;" text="Option" />
-                                                <TableColumn fx:id="partSharesCol" prefWidth="100.0" style="-fx-alignment: CENTER;" text="Shares" />
-                                            </columns>
-                                            <columnResizePolicy>
-                                                <TableView fx:constant="CONSTRAINED_RESIZE_POLICY" />
-                                            </columnResizePolicy>
-                                        </TableView>
-                                    </children>
-                                </VBox>
-                            </children>
-                        </VBox>
+                  <TabPane>
+                     <tabs>
+                        <Tab text="Trade">
+                           <content>
+            
+                                                <!-- Right: Details, Trades & Participations -->
+                                    <VBox minWidth="380.0" spacing="10.0">
+                                        <padding>
+                                            <Insets bottom="8.0" left="8.0" right="8.0" top="8.0" />
+                                        </padding>
+                                        <children>
+                                            <Label text="Event Details &amp; Trade">
+                                                <font>
+                                                    <Font name="System Bold" size="14.0" />
+                                                </font>
+                                            </Label>
+            
+                                                        <!-- Side by Side Order Books -->
+                                            <HBox spacing="10.0">
+                                                <children>
+                                                    <VBox spacing="4.0" HBox.hgrow="ALWAYS">
+                                                        <children>
+                                                            <Label text="Option 1 Order Book" />
+                                                            <TableView fx:id="option1OrderBookTable" minHeight="120.0" prefHeight="130.0">
+                                                                <columns>
+                                                                    <TableColumn fx:id="opt1PriceCol" prefWidth="75.0" text="Price" />
+                                                                    <TableColumn fx:id="opt1AmountCol" prefWidth="75.0" text="Amount" />
+                                                                </columns>
+                                                                <columnResizePolicy>
+                                                                    <TableView fx:constant="CONSTRAINED_RESIZE_POLICY" />
+                                                                </columnResizePolicy>
+                                                            </TableView>
+                                                        </children>
+                                                    </VBox>
+                                                    <VBox spacing="4.0" HBox.hgrow="ALWAYS">
+                                                        <children>
+                                                            <Label text="Option 2 Order Book" />
+                                                            <TableView fx:id="option2OrderBookTable" minHeight="120.0" prefHeight="130.0">
+                                                                <columns>
+                                                                    <TableColumn fx:id="opt2PriceCol" prefWidth="75.0" text="Price" />
+                                                                    <TableColumn fx:id="opt2AmountCol" prefWidth="75.0" text="Amount" />
+                                                                </columns>
+                                                                <columnResizePolicy>
+                                                                    <TableView fx:constant="CONSTRAINED_RESIZE_POLICY" />
+                                                                </columnResizePolicy>
+                                                            </TableView>
+                                                        </children>
+                                                    </VBox>
+                                                </children>
+                                            </HBox>
+            
+                                                        <!-- Participations Table -->
+                                            <VBox spacing="4.0" VBox.vgrow="ALWAYS">
+                                                <children>
+                                                    <Label text="Participations Information">
+                                                        <font>
+                                                            <Font name="System Bold" size="12.0" />
+                                                        </font>
+                                                    </Label>
+                                                    <TableView fx:id="participationsTableView" minHeight="120.0" prefHeight="140.0" VBox.vgrow="ALWAYS">
+                                                        <columns>
+                                                            <TableColumn fx:id="partUserCol" prefWidth="110.0" style="-fx-alignment: CENTER;" text="User" />
+                                                            <TableColumn fx:id="partOptionCol" prefWidth="100.0" style="-fx-alignment: CENTER;" text="Option" />
+                                                            <TableColumn fx:id="partSharesCol" prefWidth="100.0" style="-fx-alignment: CENTER;" text="Shares" />
+                                                        </columns>
+                                                        <columnResizePolicy>
+                                                            <TableView fx:constant="CONSTRAINED_RESIZE_POLICY" />
+                                                        </columnResizePolicy>
+                                                    </TableView>
+                                                </children>
+                                            </VBox>
+                                        </children>
+                                    </VBox>
+                           </content>
+                        </Tab>
+                        <Tab text="Untitled Tab">
+                          <content>
+                            <AnchorPane minHeight="0.0" minWidth="0.0" prefHeight="180.0" prefWidth="200.0">
+                                 <children>
+                                    <GridPane layoutY="7.0" prefHeight="409.0" prefWidth="489.0">
+                                      <columnConstraints>
+                                        <ColumnConstraints hgrow="SOMETIMES" maxWidth="226.0" minWidth="10.0" prefWidth="226.0" />
+                                          <ColumnConstraints hgrow="SOMETIMES" maxWidth="158.0" minWidth="10.0" prefWidth="38.0" />
+                                        <ColumnConstraints hgrow="SOMETIMES" maxWidth="225.0" minWidth="10.0" prefWidth="225.0" />
+                                      </columnConstraints>
+                                      <rowConstraints>
+                                        <RowConstraints maxHeight="132.0" minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
+                                        <RowConstraints maxHeight="348.0" minHeight="10.0" prefHeight="348.0" vgrow="SOMETIMES" />
+                                        <RowConstraints maxHeight="50.0" minHeight="4.0" prefHeight="4.0" vgrow="SOMETIMES" />
+                                      </rowConstraints>
+                                       <children>
+                                          <Label text="Option 1 Price" />
+                                          <Label text="Option 2 Price" GridPane.columnIndex="2" />
+                                          <AnchorPane fx:id="leftGraph" prefHeight="200.0" prefWidth="200.0" GridPane.rowIndex="1" />
+                                          <AnchorPane fx:id="rightGraph" prefHeight="200.0" prefWidth="200.0" GridPane.columnIndex="2" GridPane.rowIndex="1" />
+                                       </children>
+                                    </GridPane>
+                                 </children>
+                              </AnchorPane>
+                          </content>
+                        </Tab>
+                     </tabs>
+                  </TabPane>
                     </items>
                 </SplitPane>
             </children>

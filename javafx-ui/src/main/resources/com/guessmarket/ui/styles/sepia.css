@@ -1,0 +1,50 @@
+/*
+ * Sepia skin - a warm, low-contrast "paper" palette for long reading
+ * sessions: cream backgrounds, dark-brown text, a muted rust accent.
+ */
+
+.root {
+    -fx-base: #efe6d5;
+    -fx-background: #f7f1e3;
+    -fx-control-inner-background: #fdf9f0;
+    -fx-control-inner-background-alt: #f1e9d8;
+
+    -fx-accent: #a5623b;
+    -fx-focus-color: #a5623b;
+    -fx-faint-focus-color: #a5623b22;
+    -fx-selection-bar: #a5623b;
+    -fx-selection-bar-non-focused: #e2d5bd;
+
+    -fx-text-base-color: #4a3b2a;
+    -fx-font-size: 13px;
+}
+
+.root > .top > .v-box {
+    -fx-background-color: #f7f1e3;
+    -fx-border-color: transparent transparent #ddd0b6 transparent;
+}
+
+.label {
+    -fx-text-fill: #4a3b2a;
+}
+
+.menu-bar {
+    -fx-background-color: #ece1cb;
+    -fx-border-color: transparent transparent #ddd0b6 transparent;
+}
+
+.tab-pane .tab-header-area .tab-header-background {
+    -fx-background-color: #ece1cb;
+}
+
+.table-view .column-header-background {
+    -fx-background-color: #ece1cb;
+}
+
+.button {
+    -fx-base: #e6d9be;
+}
+
+.text-field, .text-area {
+    -fx-prompt-text-fill: #9a8a70;
+}

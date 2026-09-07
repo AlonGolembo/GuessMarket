@@ -1,0 +1,46 @@
+/*
+ * Solarized skin - the warm low-contrast Solarized Light palette
+ * (base3 background, base00 text) with a magenta/violet accent.
+ */
+
+.root {
+    -fx-base: #eee8d5;              /* base2  */
+    -fx-background: #fdf6e3;        /* base3  */
+    -fx-control-inner-background: #fdf6e3;
+    -fx-control-inner-background-alt: #f5eecf;
+
+    -fx-accent: #6c71c4;           /* violet */
+    -fx-focus-color: #6c71c4;
+    -fx-faint-focus-color: #6c71c422;
+    -fx-selection-bar: #6c71c4;
+    -fx-selection-bar-non-focused: #dcd8bf;
+
+    -fx-text-base-color: #586e75;  /* base01 */
+    -fx-font-size: 13px;
+}
+
+.root > .top > .v-box {
+    -fx-background-color: #fdf6e3;
+    -fx-border-color: transparent transparent #d9d2b8 transparent;
+}
+
+.menu-bar {
+    -fx-background-color: #eee8d5;
+    -fx-border-color: transparent transparent #d9d2b8 transparent;
+}
+
+.label {
+    -fx-text-fill: #586e75;
+}
+
+.tab-pane .tab-header-area .tab-header-background {
+    -fx-background-color: #eee8d5;
+}
+
+.table-view .column-header-background {
+    -fx-background-color: #eee8d5;
+}
+
+.button {
+    -fx-base: #e3dcc4;
+}

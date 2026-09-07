@@ -1,0 +1,40 @@
+/*
+ * Light skin - the default Modena look with a cooler neutral palette
+ * and a blue accent. Most colours in JavaFX's Modena stylesheet are
+ * derived from -fx-base / -fx-background / -fx-accent, so overriding
+ * those three on .root re-skins nearly every control at once.
+ */
+
+.root {
+    -fx-base: #ececec;
+    -fx-background: #f6f7f9;
+    -fx-control-inner-background: #ffffff;
+    -fx-control-inner-background-alt: #f2f4f7;
+
+    -fx-accent: #2f7bd6;
+    -fx-focus-color: #2f7bd6;
+    -fx-faint-focus-color: #2f7bd622;
+    -fx-selection-bar: #2f7bd6;
+    -fx-selection-bar-non-focused: #c9d9ee;
+
+    -fx-text-base-color: #1f2329;
+    -fx-font-size: 13px;
+}
+
+/* Window header strip (the VBox with the divider in main-view.fxml) */
+.root > .top > .v-box {
+    -fx-background-color: #f6f7f9;
+}
+
+.menu-bar {
+    -fx-background-color: #e4e7eb;
+    -fx-border-color: transparent transparent #d0d4da transparent;
+}
+
+.tab-pane .tab-header-area .tab-header-background {
+    -fx-background-color: #e4e7eb;
+}
+
+.table-view .column-header-background {
+    -fx-background-color: #e4e7eb;
+}

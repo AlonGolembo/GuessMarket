@@ -112,7 +112,7 @@ public class Event implements Serializable {
             subsidy = 0.0;
         }
         if (subsidy > 0) {
-            marketMaker.debit(subsidy);      // throws InsufficientFundsException -> event stays NOT_ACTIVE
+            marketMaker.debit(subsidy, LedgerEntryType.SUBSIDY, id);   // throws InsufficientFundsException -> event stays NOT_ACTIVE
             pool += subsidy;
         }
 
@@ -164,7 +164,7 @@ public class Event implements Serializable {
 
         TradeReceipt receipt = quote(optionIndex, quantity);   // also validates optionIndex / quantity
 
-        buyer.debit(receipt.totalPaid());        // InsufficientFundsException -> nothing below runs
+        buyer.debit(receipt.totalPaid(), LedgerEntryType.PURCHASE, id);   // InsufficientFundsException -> nothing below runs
 
         Option option = options.get(optionIndex);
         pool += receipt.sharesCost();
@@ -327,7 +327,7 @@ public class Event implements Serializable {
             User holder = participants.get(entry.getKey());
             double payout = heldWinningShares * payoutPerShare;
             if (holder != null && payout > 0) {
-                holder.credit(payout);
+                holder.credit(payout, LedgerEntryType.PAYOUT, id);
                 pool -= payout;
                 totalPaidToHolders += payout;
                 paidHolders++;
@@ -339,7 +339,7 @@ public class Event implements Serializable {
         double marketMakerSweep = 0.0;
         if (marketMaker != null && pool > 1e-9) {
             marketMakerSweep = pool;
-            marketMaker.credit(pool);
+            marketMaker.credit(pool, LedgerEntryType.SETTLEMENT, id);
             pool = 0.0;
         }
 
@@ -529,8 +529,8 @@ public class Event implements Serializable {
                 ? shareCost * (commissionPercentage / 100.0)
                 : 0.0;
 
-        buyer.debit(shareCost + commission);
-        seller.credit(shareCost);
+        buyer.debit(shareCost + commission, LedgerEntryType.PURCHASE, id);
+        seller.credit(shareCost, LedgerEntryType.SALE, id);
         recordCommission(commission);
 
         holdingsByUser.computeIfAbsent(seller.getName(), k -> new int[options.size()])[optionIndex] -= quantity;
@@ -620,8 +620,8 @@ public class Event implements Serializable {
         double commissionA = commissionType == CommissionType.ON_PURCHASE ? costA * (commissionPercentage / 100.0) : 0.0;
         double commissionB = commissionType == CommissionType.ON_PURCHASE ? costB * (commissionPercentage / 100.0) : 0.0;
 
-        userA.debit(costA + commissionA);
-        userB.debit(costB + commissionB);
+        userA.debit(costA + commissionA, LedgerEntryType.PURCHASE, id);
+        userB.debit(costB + commissionB, LedgerEntryType.PURCHASE, id);
         recordCommission(commissionA + commissionB);
 
         options.get(optionA).addShares(quantity);
@@ -683,7 +683,7 @@ public class Event implements Serializable {
             return;
         }
         totalCommissionCollected += amount;
-        marketMaker.credit(amount);
+        marketMaker.credit(amount, LedgerEntryType.COMMISSION, id);
     }
 
     // --- Accessors --------------------------------------------------------

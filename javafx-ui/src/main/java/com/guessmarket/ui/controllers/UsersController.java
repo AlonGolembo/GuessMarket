@@ -9,8 +9,10 @@ import com.guessmarket.dto.TradeHistoryDTO;
 import com.guessmarket.dto.TradeQuoteDTO;
 import com.guessmarket.dto.TradingMethodType;
 import com.guessmarket.dto.UserDTO;
+import com.guessmarket.dto.UserDetailsDTO;
 import com.guessmarket.engine.api.MarketDataChangeListener;
 import com.guessmarket.engine.api.MarketEngine;
+import com.guessmarket.ui.common.Charts;
 import com.guessmarket.ui.common.Dialogs;
 import com.guessmarket.ui.common.TradeRules;
 import javafx.application.Platform;
@@ -19,7 +21,9 @@ import javafx.beans.property.*;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
+import javafx.scene.chart.LineChart;
 import javafx.scene.control.*;
+import javafx.scene.layout.AnchorPane;
 import javafx.scene.layout.VBox;
 import javafx.util.StringConverter;
 import org.apache.logging.log4j.LogManager;
@@ -51,6 +55,9 @@ public class UsersController implements MarketDataChangeListener {
     @FXML private TableColumn<EventDTO, String> userEventNameCol;
     @FXML private TableColumn<EventDTO, String> userEventRoleCol;
     @FXML private TableColumn<EventDTO, Integer> userEventSharesCol;
+
+    /** Host for the selected user's balance-over-time chart (Graphs sub-tab). */
+    @FXML private AnchorPane graph;
 
     // =========================================================================
     // FXML UI Controls - Event Trading Section
@@ -433,6 +440,7 @@ public class UsersController implements MarketDataChangeListener {
         if (selectedUser == null) {
             userBalance.set(0.0);
             participatingEventsList.clear();
+            graph.getChildren().clear();
             refreshMyOpenOrders();
             return;
         }
@@ -446,7 +454,23 @@ public class UsersController implements MarketDataChangeListener {
                     .filter(e -> ids.contains(e.id()))
                     .toList());
         }
+        renderBalanceGraph(selectedUser);
         refreshMyOpenOrders();
+    }
+
+    /** Draws the selected user's balance-over-time chart into the Graphs sub-tab. */
+    private void renderBalanceGraph(UserDTO selectedUser) {
+        if (marketEngine == null) {
+            graph.getChildren().clear();
+            return;
+        }
+        UserDetailsDTO details = marketEngine.getUserDetails(selectedUser.name());
+        LineChart<String, Number> chart = Charts.createBalanceOverTimeChart(details);
+        AnchorPane.setTopAnchor(chart, 0.0);
+        AnchorPane.setRightAnchor(chart, 0.0);
+        AnchorPane.setBottomAnchor(chart, 0.0);
+        AnchorPane.setLeftAnchor(chart, 0.0);
+        graph.getChildren().setAll(chart);
     }
 
     /** Total shares the given user holds in the given event, across all options. */

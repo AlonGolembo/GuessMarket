@@ -11,9 +11,9 @@ import java.util.Set;
  * {@link Account} holding their cash, and a set of events for which they act as
  * the market maker.
  *
- * <p>Cash only moves through {@link #debit(double)} / {@link #credit(double)},
- * which delegate to the {@link Account}; there is no balance setter. Two users
- * are equal when their names are equal.
+ * <p>Cash only moves through {@link #debit} / {@link #credit}, which delegate to
+ * the {@link Account}; there is no balance setter. Two users are equal when their
+ * names are equal.
  */
 public class User implements Serializable {
 
@@ -44,12 +44,12 @@ public class User implements Serializable {
         return account.balance();
     }
 
-    public void debit(double amount) {
-        account.debit(amount);
+    public void debit(double amount, LedgerEntryType type, Integer eventId) {
+        account.debit(amount, type, eventId);
     }
 
-    public void credit(double amount) {
-        account.credit(amount);
+    public void credit(double amount, LedgerEntryType type, Integer eventId) {
+        account.credit(amount, type, eventId);
     }
 
     /** Ids of the events this user is the market maker for (unmodifiable). */

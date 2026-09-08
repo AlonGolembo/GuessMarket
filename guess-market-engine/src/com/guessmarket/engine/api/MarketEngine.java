@@ -7,6 +7,7 @@ import com.guessmarket.dto.OrderSide;
 import com.guessmarket.dto.TradeQuoteDTO;
 import com.guessmarket.dto.TradeResultDTO;
 import com.guessmarket.dto.UserDTO;
+import com.guessmarket.dto.UserDetailsDTO;
 import com.guessmarket.engine.exception.MarketException;
 import com.guessmarket.engine.exception.XmlValidationException;
 
@@ -36,6 +37,9 @@ public interface MarketEngine {
 
     // Returns detailed trading status, option prices, account balance, trade history of a specific event
     EventDetailsDTO getEventDetails(int eventId) throws MarketException;
+
+    // Returns a user's summary plus their full cash-balance history (oldest entry first)
+    UserDetailsDTO getUserDetails(String name) throws MarketException;
 
     // Prices a prospective trade without executing it. buyShares() charges exactly
     // the returned breakdown.

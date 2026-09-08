@@ -4,8 +4,10 @@ import com.guessmarket.dto.EventDTO;
 import com.guessmarket.dto.EventStatus;
 import com.guessmarket.dto.HoldingDTO;
 import com.guessmarket.dto.TradeQuoteDTO;
+import com.guessmarket.dto.LedgerEntryDTO;
 import com.guessmarket.dto.TradeResultDTO;
 import com.guessmarket.dto.UserDTO;
+import com.guessmarket.dto.UserDetailsDTO;
 import com.guessmarket.engine.exception.MarketException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -17,6 +19,7 @@ import java.nio.file.Path;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -122,6 +125,36 @@ class MarketEngineImplTest {
         assertEquals(1, restored.getEventDetails(1).tradeHistory().size());
         assertEquals(Map.of("Heads", 20, "Tails", 0),
                 restored.getAllUsers().get("trader").holdings().get(1));
+    }
+
+    @Test
+    void getUserDetailsReturnsTheBalanceLedgerOldestFirst() {
+        UserDetailsDTO fresh = engine.getUserDetails("trader");
+        assertEquals("trader", fresh.userInfo().name());
+        assertEquals(1, fresh.balanceHistory().size());
+        LedgerEntryDTO initial = fresh.balanceHistory().get(0);
+        assertEquals("INITIAL", initial.type());
+        assertEquals(500.0, initial.balanceAfter(), 1e-9);
+        assertNull(initial.eventId());
+
+        engine.activateEvent(event(), user("mm"));
+        engine.buyShares(user("trader"), event(), 1, 20);   // 20 Heads
+        engine.closeEvent(1, 1);                            // Heads wins -> trader paid out
+
+        UserDetailsDTO details = engine.getUserDetails("trader");
+        var history = details.balanceHistory();
+        assertEquals(3, history.size());
+
+        assertEquals("PURCHASE", history.get(1).type());
+        assertTrue(history.get(1).delta() < 0);
+        assertEquals(1, history.get(1).eventId());
+
+        LedgerEntryDTO payout = history.get(2);
+        assertEquals("PAYOUT", payout.type());
+        assertEquals(20.0, payout.delta(), 1e-9);           // 20 shares * $1
+        // last entry's running balance is the user's current balance
+        assertEquals(user("trader").balance(), payout.balanceAfter(), 1e-9);
+        assertEquals(details.userInfo().balance(), payout.balanceAfter(), 1e-9);
     }
 
     @Test

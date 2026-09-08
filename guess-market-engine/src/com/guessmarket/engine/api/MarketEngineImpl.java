@@ -8,6 +8,7 @@ import com.guessmarket.dto.OrderSide;
 import com.guessmarket.dto.TradeQuoteDTO;
 import com.guessmarket.dto.TradeResultDTO;
 import com.guessmarket.dto.UserDTO;
+import com.guessmarket.dto.UserDetailsDTO;
 import com.guessmarket.engine.exception.MarketException;
 import com.guessmarket.engine.mapper.EventMapper;
 import com.guessmarket.engine.mapper.UserMapper;
@@ -111,6 +112,11 @@ public class MarketEngineImpl implements MarketEngine {
     @Override
     public EventDetailsDTO getEventDetails(int eventId) throws MarketException {
         return EventMapper.toEventDetailsDTO(catalog.event(eventId));
+    }
+
+    @Override
+    public UserDetailsDTO getUserDetails(String name) throws MarketException {
+        return UserMapper.toUserDetailsDTO(catalog.user(name));
     }
 
     @Override

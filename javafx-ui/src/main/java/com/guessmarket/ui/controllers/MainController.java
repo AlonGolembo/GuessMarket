@@ -12,10 +12,8 @@ import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
 import javafx.concurrent.Task;
-import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.scene.control.Button;
-import javafx.scene.control.Label;
 import javafx.scene.control.ProgressBar;
 import javafx.scene.control.TextField;
 import javafx.scene.image.Image;
@@ -48,6 +46,7 @@ public class MainController {
     @FXML private ImageView fileStatusIcon;
     @FXML private ProgressBar fileLoadProgress;
     @FXML private HBox progressRowContainer;
+//    @FXML private Button saveState;
 
     // =========================================================================
     // Injected Child Tab Controllers (fx:id + "Controller")
@@ -148,6 +147,39 @@ public class MainController {
     private void handleClose() {
         LOG.info("User requested application exit from menu");
         Platform.exit();
+    }
+
+    @FXML void handleSaveState(){
+        LOG.info("User requested application to save state");
+
+        FileChooser fileChooser = new FileChooser();
+        fileChooser.setTitle("Select a Folder");
+        fileChooser.setInitialDirectory(new File(System.getProperty("user.home")));
+        fileChooser.setInitialFileName("market_snapshot");
+        fileChooser.getExtensionFilters().addAll(
+                new FileChooser.ExtensionFilter("SER Files (*.ser)", "*.ser"),
+                new FileChooser.ExtensionFilter("Text Files (*.txt)", "*.txt"),
+                new FileChooser.ExtensionFilter("All Files", "*.*")
+        );
+
+        File targetFile = fileChooser.showSaveDialog(rootPane.getScene().getWindow());
+        engine.saveState(targetFile.getAbsolutePath());
+    }
+
+    @FXML void handleLoadState(){
+        LOG.info("User requested application to load state");
+
+        FileChooser fileChooser = new FileChooser();
+        fileChooser.setTitle("Select a File");
+        fileChooser.setInitialDirectory(new File(System.getProperty("user.home")));
+
+        fileChooser.getExtensionFilters().addAll(
+                new FileChooser.ExtensionFilter("SER Files (*ser)", "*.ser"),
+                new FileChooser.ExtensionFilter("All Files", "*.*")
+        );
+
+        File fileToLoad = fileChooser.showOpenDialog(rootPane.getScene().getWindow());
+        engine.loadState(fileToLoad.getAbsolutePath());
     }
 
     @FXML

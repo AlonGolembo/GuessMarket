@@ -27,7 +27,8 @@
               <menus>
                 <Menu mnemonicParsing="false" text="File">
                   <items>
-                    <MenuItem mnemonicParsing="false" onAction="#handleClose" text="Save State" />
+                    <MenuItem fx:id="saveState" mnemonicParsing="false" onAction="#handleSaveState" text="Save State" />
+                        <MenuItem mnemonicParsing="false" onAction="#loadState" text="Load State" />
                   </items>
                 </Menu>
                 <Menu mnemonicParsing="false" text="System">

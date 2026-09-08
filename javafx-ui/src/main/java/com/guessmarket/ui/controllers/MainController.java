@@ -1,8 +1,12 @@
 package com.guessmarket.ui.controllers;
 
+import com.guessmarket.dto.EventDTO;
+import com.guessmarket.dto.NewEventDTO;
 import com.guessmarket.engine.api.MarketEngine;
+import com.guessmarket.engine.exception.MarketException;
 import com.guessmarket.ui.common.Dialogs;
 import com.guessmarket.ui.common.FileLoadStatus;
+import com.guessmarket.ui.common.NewEventDialog;
 import com.guessmarket.ui.common.ThemeManager;
 import javafx.animation.PauseTransition;
 import javafx.application.Platform;
@@ -28,6 +32,9 @@ import org.apache.logging.log4j.Logger;
 
 import java.io.File;
 import java.io.InputStream;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
 
 /**
  * Main window controller coordinating top-level actions (file loading, global progress)
@@ -163,6 +170,9 @@ public class MainController {
         );
 
         File targetFile = fileChooser.showSaveDialog(rootPane.getScene().getWindow());
+
+        if(targetFile == null) return;
+
         engine.saveState(targetFile.getAbsolutePath());
     }
 
@@ -179,7 +189,39 @@ public class MainController {
         );
 
         File fileToLoad = fileChooser.showOpenDialog(rootPane.getScene().getWindow());
+
+        if(fileToLoad == null) return;
+
         engine.loadState(fileToLoad.getAbsolutePath());
+    }
+
+    @FXML
+    private void handleAddEvent() {
+        if (engine == null || !engine.isFileLoaded()) {
+            Dialogs.error("Cannot add an event", "Load a market file first.");
+            return;
+        }
+        List<String> participants = new ArrayList<>(engine.getAllUsers().keySet());
+        if (participants.isEmpty()) {
+            Dialogs.error("Cannot add an event", "The loaded market has no participants to be the market maker.");
+            return;
+        }
+
+        Window owner = rootPane.getScene().getWindow();
+        Optional<NewEventDTO> spec = NewEventDialog.show(owner, participants);
+        if (spec.isEmpty()) {
+            return;   // Cancel / closed
+        }
+
+        try {
+            EventDTO created = engine.createEvent(spec.get());
+            LOG.info("Event {} ('{}') created", created.id(), created.name());
+            Dialogs.info("Event created",
+                    "Event '" + created.name() + "' (ID " + created.id() + ") was created successfully.");
+        } catch (MarketException ex) {
+            LOG.warn("Event creation rejected: {}", ex.getMessage());
+            Dialogs.error("Could not create the event", ex);
+        }
     }
 
     @FXML

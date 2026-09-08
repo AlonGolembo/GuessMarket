@@ -22,4 +22,11 @@ public enum CommissionType {
             case ON_CLOSE -> "on-close";
         };
     }
+
+    public String toUIDisplay(){
+        return switch (this){
+            case ON_PURCHASE -> "On Purchase";
+            case ON_CLOSE -> "On Close";
+        };
+    }
 }

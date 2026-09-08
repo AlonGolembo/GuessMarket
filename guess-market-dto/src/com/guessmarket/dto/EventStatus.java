@@ -4,5 +4,13 @@ package com.guessmarket.dto;
 public enum EventStatus {
     NOT_ACTIVE,
     ACTIVE,
-    CLOSED
+    CLOSED;
+
+    public String toUIDisplay() {
+        return switch (this){
+            case NOT_ACTIVE -> "Not Active";
+            case ACTIVE -> "Active";
+            case CLOSED -> "Closed";
+        };
+    }
 }

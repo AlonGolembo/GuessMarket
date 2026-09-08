@@ -26,6 +26,18 @@ final class MarketCatalog {
         this.loaded = true;
     }
 
+    /** Adds one freshly created event to the loaded market. */
+    void addEvent(Event event) {
+        requireLoaded();
+        events.put(event.getId(), event);
+    }
+
+    /** The lowest positive id not already used by a loaded event. */
+    int nextEventId() {
+        requireLoaded();
+        return events.keySet().stream().mapToInt(Integer::intValue).max().orElse(0) + 1;
+    }
+
     boolean isLoaded() {
         return loaded;
     }

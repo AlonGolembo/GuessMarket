@@ -2,6 +2,7 @@ package com.guessmarket.engine.api;
 
 import com.guessmarket.dto.EventDTO;
 import com.guessmarket.dto.EventDetailsDTO;
+import com.guessmarket.dto.NewEventDTO;
 import com.guessmarket.dto.OrderResultDTO;
 import com.guessmarket.dto.OrderSide;
 import com.guessmarket.dto.TradeQuoteDTO;
@@ -29,6 +30,11 @@ public interface MarketEngine {
 
     // Returns a summary snapshot of all events in the system
     List<EventDTO> getAllEvents() throws MarketException;
+
+    // Creates a new (NOT_ACTIVE) event with the chosen participant as its market maker,
+    // after checking that participant can fund the trading-method subsidy. The event is
+    // not opened - activate it separately. Returns the created event.
+    EventDTO createEvent(NewEventDTO spec) throws MarketException;
 
     Map<String, UserDTO> getAllUsers() throws MarketException;
 

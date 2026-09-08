@@ -9,6 +9,7 @@ import com.guessmarket.engine.model.User;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /** Converts a domain {@link User} to its DTOs. One direction only. */
 public final class UserMapper {
@@ -19,7 +20,7 @@ public final class UserMapper {
         return new UserDTO(
                 user.getName(),
                 user.getAccountBalance(),
-                user.getMarketMakerEventIds(),
+                Set.copyOf(user.getMarketMakerEventIds()),
                 holdings(user)
         );
     }

@@ -1,7 +1,9 @@
 package com.guessmarket.engine.model;
 
 import java.io.Serializable;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -17,9 +19,12 @@ import java.util.Set;
  */
 public class User implements Serializable {
 
+    private static final long serialVersionUID = 1L;
+
     private final String name;
     private final Account account;
-    private final Set<Integer> marketMakerEventIds;
+    /** Grows when the user is made market maker of a newly created event. */
+    private Set<Integer> marketMakerEventIds;
 
     /** Events this user currently participates in, keyed by event id. Populated as trades happen. */
     private final Map<Integer, Event> participatingEvents = new HashMap<>();
@@ -27,7 +32,10 @@ public class User implements Serializable {
     public User(String name, double initialBalance, Set<Integer> marketMakerEventIds) {
         this.name = Objects.requireNonNull(name, "name");
         this.account = new Account(initialBalance);
-        this.marketMakerEventIds = marketMakerEventIds == null ? Set.of() : Set.copyOf(marketMakerEventIds);
+        this.marketMakerEventIds = new LinkedHashSet<>();
+        if (marketMakerEventIds != null) {
+            this.marketMakerEventIds.addAll(marketMakerEventIds);
+        }
     }
 
     public String getName() {
@@ -54,11 +62,19 @@ public class User implements Serializable {
 
     /** Ids of the events this user is the market maker for (unmodifiable). */
     public Set<Integer> getMarketMakerEventIds() {
-        return marketMakerEventIds;
+        return Collections.unmodifiableSet(marketMakerEventIds);
     }
 
     public boolean isMarketMakerFor(int eventId) {
         return marketMakerEventIds.contains(eventId);
+    }
+
+    /** Assigns this user as the market maker of the given (newly created) event. */
+    public void addMarketMakerEvent(int eventId) {
+        if (!(marketMakerEventIds instanceof LinkedHashSet<Integer>)) {
+            marketMakerEventIds = new LinkedHashSet<>(marketMakerEventIds);
+        }
+        marketMakerEventIds.add(eventId);
     }
 
     public Map<Integer, Event> getParticipatingEvents() {

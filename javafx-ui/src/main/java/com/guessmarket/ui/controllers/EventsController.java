@@ -128,11 +128,11 @@ public class EventsController implements MarketDataChangeListener {
         eventNameCol.setCellValueFactory(cellData ->
                 new SimpleStringProperty(cellData.getValue().name()));
         eventStatusCol.setCellValueFactory(cellData ->
-                new SimpleStringProperty(cellData.getValue().status().name()));
+                new SimpleStringProperty(cellData.getValue().status().toUIDisplay()));
         eventMethodCol.setCellValueFactory(cellData ->
                 new SimpleStringProperty(cellData.getValue().tradingMethod().name()));
         commissionMethodCol.setCellValueFactory(cellData ->
-                new SimpleStringProperty(cellData.getValue().commissionType().name()));
+                new SimpleStringProperty(cellData.getValue().commissionType().toUIDisplay()));
     }
 
     private void setupParticipationColumns() {
@@ -303,7 +303,7 @@ public class EventsController implements MarketDataChangeListener {
                 .toList();
     }
 
-    /** Renders the five order-book indicators for one option; {@code null} fields show as "-". */
+    /** Renders the five order-book indicators for one option; {@code null} fields show as ""-". */
     private static String indicatorsText(EventDetailsDTO details, String optionName) {
         OrderBookQuoteDTO quote = details.orderBookQuotes().get(optionName);
         if (quote == null) {

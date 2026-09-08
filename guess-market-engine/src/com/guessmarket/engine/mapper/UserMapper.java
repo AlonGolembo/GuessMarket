@@ -1,6 +1,7 @@
 package com.guessmarket.engine.mapper;
 
 import com.guessmarket.dto.UserDTO;
+import com.guessmarket.dto.UserDetailsDTO;
 import com.guessmarket.engine.model.Event;
 import com.guessmarket.engine.model.Option;
 import com.guessmarket.engine.model.User;
@@ -9,7 +10,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-/** Converts a domain {@link User} to its flat DTO. One direction only. */
+/** Converts a domain {@link User} to its DTOs. One direction only. */
 public final class UserMapper {
 
     private UserMapper() {}
@@ -20,6 +21,16 @@ public final class UserMapper {
                 user.getAccountBalance(),
                 user.getMarketMakerEventIds(),
                 holdings(user)
+        );
+    }
+
+    /** The user's summary plus their full balance history, oldest entry first. */
+    public static UserDetailsDTO toUserDetailsDTO(User user) {
+        return new UserDetailsDTO(
+                toUserDTO(user),
+                user.getAccount().ledgerEntries().stream()
+                        .map(LedgerMapper::toLedgerEntryDTO)
+                        .toList()
         );
     }
 

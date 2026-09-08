@@ -33,6 +33,10 @@ public class GuessMarketApp extends Application {
 
         primaryStage.setTitle("Guess Market");
         primaryStage.setScene(new Scene(root));
+        // Below this the tabs can't lay out without clipping controls; smaller
+        // than this and the user should scroll rather than resize.
+        primaryStage.setMinWidth(900);
+        primaryStage.setMinHeight(600);
         primaryStage.show();
         LOG.info("Main window shown");
     }

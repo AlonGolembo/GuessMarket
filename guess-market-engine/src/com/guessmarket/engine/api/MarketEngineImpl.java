@@ -3,13 +3,17 @@ package com.guessmarket.engine.api;
 import com.guessmarket.dto.EventDTO;
 import com.guessmarket.dto.EventDetailsDTO;
 import com.guessmarket.dto.EventStatus;
+import com.guessmarket.dto.OrderResultDTO;
+import com.guessmarket.dto.OrderSide;
 import com.guessmarket.dto.TradeQuoteDTO;
 import com.guessmarket.dto.TradeResultDTO;
 import com.guessmarket.dto.UserDTO;
+import com.guessmarket.dto.UserDetailsDTO;
 import com.guessmarket.engine.exception.MarketException;
 import com.guessmarket.engine.mapper.EventMapper;
 import com.guessmarket.engine.mapper.UserMapper;
 import com.guessmarket.engine.model.Event;
+import com.guessmarket.engine.model.OrderOutcome;
 import com.guessmarket.engine.model.TradeReceipt;
 import com.guessmarket.engine.model.User;
 import com.guessmarket.engine.serialization.MarketSnapshot;
@@ -111,6 +115,11 @@ public class MarketEngineImpl implements MarketEngine {
     }
 
     @Override
+    public UserDetailsDTO getUserDetails(String name) throws MarketException {
+        return UserMapper.toUserDetailsDTO(catalog.user(name));
+    }
+
+    @Override
     public int getNumOfLoadedEvents() {
         return catalog.eventCount();
     }
@@ -131,7 +140,7 @@ public class MarketEngineImpl implements MarketEngine {
     public TradeQuoteDTO quoteTrade(UserDTO buyerDTO, EventDTO eventDTO, int optionIndex1Based, int quantity)
             throws MarketException {
         TradeReceipt r = catalog.event(eventDTO.id()).quote(optionIndex1Based - 1, quantity);
-        return new TradeQuoteDTO(r.sharesCost(), r.commission(), r.totalPaid());
+        return new TradeQuoteDTO(r.sharesCost(), r.commission(), r.totalPaid(), r.filledQuantity());
     }
 
     @Override
@@ -140,13 +149,38 @@ public class MarketEngineImpl implements MarketEngine {
         Event event = catalog.event(eventDTO.id());
         User buyer = catalog.user(buyerDTO.name());
         TradeReceipt receipt = event.buy(buyer, optionIndex1Based - 1, quantity);
-        logger.info("'{}' bought {} share(s) of option #{} in event {} for {} (cost {}, commission {})",
-                buyer.getName(), quantity, optionIndex1Based, event.getId(),
+        logger.info("'{}' bought {} of {} requested share(s) of option #{} in event {} for {} (cost {}, commission {})",
+                buyer.getName(), receipt.filledQuantity(), quantity, optionIndex1Based, event.getId(),
                 receipt.totalPaid(), receipt.sharesCost(), receipt.commission());
         publisher.publish();
         return new TradeResultDTO(
-                receipt.sharesCost(), receipt.commission(), receipt.totalPaid(),
+                receipt.sharesCost(), receipt.commission(), receipt.totalPaid(), receipt.filledQuantity(),
                 EventMapper.toEventDetailsDTO(event));
+    }
+
+    @Override
+    public OrderResultDTO placeOrder(UserDTO userDTO, EventDTO eventDTO, int optionIndex1Based, OrderSide side,
+                                      int quantity, double price) throws MarketException {
+        Event event = catalog.event(eventDTO.id());
+        User user = catalog.user(userDTO.name());
+        OrderOutcome outcome = event.placeOrder(user, optionIndex1Based - 1, side, quantity, price);
+        logger.info("'{}' placed a {} order for {} share(s) of option #{} in event {} @ {}: filled {}, resting {}",
+                user.getName(), side, quantity, optionIndex1Based, event.getId(), price,
+                outcome.filledQuantity(), outcome.restingQuantity());
+        publisher.publish();
+        return new OrderResultDTO(
+                outcome.filledQuantity(), outcome.restingQuantity(), outcome.cashMoved(), outcome.commission(),
+                outcome.restingQuantity() > 0 ? outcome.orderId() : null,
+                EventMapper.toEventDetailsDTO(event));
+    }
+
+    @Override
+    public void cancelOrder(UserDTO userDTO, EventDTO eventDTO, long orderId) throws MarketException {
+        Event event = catalog.event(eventDTO.id());
+        User user = catalog.user(userDTO.name());
+        event.cancelOrder(user, orderId);
+        logger.info("'{}' cancelled order {} in event {}", user.getName(), orderId, event.getId());
+        publisher.publish();
     }
 
     @Override

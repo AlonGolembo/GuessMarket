@@ -34,6 +34,15 @@ public final class Dialogs {
         error(title, message);
     }
 
+    /** Shows a blocking informational dialog. */
+    public static void info(String title, String message) {
+        Alert alert = new Alert(Alert.AlertType.INFORMATION);
+        alert.setTitle(title);
+        alert.setHeaderText(null);
+        alert.setContentText(message);
+        alert.showAndWait();
+    }
+
     /** Shows a blocking OK/Cancel dialog; returns {@code true} if the user chose OK. */
     public static boolean confirm(String title, String message) {
         Alert alert = new Alert(Alert.AlertType.CONFIRMATION);

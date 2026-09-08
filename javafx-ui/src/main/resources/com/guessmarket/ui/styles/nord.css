@@ -1,0 +1,66 @@
+/*
+ * Nord skin - the "Polar Night" dark palette (nord0-nord3) with a
+ * "Frost" blue accent (nord8/nord10). Same approach as dark.css:
+ * -fx-base / -fx-background drive most of Modena, explicit rules fix
+ * the surfaces painted with hard-coded whites.
+ */
+
+.root {
+    -fx-base: #3b4252;             /* nord1 */
+    -fx-background: #2e3440;       /* nord0 */
+    -fx-control-inner-background: #3b4252;
+    -fx-control-inner-background-alt: #434c5e;   /* nord2 */
+
+    -fx-accent: #88c0d0;           /* nord8  */
+    -fx-focus-color: #88c0d0;
+    -fx-faint-focus-color: #88c0d033;
+    -fx-selection-bar: #5e81ac;    /* nord10 */
+    -fx-selection-bar-non-focused: #434c5e;
+
+    -fx-text-base-color: #eceff4;  /* nord6 */
+    -fx-text-background-color: #eceff4;
+    -fx-text-fill: #eceff4;
+    -fx-font-size: 13px;
+}
+
+.root > .top > .v-box {
+    -fx-background-color: #2e3440;
+    -fx-border-color: transparent transparent #242933 transparent;
+}
+
+.label {
+    -fx-text-fill: #eceff4;
+}
+
+.menu-bar {
+    -fx-background-color: #242933;
+    -fx-border-color: transparent transparent #1c2028 transparent;
+}
+
+.menu-bar .label {
+    -fx-text-fill: #eceff4;
+}
+
+.text-field, .text-area {
+    -fx-prompt-text-fill: #7b88a1;
+}
+
+.tab-pane .tab-header-area .tab-header-background {
+    -fx-background-color: #242933;
+}
+
+.table-view .column-header-background {
+    -fx-background-color: #242933;
+}
+
+.table-view .column-header .label {
+    -fx-text-fill: #eceff4;
+}
+
+.progress-bar > .track {
+    -fx-background-color: #434c5e;
+}
+
+.progress-bar > .bar {
+    -fx-background-color: #a3be8c;  /* nord14 green */
+}

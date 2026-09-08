@@ -6,11 +6,16 @@ import java.util.Map;
 /**
  * Full trading state of one event.
  *
- * @param currentOptionPrices  option name -&gt; implied price (empty if the method can't price yet)
+ * @param currentOptionPrices  option name -&gt; implied price (empty if the method can't price yet).
+ *                             For Order Book this is the mid price, falling back to the last
+ *                             trade price and then half the base value.
  * @param totalSharesBought     option name -&gt; total shares the market has sold
  * @param tradeHistory          newest trade first
  * @param participantHoldings   one row per (user, option) the user actually holds (shares &gt; 0)
  * @param winningOption         option name once closed, otherwise {@code null}
+ * @param orderBookQuotes       option name -&gt; its five price indicators; empty for LMSR
+ * @param orderBookLevels       the book's depth, aggregated by price level; empty for LMSR
+ * @param restingOrders         every still-open order in the book; empty for LMSR
  */
 public record EventDetailsDTO(
         EventDTO eventInfo,
@@ -20,5 +25,8 @@ public record EventDetailsDTO(
         double totalCommissionCollected,
         List<TradeHistoryDTO> tradeHistory,
         List<HoldingDTO> participantHoldings,
-        String winningOption
+        String winningOption,
+        Map<String, OrderBookQuoteDTO> orderBookQuotes,
+        List<OrderBookLevelDTO> orderBookLevels,
+        List<LimitOrderDTO> restingOrders
 ) {}

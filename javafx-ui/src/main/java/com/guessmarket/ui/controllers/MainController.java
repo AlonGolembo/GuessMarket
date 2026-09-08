@@ -3,23 +3,25 @@ package com.guessmarket.ui.controllers;
 import com.guessmarket.engine.api.MarketEngine;
 import com.guessmarket.ui.common.Dialogs;
 import com.guessmarket.ui.common.FileLoadStatus;
+import com.guessmarket.ui.common.ThemeManager;
 import javafx.animation.PauseTransition;
+import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
 import javafx.beans.property.ObjectProperty;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
 import javafx.concurrent.Task;
-import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.scene.control.Button;
-import javafx.scene.control.Label;
 import javafx.scene.control.ProgressBar;
 import javafx.scene.control.TextField;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
+import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
 import javafx.stage.FileChooser;
+import javafx.stage.Window;
 import javafx.util.Duration;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -38,11 +40,13 @@ public class MainController {
     // =========================================================================
     // FXML UI Controls
     // =========================================================================
+    @FXML private BorderPane rootPane;
     @FXML private Button loadFileButton;
     @FXML private TextField filePathTextField;
     @FXML private ImageView fileStatusIcon;
     @FXML private ProgressBar fileLoadProgress;
     @FXML private HBox progressRowContainer;
+//    @FXML private Button saveState;
 
     // =========================================================================
     // Injected Child Tab Controllers (fx:id + "Controller")
@@ -140,7 +144,58 @@ public class MainController {
     // Event Handlers & Background Tasks
     // =========================================================================
     @FXML
-    private void handleLoadFile(ActionEvent event) {
+    private void handleClose() {
+        LOG.info("User requested application exit from menu");
+        Platform.exit();
+    }
+
+    @FXML void handleSaveState(){
+        LOG.info("User requested application to save state");
+
+        FileChooser fileChooser = new FileChooser();
+        fileChooser.setTitle("Select a Folder");
+        fileChooser.setInitialDirectory(new File(System.getProperty("user.home")));
+        fileChooser.setInitialFileName("market_snapshot");
+        fileChooser.getExtensionFilters().addAll(
+                new FileChooser.ExtensionFilter("SER Files (*.ser)", "*.ser"),
+                new FileChooser.ExtensionFilter("Text Files (*.txt)", "*.txt"),
+                new FileChooser.ExtensionFilter("All Files", "*.*")
+        );
+
+        File targetFile = fileChooser.showSaveDialog(rootPane.getScene().getWindow());
+        engine.saveState(targetFile.getAbsolutePath());
+    }
+
+    @FXML void handleLoadState(){
+        LOG.info("User requested application to load state");
+
+        FileChooser fileChooser = new FileChooser();
+        fileChooser.setTitle("Select a File");
+        fileChooser.setInitialDirectory(new File(System.getProperty("user.home")));
+
+        fileChooser.getExtensionFilters().addAll(
+                new FileChooser.ExtensionFilter("SER Files (*ser)", "*.ser"),
+                new FileChooser.ExtensionFilter("All Files", "*.*")
+        );
+
+        File fileToLoad = fileChooser.showOpenDialog(rootPane.getScene().getWindow());
+        engine.loadState(fileToLoad.getAbsolutePath());
+    }
+
+    @FXML
+    private void handleAbout() {
+        Dialogs.info("About Guess Market",
+                "Guess Market\nA prediction-market system (LMSR & Order Book).");
+    }
+
+    @FXML
+    private void handleChangeTheme(){
+        Window currentWindow = rootPane.getScene().getWindow();
+        ThemeManager.openThemeSelector(currentWindow);
+    }
+
+    @FXML
+    private void handleLoadFile() {
         FileChooser fileChooser = new FileChooser();
         fileChooser.setTitle("Open XML Configuration");
         fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("XML Files", "*.xml"));
@@ -156,7 +211,6 @@ public class MainController {
         }
 
         loadMessageDismissTimer.stop();
-        filePathTextField.setText(selectedFile.getAbsolutePath());
 
         // Create and track the background task
         Task<Void> task = createLoadTask(selectedFile.getAbsolutePath());
@@ -186,6 +240,7 @@ public class MainController {
 
         task.setOnSucceeded(e -> {
             LOG.info("XML load succeeded: {}", path);
+            filePathTextField.setText(path);
             loadMessage.set("XML loaded successfully!");
             loadStatus.set(FileLoadStatus.SUCCESS);
             loadMessageDismissTimer.playFromStart();
@@ -194,8 +249,13 @@ public class MainController {
         task.setOnFailed(e -> {
             Throwable ex = task.getException();
             LOG.warn("XML load failed for {}: {}", path, ex != null ? ex.getMessage() : "unknown error");
-            Dialogs.error("Failed to load XML", ex);
-            loadStatus.set(FileLoadStatus.ERROR);
+            if(loadStatus.getValue() == FileLoadStatus.NONE) {
+                Dialogs.error("Failed to load XML", ex);
+                loadStatus.set(FileLoadStatus.ERROR);
+            }
+            else{
+                Dialogs.error("Failed to load XML", ex + "\nNo file was loaded");
+            }
             loadMessageDismissTimer.playFromStart();
         });
 

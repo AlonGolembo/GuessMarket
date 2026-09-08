@@ -26,6 +26,39 @@ public sealed interface TradingMethod extends Serializable permits LmsrMethod, O
     double initialSubsidy();
 
     /**
+     * The payout per share of the winning option once the event settles; every
+     * pair of options (one of each) is worth exactly this much. {@code 1.0} for
+     * LMSR; the configured base value ({@code d}) for Order Book.
+     */
+    double baseValue();
+
+    /**
+     * Shares of each option the market maker receives when opening the event
+     * (beyond the cash subsidy). {@code 0} for LMSR; the configured initial
+     * allocation for Order Book, where the market maker receives that many of
+     * *each* option.
+     */
+    int initialShares();
+
+    /**
+     * Whether this method trades through a public {@link OrderBook} of resting
+     * bids/asks (as opposed to a scoring-rule formula). {@code false} for
+     * LMSR; {@code true} for Order Book.
+     */
+    default boolean usesOrderBook() {
+        return false;
+    }
+
+    /**
+     * Whether new share pairs may be minted from matching cross-option bids
+     * (see the Order Book spec). {@code false} for LMSR and for an Order Book
+     * configured with minting disabled.
+     */
+    default boolean allowsMinting() {
+        return false;
+    }
+
+    /**
      * Current implied price of the option at {@code optionIndex}: a probability
      * in {@code [0, 1]} for scoring-rule methods.
      *

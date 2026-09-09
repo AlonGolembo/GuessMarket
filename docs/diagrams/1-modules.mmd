@@ -1,0 +1,11 @@
+flowchart TB
+    UI["<b>javafx-ui</b><br/>JavaFX desktop client"]
+    ENG["<b>guess-market-engine</b><br/>domain model + all trading rules<br/>LMSR · Order Book · XML · persistence"]
+    DTO["<b>guess-market-dto</b><br/>flat immutable records + enums<br/>no behaviour, no dependencies"]
+
+    UI ==>|"calls MarketEngine, exchanges DTOs,<br/>listens for changes"| ENG
+    ENG ==>|"maps its domain to DTOs"| DTO
+    UI -.->|"reads DTO fields"| DTO
+
+    classDef mod fill:#e8f0fe,stroke:#3367d6,stroke-width:3px,color:#12264a;
+    class UI,ENG,DTO mod;

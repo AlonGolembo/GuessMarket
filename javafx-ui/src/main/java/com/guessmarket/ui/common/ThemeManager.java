@@ -9,7 +9,12 @@ import org.apache.logging.log4j.Logger;
 import java.util.List;
 import java.util.Optional;
 
-
+/**
+ * Bonus 1 - swappable skins. Each skin is a stylesheet that changes the whole
+ * window's background, the look of the buttons, and the font family + size of
+ * every label. The app starts on the plain default look (no stylesheet); the
+ * user opens this selector from <em>System &rarr; Theme</em>.
+ */
 public class ThemeManager {
 
     private static final Logger LOG = LogManager.getLogger(ThemeManager.class);
@@ -20,6 +25,7 @@ public class ThemeManager {
     private static final String NORD_THEME = resource("/com/guessmarket/ui/styles/nord.css");
     private static final String SEPIA_THEME = resource("/com/guessmarket/ui/styles/sepia.css");
 
+    private static final String DEFAULT_LABEL = "Default Theme";
     private static final String LIGHT_LABEL = "Light Theme";
     private static final String DARK_LABEL = "Dark Theme";
     private static final String SOLARIZED_LABEL = "Solarized Theme";
@@ -35,11 +41,12 @@ public class ThemeManager {
         return url.toExternalForm();
     }
 
-    /** Shows a theme selector dialog*/
-    public static void openThemeSelector(Window ownerWindow){
-        List<String> themes = List.of(LIGHT_LABEL, DARK_LABEL, SOLARIZED_LABEL, NORD_LABEL, SEPIA_LABEL);
+    /** Shows a theme selector dialog. */
+    public static void openThemeSelector(Window ownerWindow) {
+        List<String> themes = List.of(
+                DEFAULT_LABEL, LIGHT_LABEL, DARK_LABEL, SOLARIZED_LABEL, NORD_LABEL, SEPIA_LABEL);
 
-        ChoiceDialog<String> dialog = new ChoiceDialog<>(LIGHT_LABEL, themes);
+        ChoiceDialog<String> dialog = new ChoiceDialog<>(currentTheme(ownerWindow.getScene()), themes);
         dialog.initOwner(ownerWindow);
         dialog.setTitle("Theme Selection");
         dialog.setHeaderText("Choose App Theme");
@@ -47,8 +54,24 @@ public class ThemeManager {
         dialog.setContentText("Select Theme:");
 
         Optional<String> result = dialog.showAndWait();
-        result.ifPresent(selectedTheme ->
-                changeTheme(ownerWindow.getScene(), selectedTheme));
+        result.ifPresent(selectedTheme -> changeTheme(ownerWindow.getScene(), selectedTheme));
+    }
+
+    private static String currentTheme(Scene scene) {
+        if (scene.getStylesheets().isEmpty()) {
+            return DEFAULT_LABEL;
+        }
+        String css = scene.getStylesheets().get(0);
+        if (css.equals(DARK_THEME)) return DARK_LABEL;
+        if (css.equals(SOLARIZED_THEME)) return SOLARIZED_LABEL;
+        if (css.equals(NORD_THEME)) return NORD_LABEL;
+        if (css.equals(SEPIA_THEME)) return SEPIA_LABEL;
+        return LIGHT_LABEL;
+    }
+
+    /** Removes any skin - back to the plain default look. */
+    public static void setDefaultTheme(Scene scene) {
+        scene.getStylesheets().clear();
     }
 
     public static void setDarkTheme(Scene scene) {
@@ -73,6 +96,7 @@ public class ThemeManager {
 
     public static void changeTheme(Scene scene, String theme) {
         switch (theme) {
+            case DEFAULT_LABEL -> setDefaultTheme(scene);
             case DARK_LABEL -> setDarkTheme(scene);
             case LIGHT_LABEL -> setLightTheme(scene);
             case SOLARIZED_LABEL -> setSolarizedTheme(scene);

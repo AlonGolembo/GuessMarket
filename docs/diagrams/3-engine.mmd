@@ -1,0 +1,48 @@
+flowchart TB
+    subgraph api["engine.api  (exported)"]
+        MarketEngine["MarketEngine<br/>(interface)"]
+        MarketEngineImpl["MarketEngineImpl<br/>facade: resolve · delegate · publish"]
+        MarketCatalog["MarketCatalog<br/>loaded events + users · lookups"]
+        Publisher["MarketEventPublisher<br/>+ MarketDataChangeListener"]
+    end
+
+    subgraph model["engine.model  (domain)"]
+        Event["Event — aggregate root<br/>options, pool, holdings,<br/>lifecycle, all trading rules"]
+        Option["Option"]
+        User["User<br/>MM roles · blocked flag"]
+        Account["Account<br/>balance + ledger history"]
+        TradingMethod["TradingMethod (sealed)<br/>LmsrMethod · OrderBookMethod"]
+        OrderBook["OrderBook + LimitOrder"]
+        Records["TradeRecord · LedgerEntry<br/>OrderOutcome · TradeReceipt"]
+    end
+
+    subgraph support["support packages"]
+        Lmsr["engine.lmsr<br/>LmsrCalculator"]
+        Xml["engine.xml<br/>parser + validators<br/>&rarr; ParsedMarket"]
+        Mappers["engine.mapper<br/>Event/User/Trade/Ledger<br/>Mapper"]
+        Ser["engine.serialization<br/>StateSerializer + MarketSnapshot"]
+        Exc["engine.exception<br/>MarketException + subtypes"]
+    end
+
+    MarketEngineImpl -.->|implements| MarketEngine
+    MarketEngineImpl -->|owns| MarketCatalog
+    MarketEngineImpl -->|owns| Publisher
+    MarketEngineImpl -->|load| Xml
+    MarketEngineImpl -->|save / restore| Ser
+    MarketEngineImpl -->|commands| Event
+    MarketEngineImpl -->|maps results| Mappers
+    Xml -->|builds| Event
+    Xml -->|builds| User
+    MarketCatalog -->|holds| Event
+    MarketCatalog -->|holds| User
+    Ser <-->|serialize| Event
+    Event -->|two| Option
+    Event -->|prices via| TradingMethod
+    Event -->|matches in| OrderBook
+    Event -->|debit / credit| User
+    Event -->|writes| Records
+    User -->|money via| Account
+    Account -->|appends| Records
+    TradingMethod -->|maths| Lmsr
+    Mappers -->|read| Event
+    Mappers -->|read| User

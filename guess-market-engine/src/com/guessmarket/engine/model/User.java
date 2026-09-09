@@ -16,6 +16,10 @@ import java.util.Set;
  * <p>Cash only moves through {@link #debit} / {@link #credit}, which delegate to
  * the {@link Account}; there is no balance setter. Two users are equal when their
  * names are equal.
+ *
+ * <p>A user whose balance is forced below zero to honour a standing obligation is
+ * {@linkplain #isBlocked() blocked} - from then on the engine refuses every
+ * action they attempt.
  */
 public class User implements Serializable {
 
@@ -25,6 +29,8 @@ public class User implements Serializable {
     private final Account account;
     /** Grows when the user is made market maker of a newly created event. */
     private Set<Integer> marketMakerEventIds;
+    /** {@code true} once the balance went negative - the user can no longer act. */
+    private boolean blocked;
 
     /** Events this user currently participates in, keyed by event id. Populated as trades happen. */
     private final Map<Integer, Event> participatingEvents = new HashMap<>();
@@ -58,6 +64,21 @@ public class User implements Serializable {
 
     public void credit(double amount, LedgerEntryType type, Integer eventId) {
         account.credit(amount, type, eventId);
+    }
+
+    /**
+     * Forces {@code amount} out of the account even into a negative balance, then
+     * blocks the user. Only for honouring a standing obligation they can no longer
+     * cover (see the class doc).
+     */
+    public void forceDebitAndBlock(double amount, LedgerEntryType type, Integer eventId) {
+        account.debitAllowingOverdraw(amount, type, eventId);
+        blocked = true;
+    }
+
+    /** {@code true} once this user's balance was forced negative - they can no longer act. */
+    public boolean isBlocked() {
+        return blocked;
     }
 
     /** Ids of the events this user is the market maker for (unmodifiable). */

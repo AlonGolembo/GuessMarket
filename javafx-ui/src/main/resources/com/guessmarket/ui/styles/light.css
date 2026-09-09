@@ -18,7 +18,15 @@
     -fx-selection-bar-non-focused: #c9d9ee;
 
     -fx-text-base-color: #1f2329;
-    -fx-font-size: 13px;
+
+    /* Theme font: a large, rounded sans for a friendly light look. */
+    -fx-font-family: "Calibri", "Segoe UI", sans-serif;
+    -fx-font-size: 14px;
+}
+
+.label {
+    -fx-font-family: "Calibri", "Segoe UI", sans-serif;
+    -fx-font-size: 14px;
 }
 
 /* Window header strip (the VBox with the divider in main-view.fxml) */

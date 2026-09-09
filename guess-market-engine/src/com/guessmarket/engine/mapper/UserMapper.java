@@ -20,6 +20,7 @@ public final class UserMapper {
         return new UserDTO(
                 user.getName(),
                 user.getAccountBalance(),
+                user.isBlocked(),
                 Set.copyOf(user.getMarketMakerEventIds()),
                 holdings(user)
         );

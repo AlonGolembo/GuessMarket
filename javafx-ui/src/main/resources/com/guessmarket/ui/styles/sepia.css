@@ -16,7 +16,10 @@
     -fx-selection-bar-non-focused: #e2d5bd;
 
     -fx-text-base-color: #4a3b2a;
-    -fx-font-size: 13px;
+
+    /* Theme font: a large serif for comfortable reading. */
+    -fx-font-family: "Cambria", "Georgia", serif;
+    -fx-font-size: 15px;
 }
 
 .root > .top > .v-box {
@@ -26,6 +29,8 @@
 
 .label {
     -fx-text-fill: #4a3b2a;
+    -fx-font-family: "Cambria", "Georgia", serif;
+    -fx-font-size: 15px;
 }
 
 .menu-bar {

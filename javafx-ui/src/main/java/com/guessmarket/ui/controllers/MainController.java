@@ -4,6 +4,7 @@ import com.guessmarket.dto.EventDTO;
 import com.guessmarket.dto.NewEventDTO;
 import com.guessmarket.engine.api.MarketEngine;
 import com.guessmarket.engine.exception.MarketException;
+import com.guessmarket.ui.common.AnimationSettingsDialog;
 import com.guessmarket.ui.common.Dialogs;
 import com.guessmarket.ui.common.FileLoadStatus;
 import com.guessmarket.ui.common.NewEventDialog;
@@ -237,6 +238,11 @@ public class MainController {
     }
 
     @FXML
+    private void handleAnimations() {
+        AnimationSettingsDialog.show(rootPane.getScene().getWindow());
+    }
+
+    @FXML
     private void handleLoadFile() {
         FileChooser fileChooser = new FileChooser();
         fileChooser.setTitle("Open XML Configuration");
@@ -272,9 +278,15 @@ public class MainController {
             @Override
             protected Void call() throws Exception {
                 LOG.info("User requested XML load: {}", path);
-                updateProgress(0.2, 1.0);
+                // Parsing itself is near-instant; pace the progress bar with short
+                // sleeps so the loading indicator is actually visible (~1.3s total).
+                updateProgress(0.1, 1.0);
+                Thread.sleep(450);
+                updateProgress(0.35, 1.0);
                 // Engine handles XML unmarshalling, validation, and fires onMarketDataChanged() to listeners
                 engine.loadXmlFile(path);
+                updateProgress(0.7, 1.0);
+                Thread.sleep(850);
                 updateProgress(1.0, 1.0);
                 return null;
             }

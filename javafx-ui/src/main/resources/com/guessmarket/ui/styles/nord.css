@@ -20,7 +20,10 @@
     -fx-text-base-color: #eceff4;  /* nord6 */
     -fx-text-background-color: #eceff4;
     -fx-text-fill: #eceff4;
-    -fx-font-size: 13px;
+
+    /* Theme font: a compact humanist sans. */
+    -fx-font-family: "Verdana", "Tahoma", sans-serif;
+    -fx-font-size: 12px;
 }
 
 .root > .top > .v-box {
@@ -30,6 +33,8 @@
 
 .label {
     -fx-text-fill: #eceff4;
+    -fx-font-family: "Verdana", "Tahoma", sans-serif;
+    -fx-font-size: 12px;
 }
 
 .menu-bar {

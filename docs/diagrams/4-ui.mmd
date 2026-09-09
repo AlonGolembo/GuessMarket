@@ -1,0 +1,37 @@
+flowchart TB
+    App["GuessMarketApp<br/>entry: build engine · load FXML · inject"]
+
+    subgraph controllers["ui.controllers"]
+        Main["MainController<br/>shell: file load/save · menu<br/>engine &rarr; tabs"]
+        Events["EventsController<br/>Events tab: list · filters<br/>book depth · charts · closed summary"]
+        Users["UsersController<br/>Users tab: balances · holdings<br/>trading · blocked state · chart"]
+    end
+
+    subgraph common["ui.common"]
+        Dialogs["Dialogs"]
+        NewEventDialog["NewEventDialog<br/>&rarr; NewEventDTO"]
+        ThemeManager["ThemeManager<br/>+ 5 skins"]
+        Anim["AnimationSettings<br/>+ AnimationSettingsDialog"]
+        Charts["Charts<br/>(LineCharts)"]
+        Helpers["TradeRules · EventFilters<br/>FileLoadStatus"]
+    end
+
+    FXML["views (FXML)<br/>main-view · events-tab · users-tab"]
+
+    App -->|loads| FXML
+    App -->|setEngine| Main
+    Main -->|engine| Events
+    Main -->|engine| Users
+    Main -->|opens| NewEventDialog
+    Main -->|opens| ThemeManager
+    Main -->|opens| Anim
+    Main -->|errors| Dialogs
+    Events -->|charts| Charts
+    Users -->|charts| Charts
+    Events -->|rules| Helpers
+    Users -->|rules| Helpers
+    Events -.->|check| Anim
+    Users -.->|check| Anim
+    FXML -.controller.-> Main
+    FXML -.controller.-> Events
+    FXML -.controller.-> Users

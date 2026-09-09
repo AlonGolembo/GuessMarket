@@ -108,6 +108,10 @@ public class MarketEngineImpl implements MarketEngine {
         catalog.requireLoaded();
 
         User marketMaker = catalog.user(spec.marketMakerName());
+        if (marketMaker.isBlocked()) {
+            throw new MarketException("User '" + marketMaker.getName()
+                    + "' is blocked (their balance went negative) and cannot create an event.");
+        }
         List<Option> options = buildOptions(spec.optionNames());
         TradingMethod method = buildMethod(spec);
         try {

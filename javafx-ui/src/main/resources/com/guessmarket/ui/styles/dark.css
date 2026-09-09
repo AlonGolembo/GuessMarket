@@ -19,7 +19,10 @@
     -fx-text-base-color: #e6e6e6;
     -fx-text-background-color: #e6e6e6;
     -fx-text-fill: #e6e6e6;
-    -fx-font-size: 13px;
+
+    /* Theme font: a technical, monospaced look. */
+    -fx-font-family: "Consolas", "Courier New", monospace;
+    -fx-font-size: 12px;
 }
 
 .root > .top > .v-box {
@@ -29,6 +32,8 @@
 
 .label {
     -fx-text-fill: #e6e6e6;
+    -fx-font-family: "Consolas", "Courier New", monospace;
+    -fx-font-size: 12px;
 }
 
 .menu-bar {

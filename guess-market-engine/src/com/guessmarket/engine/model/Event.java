@@ -90,6 +90,14 @@ public class Event implements Serializable {
         }
     }
 
+    /** A user whose balance was forced negative is barred from every action. */
+    private static void requireNotBlocked(User user) {
+        if (user.isBlocked()) {
+            throw new MarketException("User '" + user.getName()
+                    + "' is blocked - their balance went negative - and can no longer act in the market.");
+        }
+    }
+
     // --- Lifecycle ----------------------------------------------------------
 
     /**
@@ -99,6 +107,7 @@ public class Event implements Serializable {
      * stays {@code NOT_ACTIVE}.
      */
     public void open(User marketMaker) {
+        requireNotBlocked(marketMaker);
         if (status != EventStatus.NOT_ACTIVE) {
             throw new MarketException("Event ID " + id + " cannot be opened from state " + status + ".");
         }
@@ -155,6 +164,7 @@ public class Event implements Serializable {
      * @param optionIndex 0-based index into {@link #getOptions()}
      */
     public TradeReceipt buy(User buyer, int optionIndex, int quantity) {
+        requireNotBlocked(buyer);
         if (status != EventStatus.ACTIVE) {
             throw new MarketException("Event ID " + id + " is not open for trading (state: " + status + ").");
         }
@@ -266,7 +276,9 @@ public class Event implements Serializable {
                 continue;
             }
 
-            Fill fill = executeTrade(buyer, seller, optionIndex, fillQty, execPrice);
+            // A market buy is the caller's own action, always clamped to what they
+            // can afford - it never forces anyone negative.
+            Fill fill = executeTrade(buyer, seller, optionIndex, fillQty, execPrice, false);
             totalSharesCost += fill.shareCost();
             totalCommission += fill.commission();
 
@@ -381,6 +393,7 @@ public class Event implements Serializable {
      * @param optionIndex 0-based index into {@link #getOptions()}
      */
     public OrderOutcome placeOrder(User user, int optionIndex, OrderSide side, int quantity, double price) {
+        requireNotBlocked(user);
         if (status != EventStatus.ACTIVE) {
             throw new MarketException("Event ID " + id + " is not open for trading (state: " + status + ").");
         }
@@ -438,6 +451,7 @@ public class Event implements Serializable {
 
     /** Cancels a still-resting order; only its own owner may cancel it. */
     public void cancelOrder(User user, long orderId) {
+        requireNotBlocked(user);
         if (orderBook == null) {
             throw new MarketException("Event ID " + id + " does not trade through an order book.");
         }
@@ -493,19 +507,23 @@ public class Event implements Serializable {
             User seller = incomingIsBid ? getParticipantByName(resting.getUserName()) : incomingUser;
             double execPrice = resting.getPrice();
 
-            int quantity = Math.min(incoming.getRemaining(), resting.getRemaining());
-            quantity = Math.min(quantity, holdingsOf(seller.getName())[optionIndex]);
-            quantity = Math.min(quantity, affordableQuantity(buyer, execPrice));
-
-            if (quantity <= 0) {
-                // Its owner can no longer honour this resting order (balance or
-                // shares have since moved elsewhere) - drop it and try the next.
-                LOG.warn("Event {}: dropping stale resting order {} (no longer honourable)", id, resting.getId());
+            int deliverable = Math.min(incoming.getRemaining(), resting.getRemaining());
+            deliverable = Math.min(deliverable, holdingsOf(seller.getName())[optionIndex]);
+            if (deliverable <= 0) {
+                // The seller can no longer deliver these shares - genuinely
+                // stale, drop it and try the next.
+                LOG.warn("Event {}: dropping stale resting order {} (seller can't deliver)", id, resting.getId());
                 orderBook.remove(resting);
                 continue;
             }
 
-            Fill fill = executeTrade(buyer, seller, optionIndex, quantity, execPrice);
+            // If the buyer here is a *resting* bid's owner who has since spent
+            // their money, we still honour the fill: it forces their balance
+            // negative and blocks them (see the "blocked user" rule).
+            boolean overdrawBuyer = affordableQuantity(buyer, execPrice) < deliverable;
+            int quantity = deliverable;
+
+            Fill fill = executeTrade(buyer, seller, optionIndex, quantity, execPrice, overdrawBuyer);
             cashMoved += fill.shareCost();
             if (incomingIsBid) {
                 commissionPaid += fill.commission();
@@ -522,14 +540,26 @@ public class Event implements Serializable {
     /** Cost breakdown of one order-book fill, returned so callers can total up a multi-fill order. */
     private record Fill(double shareCost, double commission) {}
 
-    /** Moves cash and shares for one fill and records it; commission goes straight to the market maker. */
-    private Fill executeTrade(User buyer, User seller, int optionIndex, int quantity, double execPrice) {
+    /**
+     * Moves cash and shares for one fill and records it; commission goes straight
+     * to the market maker. When {@code overdrawBuyer} is set the buyer is a resting
+     * order's owner who can no longer cover it: the debit is forced through into a
+     * negative balance and the buyer is blocked from any further action.
+     */
+    private Fill executeTrade(User buyer, User seller, int optionIndex, int quantity, double execPrice,
+                              boolean overdrawBuyer) {
         double shareCost = quantity * execPrice;
         double commission = commissionType == CommissionType.ON_PURCHASE
                 ? shareCost * (commissionPercentage / 100.0)
                 : 0.0;
 
-        buyer.debit(shareCost + commission, LedgerEntryType.PURCHASE, id);
+        if (overdrawBuyer) {
+            buyer.forceDebitAndBlock(shareCost + commission, LedgerEntryType.PURCHASE, id);
+            LOG.warn("Event {}: '{}' forced to a negative balance ({}) honouring a resting order and is now BLOCKED",
+                    id, buyer.getName(), buyer.getAccountBalance());
+        } else {
+            buyer.debit(shareCost + commission, LedgerEntryType.PURCHASE, id);
+        }
         seller.credit(shareCost, LedgerEntryType.SALE, id);
         recordCommission(commission);
 
@@ -592,15 +622,16 @@ public class Event implements Serializable {
 
             int quantity = Math.min(incoming.getRemaining(), otherBid.getRemaining());
             quantity = Math.min(quantity, affordableQuantity(incomingUser, priceA));
-            quantity = Math.min(quantity, affordableQuantity(otherUser, priceB));
 
             if (quantity <= 0) {
-                LOG.warn("Event {}: dropping stale resting bid {} (mint no longer affordable)", id, otherBid.getId());
-                orderBook.remove(otherBid);
-                continue;
+                break;   // the incoming order's owner can't afford the mint - stop
             }
 
-            Fill fill = mintPair(incomingUser, optionA, priceA, otherUser, optionB, priceB, quantity);
+            // The resting bid's owner may have spent their money since - if so we
+            // still mint, force their balance negative and block them.
+            boolean overdrawOther = affordableQuantity(otherUser, priceB) < quantity;
+
+            Fill fill = mintPair(incomingUser, optionA, priceA, otherUser, optionB, priceB, quantity, overdrawOther);
             cashMoved += fill.shareCost();
             commissionPaid += fill.commission();
             incoming.reduce(quantity);
@@ -612,16 +643,27 @@ public class Event implements Serializable {
         return new Fill(cashMoved, commissionPaid);
     }
 
-    /** Creates {@code quantity} brand-new shares of each option, charging each buyer their own price; returns userA's own spend. */
+    /**
+     * Creates {@code quantity} brand-new shares of each option, charging each buyer
+     * their own price; returns userA's own spend. When {@code overdrawUserB} is set,
+     * userB is a resting bid's owner who can no longer cover it: their debit is
+     * forced negative and they are blocked.
+     */
     private Fill mintPair(User userA, int optionA, double priceA, User userB, int optionB, double priceB,
-                           int quantity) {
+                           int quantity, boolean overdrawUserB) {
         double costA = quantity * priceA;
         double costB = quantity * priceB;
         double commissionA = commissionType == CommissionType.ON_PURCHASE ? costA * (commissionPercentage / 100.0) : 0.0;
         double commissionB = commissionType == CommissionType.ON_PURCHASE ? costB * (commissionPercentage / 100.0) : 0.0;
 
         userA.debit(costA + commissionA, LedgerEntryType.PURCHASE, id);
-        userB.debit(costB + commissionB, LedgerEntryType.PURCHASE, id);
+        if (overdrawUserB) {
+            userB.forceDebitAndBlock(costB + commissionB, LedgerEntryType.PURCHASE, id);
+            LOG.warn("Event {}: '{}' forced to a negative balance ({}) honouring a resting bid and is now BLOCKED",
+                    id, userB.getName(), userB.getAccountBalance());
+        } else {
+            userB.debit(costB + commissionB, LedgerEntryType.PURCHASE, id);
+        }
         recordCommission(commissionA + commissionB);
 
         options.get(optionA).addShares(quantity);

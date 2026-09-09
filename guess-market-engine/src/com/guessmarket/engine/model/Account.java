@@ -13,8 +13,9 @@ import java.util.List;
  * <p>The balance is encapsulated: it can only move through
  * {@link #debit(double, LedgerEntryType, Integer)} and
  * {@link #credit(double, LedgerEntryType, Integer)}, both of which validate their
- * argument, and a debit that would overdraw the account is refused. There is
- * deliberately no setter, so no caller can leave an account in an impossible state.
+ * argument; a normal debit that would overdraw the account is refused. The one
+ * exception is {@link #debitAllowingOverdraw} - used only to force a standing
+ * obligation through and then block the holder. There is deliberately no setter.
  *
  * <p>Every successful move appends a {@link LedgerEntry} to an append-only history,
  * readable via {@link #ledgerEntries()}. Each entry carries the balance it left
@@ -62,6 +63,21 @@ public final class Account implements Serializable {
         if (amount > balance) {
             throw new InsufficientFundsException(amount, balance);
         }
+        balance -= amount;
+        appendEntry(-amount, type, eventId);
+    }
+
+    /**
+     * Removes {@code amount} even if it takes the balance below zero, and records
+     * the reason. Used only to honour a standing obligation the account holder can
+     * no longer cover (a resting order-book bid that filled after they spent their
+     * money elsewhere) - see the "blocked user" rule. The caller is responsible
+     * for blocking the holder afterwards.
+     *
+     * @throws IllegalArgumentException if {@code amount} is not strictly positive
+     */
+    public void debitAllowingOverdraw(double amount, LedgerEntryType type, Integer eventId) {
+        requirePositive(amount);
         balance -= amount;
         appendEntry(-amount, type, eventId);
     }

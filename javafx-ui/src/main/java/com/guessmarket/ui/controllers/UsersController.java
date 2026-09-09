@@ -12,9 +12,14 @@ import com.guessmarket.dto.UserDTO;
 import com.guessmarket.dto.UserDetailsDTO;
 import com.guessmarket.engine.api.MarketDataChangeListener;
 import com.guessmarket.engine.api.MarketEngine;
+import com.guessmarket.ui.common.AnimationSettings;
 import com.guessmarket.ui.common.Charts;
 import com.guessmarket.ui.common.Dialogs;
 import com.guessmarket.ui.common.TradeRules;
+import javafx.animation.FadeTransition;
+import javafx.animation.Interpolator;
+import javafx.animation.ParallelTransition;
+import javafx.animation.TranslateTransition;
 import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
 import javafx.beans.property.*;
@@ -25,6 +30,7 @@ import javafx.scene.chart.LineChart;
 import javafx.scene.control.*;
 import javafx.scene.layout.AnchorPane;
 import javafx.scene.layout.VBox;
+import javafx.util.Duration;
 import javafx.util.StringConverter;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -50,11 +56,14 @@ public class UsersController implements MarketDataChangeListener {
     // =========================================================================
     // FXML UI Controls - Single User Details & Sub-Table
     // =========================================================================
+    @FXML private VBox userDetailsPanel;
     @FXML private Label accountBalanceLabel;
+    @FXML private Label userBlockedLabel;
     @FXML private TableView<EventDTO> userEventsTableView;
     @FXML private TableColumn<EventDTO, String> userEventNameCol;
     @FXML private TableColumn<EventDTO, String> userEventRoleCol;
     @FXML private TableColumn<EventDTO, Integer> userEventSharesCol;
+    @FXML private Label userEventInvolvementLabel;
 
     /** Host for the selected user's balance-over-time chart (Graphs sub-tab). */
     @FXML private AnchorPane graph;
@@ -115,6 +124,9 @@ public class UsersController implements MarketDataChangeListener {
     // =========================================================================
     private MarketEngine marketEngine;
 
+    /** Names of users already blocked at the last refresh - to notify when a new block happens. */
+    private final java.util.Set<String> knownBlockedUsers = new java.util.HashSet<>();
+
     // Observable collections backing the tables and combo boxes
     private final ObservableList<UserDTO> usersList = FXCollections.observableArrayList();
     private final ObservableList<EventDTO> eventsList = FXCollections.observableArrayList();
@@ -129,6 +141,10 @@ public class UsersController implements MarketDataChangeListener {
     private final IntegerProperty selectedSharesProperty = new SimpleIntegerProperty(1);
     private final DoubleProperty totalPriceToPay = new SimpleDoubleProperty(0.0);
 
+    // User-details reveal animation (fade + slide-up when a different user is selected)
+    private ParallelTransition userDetailsReveal;
+    private String lastRevealedUser;
+
     // =========================================================================
     // Lifecycle & Initialization
     // =========================================================================
@@ -139,6 +155,7 @@ public class UsersController implements MarketDataChangeListener {
         setupUserEventsTableColumns();
         setupComboBoxConverters();
         setupBindingsAndListeners();
+        setupUserDetailsReveal();
         setupSpinner();
         setupPurchaseHistoryTableView();
         setupOrderEntry();
@@ -207,6 +224,41 @@ public class UsersController implements MarketDataChangeListener {
             int shares = selectedUser == null ? 0 : totalSharesHeld(selectedUser, cellData.getValue().id());
             return new SimpleObjectProperty<>(shares);
         });
+
+        userEventsTableView.getSelectionModel().selectedItemProperty().addListener(
+                (obs, oldEvent, newEvent) -> showUserEventInvolvement(newEvent));
+    }
+
+    /**
+     * Details of the selected user's involvement in one of their events: shares held
+     * per option, and for a closed event the winner and the user's net cash result
+     * (the sum of every ledger entry tagged with this event).
+     */
+    private void showUserEventInvolvement(EventDTO event) {
+        UserDTO user = usersTableView.getSelectionModel().getSelectedItem();
+        if (event == null || user == null || marketEngine == null) {
+            userEventInvolvementLabel.setText("Select one of your events above to see your involvement in it.");
+            return;
+        }
+
+        Map<String, Integer> held = user.holdings().get(event.id());
+        StringBuilder sb = new StringBuilder(event.name()).append("  •  ").append(event.status().name());
+        if (held != null && !held.isEmpty()) {
+            sb.append("  •  Your shares:");
+            held.forEach((option, qty) -> sb.append("  ").append(option).append(" = ").append(qty));
+        }
+
+        if (event.status() == com.guessmarket.dto.EventStatus.CLOSED) {
+            EventDetailsDTO details = marketEngine.getEventDetails(event.id());
+            sb.append("\nWinner: ").append(details.winningOption() == null ? "-" : details.winningOption());
+            double net = marketEngine.getUserDetails(user.name()).balanceHistory().stream()
+                    .filter(entry -> entry.eventId() != null && entry.eventId() == event.id())
+                    .mapToDouble(com.guessmarket.dto.LedgerEntryDTO::delta)
+                    .sum();
+            sb.append("  •  Your net result on this event: ")
+                    .append(String.format("%s$%,.2f", net < 0 ? "-" : "+", Math.abs(net)));
+        }
+        userEventInvolvementLabel.setText(sb.toString());
     }
 
     /**
@@ -390,7 +442,7 @@ public class UsersController implements MarketDataChangeListener {
      */
     @Override
     public void onMarketDataChanged() {
-        if (marketEngine == null) return;
+        if (marketEngine == null || !marketEngine.isFileLoaded()) return;
 
         // Ensure UI updates always run safely on the JavaFX Application Thread
         Platform.runLater(() -> {
@@ -398,8 +450,10 @@ public class UsersController implements MarketDataChangeListener {
             EventDTO currentSelectedEvent = eventsComboBox.getValue();
 
             // Refresh master lists from engine
-            usersList.setAll(marketEngine.getAllUsers().values());
+            var users = marketEngine.getAllUsers().values();
+            usersList.setAll(users);
             eventsList.setAll(marketEngine.getAllEvents());
+            notifyIfNewlyBlocked(users);
 
             // Restore user selection if still present in the updated list
             if (currentSelectedUser != null) {
@@ -430,6 +484,30 @@ public class UsersController implements MarketDataChangeListener {
         });
     }
 
+    /**
+     * Pops a warning the first time we see a user become blocked (their balance was
+     * forced negative to honour a resting order) - satisfies the "notify the user"
+     * part of the negative-balance rule.
+     */
+    private void notifyIfNewlyBlocked(java.util.Collection<UserDTO> users) {
+        java.util.List<String> newlyBlocked = users.stream()
+                .filter(UserDTO::blocked)
+                .map(UserDTO::name)
+                .filter(name -> !knownBlockedUsers.contains(name))
+                .toList();
+        for (UserDTO u : users) {
+            if (u.blocked()) {
+                knownBlockedUsers.add(u.name());
+            }
+        }
+        if (!newlyBlocked.isEmpty()) {
+            Dialogs.error("User blocked",
+                    "The following user(s) were forced into a negative balance while a resting order "
+                            + "was filled and are now blocked from any further action:\n  "
+                            + String.join(", ", newlyBlocked));
+        }
+    }
+
     // =========================================================================
     // Selection Handlers
     // =========================================================================
@@ -439,12 +517,19 @@ public class UsersController implements MarketDataChangeListener {
     private void handleRowSelected(UserDTO selectedUser) {
         if (selectedUser == null) {
             userBalance.set(0.0);
+            userBlockedLabel.setVisible(false);
+            userBlockedLabel.setManaged(false);
             participatingEventsList.clear();
             graph.getChildren().clear();
+            revealUserDetails(null);
             refreshMyOpenOrders();
             return;
         }
+
         userBalance.set(selectedUser.balance());
+        userBlockedLabel.setVisible(selectedUser.blocked());
+        userBlockedLabel.setManaged(selectedUser.blocked());
+        revealUserDetails(selectedUser);
 
         java.util.Set<Integer> ids = selectedUser.holdings().keySet();
         if (ids.isEmpty() || marketEngine == null) {
@@ -456,6 +541,44 @@ public class UsersController implements MarketDataChangeListener {
         }
         renderBalanceGraph(selectedUser);
         refreshMyOpenOrders();
+    }
+
+    /** Builds the reusable fade + slide-up transition played on the User Details panel. */
+    private void setupUserDetailsReveal() {
+        if (userDetailsPanel == null) {
+            return;
+        }
+        FadeTransition fade = new FadeTransition(Duration.millis(240), userDetailsPanel);
+        fade.setFromValue(0.0);
+        fade.setToValue(1.0);
+        TranslateTransition slide = new TranslateTransition(Duration.millis(280), userDetailsPanel);
+        slide.setFromY(20.0);
+        slide.setToY(0.0);
+        slide.setInterpolator(Interpolator.EASE_OUT);
+        userDetailsReveal = new ParallelTransition(fade, slide);
+    }
+
+    /** Plays the reveal only when the selection actually changed to a different user. */
+    private void revealUserDetails(UserDTO selectedUser) {
+        if (userDetailsPanel == null) {
+            return;
+        }
+        if (selectedUser == null) {
+            lastRevealedUser = null;
+            return;
+        }
+        boolean newSelection = !selectedUser.name().equals(lastRevealedUser);
+        lastRevealedUser = selectedUser.name();
+        if (newSelection && userDetailsReveal != null && AnimationSettings.isUserDetailsRevealEnabled()) {
+            userDetailsReveal.stop();
+            userDetailsPanel.setOpacity(0.0);
+            userDetailsPanel.setTranslateY(20.0);
+            userDetailsReveal.playFromStart();
+        } else {
+            // No animation this time - undo anything an interrupted run left behind.
+            userDetailsPanel.setOpacity(1.0);
+            userDetailsPanel.setTranslateY(0.0);
+        }
     }
 
     /** Draws the selected user's balance-over-time chart into the Graphs sub-tab. */
@@ -716,6 +839,15 @@ public class UsersController implements MarketDataChangeListener {
         myOpenOrdersTable.setItems(myOpenOrdersList);
 
         bindVisibleToMethod(orderEntrySection, TradingMethodType.ORDERBOOK);
+        // Same rule as the LMSR trade panel: a non-market-maker on an open event,
+        // and never a blocked user.
+        orderEntrySection.disableProperty().bind(
+                Bindings.createBooleanBinding(
+                        () -> !TradeRules.canTrade(
+                                usersTableView.getSelectionModel().getSelectedItem(),
+                                eventsComboBox.getValue()),
+                        usersTableView.getSelectionModel().selectedItemProperty(),
+                        eventsComboBox.valueProperty()));
 
         selectedEventDetails.addListener((obs, oldDetails, newDetails) -> {
             orderEntryStatusLabel.setText(" ");

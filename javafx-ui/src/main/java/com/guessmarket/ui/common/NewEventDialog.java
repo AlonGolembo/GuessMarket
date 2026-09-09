@@ -39,7 +39,7 @@ public final class NewEventDialog {
         dialog.setTitle("Add Event");
         dialog.setHeaderText("Create a new event");
         dialog.initOwner(owner);
-        dialog.setResizable(true);
+        dialog.setResizable(false);
 
         ButtonType createType = new ButtonType("Create", ButtonBar.ButtonData.OK_DONE);
         dialog.getDialogPane().getButtonTypes().setAll(createType, ButtonType.CANCEL);

@@ -22,7 +22,7 @@
 <?import javafx.scene.layout.VBox?>
 <?import javafx.scene.text.Font?>
 
-<ScrollPane fitToHeight="true" fitToWidth="true" xmlns="http://javafx.com/javafx/26" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.guessmarket.ui.controllers.UsersController">
+<ScrollPane fitToHeight="true" fitToWidth="true" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.guessmarket.ui.controllers.UsersController">
     <content>
         <!-- The vertical SplitPane fills the viewport (fitToHeight) so its
              divider can trade space between the users area and the trading
@@ -65,9 +65,9 @@
                            <tabs>
                               <Tab text="User Details">
                                  <content>
-            
+
                                     <!-- Right: Single User Details -->
-                                    <VBox minWidth="380.0" spacing="8.0">
+                                    <VBox fx:id="userDetailsPanel" minWidth="380.0" spacing="8.0">
                                         <children>
                                             <GridPane alignment="CENTER">
                                                 <columnConstraints>
@@ -96,7 +96,11 @@
                                                     </Label>
                                                 </children>
                                             </GridPane>
-            
+
+                                            <Label fx:id="userBlockedLabel" managed="false" visible="false" wrapText="true"
+                                                   style="-fx-text-fill: #c0392b; -fx-font-weight: bold;"
+                                                   text="BLOCKED - this user's balance went negative; they can no longer perform any action." />
+
                                             <VBox spacing="6.0" VBox.vgrow="ALWAYS">
                                                 <children>
                                                     <Label text="Events Participation / Owner">
@@ -114,6 +118,9 @@
                                                             <TableView fx:constant="CONSTRAINED_RESIZE_POLICY" />
                                                         </columnResizePolicy>
                                                     </TableView>
+                                                    <Label fx:id="userEventInvolvementLabel" wrapText="true"
+                                                           style="-fx-font-size: 11px;"
+                                                           text="Select one of your events above to see your involvement in it." />
                                                 </children>
                                             </VBox>
                                         </children>

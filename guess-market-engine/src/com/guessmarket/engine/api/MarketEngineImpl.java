@@ -3,18 +3,25 @@ package com.guessmarket.engine.api;
 import com.guessmarket.dto.EventDTO;
 import com.guessmarket.dto.EventDetailsDTO;
 import com.guessmarket.dto.EventStatus;
+import com.guessmarket.dto.NewEventDTO;
 import com.guessmarket.dto.OrderResultDTO;
 import com.guessmarket.dto.OrderSide;
 import com.guessmarket.dto.TradeQuoteDTO;
 import com.guessmarket.dto.TradeResultDTO;
 import com.guessmarket.dto.UserDTO;
 import com.guessmarket.dto.UserDetailsDTO;
+import com.guessmarket.engine.exception.InsufficientFundsException;
 import com.guessmarket.engine.exception.MarketException;
+import com.guessmarket.engine.exception.XmlValidationException;
 import com.guessmarket.engine.mapper.EventMapper;
 import com.guessmarket.engine.mapper.UserMapper;
 import com.guessmarket.engine.model.Event;
+import com.guessmarket.engine.model.LmsrMethod;
+import com.guessmarket.engine.model.Option;
+import com.guessmarket.engine.model.OrderBookMethod;
 import com.guessmarket.engine.model.OrderOutcome;
 import com.guessmarket.engine.model.TradeReceipt;
+import com.guessmarket.engine.model.TradingMethod;
 import com.guessmarket.engine.model.User;
 import com.guessmarket.engine.serialization.MarketSnapshot;
 import com.guessmarket.engine.serialization.StateSerializer;
@@ -30,8 +37,9 @@ import java.util.stream.Collectors;
 /**
  * Facade over the market. It owns no rules of its own: it resolves the DTOs the
  * UI passes to the domain objects held in the {@link MarketCatalog}, delegates
- * the work to those objects, and publishes a change notification. Loading and
- * persistence are the only logic that lives here directly.
+ * the work to those objects, and publishes a change notification. Loading,
+ * persistence and assembling a new event from a {@link NewEventDTO} are the only
+ * logic that lives here directly.
  */
 public class MarketEngineImpl implements MarketEngine {
 
@@ -93,6 +101,90 @@ public class MarketEngineImpl implements MarketEngine {
     @Override
     public List<EventDTO> getAllEvents() throws MarketException {
         return catalog.events().stream().map(EventMapper::toEventDTO).toList();
+    }
+
+    @Override
+    public EventDTO createEvent(NewEventDTO spec) throws MarketException {
+        catalog.requireLoaded();
+
+        User marketMaker = catalog.user(spec.marketMakerName());
+        if (marketMaker.isBlocked()) {
+            throw new MarketException("User '" + marketMaker.getName()
+                    + "' is blocked (their balance went negative) and cannot create an event.");
+        }
+        List<Option> options = buildOptions(spec.optionNames());
+        TradingMethod method = buildMethod(spec);
+        try {
+            method.validate();
+        } catch (XmlValidationException e) {
+            throw new MarketException(e.getMessage(), e);
+        }
+
+        int id = catalog.nextEventId();
+        Event event;
+        try {
+            event = new Event(id, requireText(spec.name(), "name"), requireText(spec.description(), "description"),
+                    spec.commissionPercentage(), spec.commissionType(), options, method);
+        } catch (IllegalArgumentException e) {
+            throw new MarketException(e.getMessage(), e);
+        }
+
+        double subsidy = method.initialSubsidy();
+        double balance = marketMaker.getAccountBalance();
+        if (subsidy > balance) {
+            throw new InsufficientFundsException(subsidy, balance);
+        }
+
+        // All checks passed - commit.
+        marketMaker.addMarketMakerEvent(id);
+        catalog.addEvent(event);
+        logger.info("Created event {} ('{}'), market maker '{}' (subsidy {}, balance {})",
+                id, event.getName(), marketMaker.getName(), subsidy, balance);
+        publisher.publish();
+        return EventMapper.toEventDTO(event);
+    }
+
+    private static List<Option> buildOptions(List<String> names) {
+        if (names == null || names.size() != 2) {
+            throw new MarketException("An event needs exactly two options.");
+        }
+        String first = names.get(0) == null ? "" : names.get(0).trim();
+        String second = names.get(1) == null ? "" : names.get(1).trim();
+        if (first.isEmpty() || second.isEmpty()) {
+            throw new MarketException("Both option names are required.");
+        }
+        if (first.equalsIgnoreCase(second)) {
+            throw new MarketException("The two options must have different names.");
+        }
+        return List.of(new Option(first), new Option(second));
+    }
+
+    private static TradingMethod buildMethod(NewEventDTO spec) {
+        if (spec.tradingMethod() == null) {
+            throw new MarketException("Choose a trading method.");
+        }
+        return switch (spec.tradingMethod()) {
+            case LMSR -> {
+                if (spec.lmsrB() == null) {
+                    throw new MarketException("LMSR needs a liquidity parameter (b).");
+                }
+                yield new LmsrMethod(spec.lmsrB());
+            }
+            case ORDERBOOK -> {
+                if (spec.orderBookD() == null || spec.orderBookInitial() == null) {
+                    throw new MarketException("Order Book needs a base value (d) and an initial allocation.");
+                }
+                yield new OrderBookMethod(spec.orderBookD(), spec.orderBookInitial(), spec.orderBookAllowMint());
+            }
+            case NONE, NOTDEFINED -> throw new MarketException("Unsupported trading method: " + spec.tradingMethod());
+        };
+    }
+
+    private static String requireText(String value, String field) {
+        if (value == null || value.isBlank()) {
+            throw new MarketException("Event " + field + " is required.");
+        }
+        return value.trim();
     }
 
     @Override

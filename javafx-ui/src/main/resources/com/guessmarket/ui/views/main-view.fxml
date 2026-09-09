@@ -19,7 +19,7 @@
 <?import javafx.scene.layout.VBox?>
 <?import javafx.scene.text.Font?>
 
-<BorderPane fx:id="rootPane" prefHeight="750.0" prefWidth="1100.0" xmlns="http://javafx.com/javafx/26" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.guessmarket.ui.controllers.MainController">
+<BorderPane fx:id="rootPane" prefHeight="750.0" prefWidth="1100.0" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.guessmarket.ui.controllers.MainController">
     <top>
         <VBox minWidth="-Infinity" BorderPane.alignment="CENTER">
             <children>
@@ -27,13 +27,15 @@
               <menus>
                 <Menu mnemonicParsing="false" text="File">
                   <items>
+                    <MenuItem mnemonicParsing="false" onAction="#handleAddEvent" text="Add Event" />
                     <MenuItem fx:id="saveState" mnemonicParsing="false" onAction="#handleSaveState" text="Save State" />
-                        <MenuItem mnemonicParsing="false" onAction="#loadState" text="Load State" />
+                        <MenuItem mnemonicParsing="false" onAction="#handleLoadState" text="Load State" />
                   </items>
                 </Menu>
                 <Menu mnemonicParsing="false" text="System">
                   <items>
-                    <MenuItem fx:id="changeTheme" mnemonicParsing="false" onAction="#handleChangeTheme" text="Change Theme" />
+                    <MenuItem fx:id="changeTheme" mnemonicParsing="false" onAction="#handleChangeTheme" text="Theme" />
+                    <MenuItem mnemonicParsing="false" onAction="#handleAnimations" text="Animations" />
                   </items>
                 </Menu>
                 <Menu mnemonicParsing="false" text="Help">

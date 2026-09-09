@@ -15,7 +15,7 @@
 <?import javafx.scene.layout.VBox?>
 <?import javafx.scene.text.Font?>
 
-<ScrollPane fitToHeight="true" fitToWidth="true" xmlns="http://javafx.com/javafx/26" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.guessmarket.ui.controllers.EventsController">
+<ScrollPane fitToHeight="true" fitToWidth="true" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.guessmarket.ui.controllers.EventsController">
     <content>
         <VBox spacing="8.0">
             <children>
@@ -82,6 +82,10 @@
                                                         <Font name="System Bold" size="14.0" />
                                                     </font>
                                                 </Label>
+
+                                                <!-- Closed-event summary: winner + total shares bought per option -->
+                                                <Label fx:id="closedSummaryLabel" managed="false" visible="false" wrapText="true"
+                                                       style="-fx-text-fill: #1b5e20; -fx-font-weight: bold;" />
 
                                                 <!-- Side by Side Order Books (Order Book events only; empty/hidden for LMSR) -->
                                                 <VBox fx:id="orderBookSection" spacing="6.0">

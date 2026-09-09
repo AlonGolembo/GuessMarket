@@ -1,0 +1,31 @@
+flowchart TB
+    subgraph summary["Summary DTOs"]
+        EventDTO["EventDTO"]
+        UserDTO["UserDTO"]
+    end
+    subgraph detail["Detail DTOs (summary + lists)"]
+        EventDetailsDTO["EventDetailsDTO<br/>prices, pool, winner, history,<br/>holdings, book depth"]
+        UserDetailsDTO["UserDetailsDTO<br/>UserDTO + balance history"]
+    end
+    subgraph rows["Row + result DTOs"]
+        TradeHistoryDTO["TradeHistoryDTO"]
+        LedgerEntryDTO["LedgerEntryDTO"]
+        HoldingDTO["HoldingDTO"]
+        OrderBookLevelDTO["OrderBookLevelDTO"]
+        OrderBookQuoteDTO["OrderBookQuoteDTO"]
+        LimitOrderDTO["LimitOrderDTO"]
+        Results["TradeQuoteDTO<br/>TradeResultDTO<br/>OrderResultDTO"]
+        NewEventDTO["NewEventDTO<br/>(create request)"]
+    end
+    subgraph enums["Enums"]
+        E["CommissionType · EventStatus<br/>OrderSide · TradingMethodType"]
+    end
+
+    EventDetailsDTO -->|embeds| EventDTO
+    EventDetailsDTO --> TradeHistoryDTO
+    EventDetailsDTO --> HoldingDTO
+    EventDetailsDTO --> OrderBookLevelDTO
+    EventDetailsDTO --> OrderBookQuoteDTO
+    EventDetailsDTO --> LimitOrderDTO
+    UserDetailsDTO -->|embeds| UserDTO
+    UserDetailsDTO --> LedgerEntryDTO

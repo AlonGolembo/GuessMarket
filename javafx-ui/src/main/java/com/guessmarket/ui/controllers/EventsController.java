@@ -11,8 +11,13 @@ import com.guessmarket.dto.OrderSide;
 import com.guessmarket.dto.TradingMethodType;
 import com.guessmarket.engine.api.MarketDataChangeListener;
 import com.guessmarket.engine.api.MarketEngine;
+import com.guessmarket.ui.common.AnimationSettings;
 import com.guessmarket.ui.common.Charts;
 import com.guessmarket.ui.common.EventFilters;
+import javafx.animation.FadeTransition;
+import javafx.animation.Interpolator;
+import javafx.animation.ParallelTransition;
+import javafx.animation.TranslateTransition;
 import javafx.application.Platform;
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
@@ -28,6 +33,7 @@ import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 import javafx.scene.layout.AnchorPane;
 import javafx.scene.layout.VBox;
+import javafx.util.Duration;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -59,6 +65,7 @@ public class EventsController implements MarketDataChangeListener {
     // FXML UI Controls - Event Details & Sub-Tables
     // =========================================================================
     @FXML private VBox eventTradeDetailsContainer;
+    @FXML private Label closedSummaryLabel;
 
     @FXML private VBox orderBookSection;
     @FXML private Label option1BookLabel;
@@ -100,6 +107,10 @@ public class EventsController implements MarketDataChangeListener {
     private final ObservableList<OrderBookLevelDTO> option1Levels = FXCollections.observableArrayList();
     private final ObservableList<OrderBookLevelDTO> option2Levels = FXCollections.observableArrayList();
 
+    // Trade-panel reveal animation (fade + slide-up when a new event is selected)
+    private ParallelTransition detailReveal;
+    private Integer lastRevealedEventId;
+
     // =========================================================================
     // Lifecycle & Initialization
     // =========================================================================
@@ -117,9 +128,48 @@ public class EventsController implements MarketDataChangeListener {
         setupParticipationColumns();
         setupOrderBookColumns();
         setupFilters();
+        setupDetailReveal();
 
         eventsTableView.getSelectionModel().selectedItemProperty().addListener(
                 (obs, oldSelection, newSelection) -> handleEventSelected(newSelection));
+    }
+
+    /** Builds the reusable fade + slide-up transition played on the Trade panel. */
+    private void setupDetailReveal() {
+        if (eventTradeDetailsContainer == null) {
+            return;
+        }
+        FadeTransition fade = new FadeTransition(Duration.millis(220), eventTradeDetailsContainer);
+        fade.setFromValue(0.0);
+        fade.setToValue(1.0);
+        TranslateTransition slide = new TranslateTransition(Duration.millis(260), eventTradeDetailsContainer);
+        slide.setFromY(14.0);
+        slide.setToY(0.0);
+        slide.setInterpolator(Interpolator.EASE_OUT);
+        detailReveal = new ParallelTransition(fade, slide);
+    }
+
+    /** Plays the reveal only when the selection actually changed to a different event. */
+    private void revealDetailPanel(EventDTO selectedEvent) {
+        if (eventTradeDetailsContainer == null) {
+            return;
+        }
+        if (selectedEvent == null) {
+            lastRevealedEventId = null;
+            return;
+        }
+        boolean newSelection = lastRevealedEventId == null || lastRevealedEventId != selectedEvent.id();
+        lastRevealedEventId = selectedEvent.id();
+        if (newSelection && detailReveal != null && AnimationSettings.isEventPanelRevealEnabled()) {
+            detailReveal.stop();
+            eventTradeDetailsContainer.setOpacity(0.0);
+            eventTradeDetailsContainer.setTranslateY(14.0);
+            detailReveal.playFromStart();
+        } else {
+            // No animation this time - make sure an interrupted run left nothing behind.
+            eventTradeDetailsContainer.setOpacity(1.0);
+            eventTradeDetailsContainer.setTranslateY(0.0);
+        }
     }
 
     private void setupEventsTableColumns() {
@@ -128,11 +178,11 @@ public class EventsController implements MarketDataChangeListener {
         eventNameCol.setCellValueFactory(cellData ->
                 new SimpleStringProperty(cellData.getValue().name()));
         eventStatusCol.setCellValueFactory(cellData ->
-                new SimpleStringProperty(cellData.getValue().status().name()));
+                new SimpleStringProperty(cellData.getValue().status().toUIDisplay()));
         eventMethodCol.setCellValueFactory(cellData ->
                 new SimpleStringProperty(cellData.getValue().tradingMethod().name()));
         commissionMethodCol.setCellValueFactory(cellData ->
-                new SimpleStringProperty(cellData.getValue().commissionType().name()));
+                new SimpleStringProperty(cellData.getValue().commissionType().toUIDisplay()));
     }
 
     private void setupParticipationColumns() {
@@ -204,7 +254,7 @@ public class EventsController implements MarketDataChangeListener {
 
     @Override
     public void onMarketDataChanged() {
-        if (marketEngine == null) return;
+        if (marketEngine == null || !marketEngine.isFileLoaded()) return;
 
         Platform.runLater(() -> {
             EventDTO currentSelectedEvent = eventsTableView.getSelectionModel().getSelectedItem();
@@ -233,12 +283,14 @@ public class EventsController implements MarketDataChangeListener {
         if (eventTradeDetailsContainer != null) {
             eventTradeDetailsContainer.setVisible(selectedEvent != null);
         }
+        revealDetailPanel(selectedEvent);
         if (selectedEvent == null || marketEngine == null) {
             participationList.clear();
             option1Levels.clear();
             option2Levels.clear();
             orderBookSection.setVisible(false);
             orderBookSection.setManaged(false);
+            showClosedSummary(null, null);
             clearGraphs();
             return;
         }
@@ -246,6 +298,7 @@ public class EventsController implements MarketDataChangeListener {
         EventDetailsDTO details = marketEngine.getEventDetails(selectedEvent.id());
         participationList.setAll(details.participantHoldings());
         updateGraphs(selectedEvent, details);
+        showClosedSummary(selectedEvent, details);
 
         boolean isOrderBook = selectedEvent.tradingMethod() == TradingMethodType.ORDERBOOK;
         orderBookSection.setVisible(isOrderBook);
@@ -263,6 +316,28 @@ public class EventsController implements MarketDataChangeListener {
             option1Levels.clear();
             option2Levels.clear();
         }
+    }
+
+    /**
+     * For a CLOSED event, shows the winning option and the total shares bought per
+     * option; hidden otherwise.
+     */
+    private void showClosedSummary(EventDTO event, EventDetailsDTO details) {
+        boolean closed = event != null && event.status() == EventStatus.CLOSED && details != null;
+        closedSummaryLabel.setVisible(closed);
+        closedSummaryLabel.setManaged(closed);
+        if (!closed) {
+            return;
+        }
+        StringBuilder sb = new StringBuilder("Event closed  •  Winner: ")
+                .append(details.winningOption() == null ? "-" : details.winningOption());
+        sb.append("  •  Total shares bought:");
+        for (String option : event.options()) {
+            int total = details.totalSharesBought() == null
+                    ? 0 : details.totalSharesBought().getOrDefault(option, 0);
+            sb.append("  ").append(option).append(" = ").append(total);
+        }
+        closedSummaryLabel.setText(sb.toString());
     }
 
     // =========================================================================
@@ -303,7 +378,7 @@ public class EventsController implements MarketDataChangeListener {
                 .toList();
     }
 
-    /** Renders the five order-book indicators for one option; {@code null} fields show as "-". */
+    /** Renders the five order-book indicators for one option; {@code null} fields show as ""-". */
     private static String indicatorsText(EventDetailsDTO details, String optionName) {
         OrderBookQuoteDTO quote = details.orderBookQuotes().get(optionName);
         if (quote == null) {

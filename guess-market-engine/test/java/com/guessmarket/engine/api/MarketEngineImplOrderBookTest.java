@@ -19,6 +19,7 @@ import java.nio.file.Path;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -77,6 +78,53 @@ class MarketEngineImplOrderBookTest {
         assertEquals(30 * 0.5, result.cashMoved(), 1e-9);
         assertEquals(30 * 0.5 * 0.10, result.commission(), 1e-9);
         assertEquals(Map.of("Heads", 30, "Tails", 0), engine.getAllUsers().get("a").holdings().get(1));
+    }
+
+    @Test
+    void aRestingBidThatCanNoLongerBeAffordedForcesTheOwnerNegativeAndBlocksThem() throws IOException {
+        String xml = """
+            <Guess-Market>
+              <GM-events>
+                <GM-event name="E"><id>1</id><description>d</description>
+                  <commission type="on-close">0</commission>
+                  <GM-options><GM-option>Heads</GM-option><GM-option>Tails</GM-option></GM-options>
+                  <GM-method><GM-order-book d="1" initial="100" allow-mint="false"/></GM-method>
+                </GM-event>
+              </GM-events>
+              <GM-users>
+                <GM-user name="mm"><initial-cash>1000</initial-cash>
+                  <GM-market-maker><event id="1"/></GM-market-maker></GM-user>
+                <GM-user name="a"><initial-cash>200</initial-cash></GM-user>
+                <GM-user name="b"><initial-cash>30</initial-cash></GM-user>
+              </GM-users>
+            </Guess-Market>
+            """;
+        Path p = dir.resolve("m2.xml");
+        Files.writeString(p, xml);
+        MarketEngine e = new MarketEngineImpl();
+        e.loadXmlFile(p.toString());
+        EventDTO ev = e.getAllEvents().get(0);
+        e.activateEvent(ev, e.getAllUsers().get("mm"));
+
+        // 'a' buys all 100 of the market maker's Heads (bid @ 0.5 crosses the ask @ 0.5).
+        e.placeOrder(e.getAllUsers().get("a"), ev, 1, OrderSide.BID, 100, 0.5);
+
+        // 'b' has only $30 but rests two Heads bids of 20 @ $1.00 - jointly $40.
+        e.placeOrder(e.getAllUsers().get("b"), ev, 1, OrderSide.BID, 20, 1.0);
+        e.placeOrder(e.getAllUsers().get("b"), ev, 1, OrderSide.BID, 20, 1.0);
+        assertFalse(e.getAllUsers().get("b").blocked());
+
+        // 'a' sells 40 Heads @ 0.5 - both of b's $1.00 bids match; the second can't be covered.
+        e.placeOrder(e.getAllUsers().get("a"), ev, 1, OrderSide.ASK, 40, 0.5);
+
+        UserDTO b = e.getAllUsers().get("b");
+        assertTrue(b.blocked(), "b should be blocked after being forced negative");
+        assertTrue(b.balance() < 0, "b's balance should be negative, was " + b.balance());
+
+        // A blocked user is refused every further action.
+        MarketException ex = assertThrows(MarketException.class,
+                () -> e.placeOrder(e.getAllUsers().get("b"), ev, 2, OrderSide.BID, 1, 0.1));
+        assertTrue(ex.getMessage().toLowerCase().contains("block"));
     }
 
     @Test

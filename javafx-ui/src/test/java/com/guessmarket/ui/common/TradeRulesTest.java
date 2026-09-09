@@ -23,7 +23,7 @@ class TradeRulesTest {
     }
 
     private static UserDTO user(Set<Integer> mmEvents) {
-        return new UserDTO("u", 100.0, mmEvents, Map.of());
+        return new UserDTO("u", 100.0, false, mmEvents, Map.of());
     }
 
     @Test

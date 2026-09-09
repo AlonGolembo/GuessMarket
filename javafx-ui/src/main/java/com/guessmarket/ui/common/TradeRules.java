@@ -20,14 +20,21 @@ public final class TradeRules {
                 && user.marketMakerEventIds().contains(event.id());
     }
 
+    /** A blocked user (balance went negative) may do nothing at all. */
+    public static boolean isBlocked(UserDTO user) {
+        return user != null && user.blocked();
+    }
+
     /** The market maker may open their own event, but only while it is not yet open. */
     public static boolean canActivate(UserDTO user, EventDTO event) {
-        return isMarketMaker(user, event) && event.status() == EventStatus.NOT_ACTIVE;
+        return !isBlocked(user)
+                && isMarketMaker(user, event) && event.status() == EventStatus.NOT_ACTIVE;
     }
 
     /** Anyone except the event's market maker may trade an open event. */
     public static boolean canTrade(UserDTO user, EventDTO event) {
         return user != null && event != null
+                && !isBlocked(user)
                 && event.status() == EventStatus.ACTIVE
                 && !isMarketMaker(user, event);
     }
@@ -43,6 +50,7 @@ public final class TradeRules {
     }
 
     public static boolean canEnd(UserDTO user, EventDTO event) {
-        return isMarketMaker(user, event) && event.status() == EventStatus.ACTIVE;
+        return !isBlocked(user)
+                && isMarketMaker(user, event) && event.status() == EventStatus.ACTIVE;
     }
 }

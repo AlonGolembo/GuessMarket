@@ -10,17 +10,14 @@ the winning option are paid.
 
 ## Modules
 
-The build is a single Maven reactor.
+The build is a single Maven reactor. Dependency direction is one-way:
+`javafx-ui → guess-market-engine → guess-market-dto`, enforced by module-info.
 
 | Module | Contents |
 |---|---|
 | `guess-market-dto` | Immutable record DTOs crossing the engine's API boundary. No dependencies. |
 | `guess-market-engine` | Domain model, LMSR pricing, XML loading, state persistence. The only exported package is `com.guessmarket.engine.api`. |
 | `javafx-ui` | JavaFX desktop front-end. Talks only to `engine.api` + the DTOs. |
-
-Dependency direction is one-way: `javafx-ui → engine.api → dto`, with the engine's
-internals (`model`, `lmsr`, `xml`, `mapper`, `serialization`) hidden behind the
-interface.
 
 ## Build & run
 
@@ -36,24 +33,40 @@ Requires JDK 25. IntelliJ: open the root `pom.xml` as a project.
 > truststore that includes the scanner's root CA, or use the IDE's Maven, which
 > is usually already configured.
 
+## Repository structure and diagrams
+
+The project is split into three modules with strict layering. The diagrams used
+in this README are taken from README_Exercise2.html (they live in that file in
+this repository). If you want the original printable layout see
+`README_Exercise2.html` or `README_Exercise2.pdf` in the repo root.
+
+- Modules diagram (from README_Exercise2): README_Exercise2.html
+- DTOs diagram (from README_Exercise2): README_Exercise2.html
+- Engine diagram (from README_Exercise2): README_Exercise2.html
+- UI diagram (from README_Exercise2): README_Exercise2.html
+
+(If you prefer the diagrams inline, open `README_Exercise2.html` — the images
+are embedded there as data URLs and are the canonical visuals used for this
+README.)
+
 ## Domain model
 
 `Event` is the aggregate root. It owns its options, cash pool, commission terms,
 trade history, participants and their holdings, and enforces every rule about
 them — there are no plain setters.
 
-```
-NOT_ACTIVE --open(marketMaker)--> ACTIVE --settleAndClose(winner)--> CLOSED
-```
+Workflow states:
 
-- **`open(User marketMaker)`** — verifies the user is the event's market maker and
+NOT_ACTIVE --open(marketMaker)--> ACTIVE --settleAndClose(winner)--> CLOSED
+
+- `open(User marketMaker)` — verifies the user is the event's market maker and
   can fund the trading-method subsidy, debits it into the pool, activates.
-- **`buy(User, optionIndex, quantity)`** — for LMSR: prices via the trading
-  method, charges on-purchase commission if configured, debits the buyer
-  *first* (an unaffordable trade throws before anything else changes), issues
+- `buy(User, optionIndex, quantity)` — for LMSR: prices via the trading method,
+  charges on-purchase commission if configured, debits the buyer *first*
+  (an unaffordable trade throws before anything else changes), issues
   shares, records the holding and the trade. For Order Book this is a market
-  order (see below): it may fill for less than requested.
-- **`settleAndClose(winningOptionIndex)`** — takes the on-close commission from the
+  order: it may fill for less than requested.
+- `settleAndClose(winningOptionIndex)` — takes the on-close commission from the
   winning pot, pays each winning holder their per-share payout from the pool,
   records the winner, closes (and discards any resting Order Book orders).
 
@@ -61,14 +74,14 @@ NOT_ACTIVE --open(marketMaker)--> ACTIVE --settleAndClose(winner)--> CLOSED
 (`baseValue`, `initialShares`, `usesOrderBook`, `allowsMinting`, `priceOf`,
 `costToBuy`, `initialSubsidy`, `validate`) — callers ask the method, never
 switch on its concrete type. `priceOf`/`costToBuy` are LMSR-only; for an Order
-Book event `Event` prices and trades directly against the live book instead
-(see below), so `OrderBookMethod`'s versions of those two are never called in
-practice.
+Book event `Event` prices and trades directly against the live book instead.
 
 Money is `double` dollars, confined to the `Account` value object on `User`
 (migrating to `BigDecimal` is future work, kept local by that class).
 
 ## XML format
+
+The engine reads markets from an XML format. Example structure:
 
 ```xml
 <Guess-Market>
@@ -76,14 +89,14 @@ Money is `double` dollars, confined to the `Account` value object on `User`
     <GM-event name="Coin flip">
       <id>1</id>
       <description>Will it land heads?</description>
-      <commission type="on-purchase">10</commission>   <!-- or on-close; 0..90 -->
+      <commission type="on-purchase">10</commission>
       <GM-options>
         <GM-option>Heads</GM-option>
-        <GM-option>Tails</GM-option>                     <!-- exactly two -->
+        <GM-option>Tails</GM-option>
       </GM-options>
       <GM-method>
-        <GM-LMSR><b>100</b></GM-LMSR>                    <!-- b > 0 -->
-        <!-- or, instead of GM-LMSR: -->
+        <GM-LMSR><b>100</b></GM-LMSR>
+        <!-- or -->
         <!-- <GM-order-book d="1" initial="100" allow-mint="true"/> -->
       </GM-method>
     </GM-event>
@@ -98,22 +111,19 @@ Money is `double` dollars, confined to the `Account` value object on `User`
 </Guess-Market>
 ```
 
-Validation (in `engine.xml`): unique event ids, exactly two non-empty options,
-commission 0–90, a single valid trading method, unique user names, non-negative
-cash, and exactly one market maker per event. Reading is split across
-`XmlMarketReader` (file + JAXB) and `MarketAssembler` + focused validators.
-XSD schema validation is not yet wired (no schema ships with the project).
+Validation includes unique event ids, exactly two non-empty options, commission
+0–90, a single valid trading method, unique user names, non-negative cash, and
+exactly one market maker per event. Reading is split across `XmlMarketReader`
+(file + JAXB) and `MarketAssembler` + focused validators.
 
 ## LMSR
 
 For a binary market with liquidity parameter `b`:
 
-```
 Cost      C(q0, q1) = b · ln( e^(q0/b) + e^(q1/b) )
-Price     p_i       = e^(q_i/b) / Σ e^(q_j/b)          # implied probability
+Price     p_i       = e^(q_i/b) / Σ e^(q_j/b)
 Trade     cost      = C(after) - C(before)
 Subsidy   C(0, 0)   = b · ln 2
-```
 
 `LmsrCalculator` uses a max-shift inside `exp()` to stay numerically stable for
 large share counts.
@@ -123,50 +133,75 @@ large share counts.
 A peer-to-peer limit-order market instead of a formula: every option has its
 own independent book of resting bids/asks (`OrderBook`, one per option index,
 each side kept in strict price-then-time priority). Every YES+NO pair is
-always worth exactly the configured base value `d`; there's no single implied
-price, so the UI is shown five indicators per option instead - last trade,
-best bid, best ask, mid, and spread - each absent until there's enough book
-activity to define it.
+always worth exactly the configured base value `d`.
 
-```xml
-<GM-order-book d="1" initial="100" allow-mint="true"/>
-```
+Key points:
+- `d` — the base value: what a winning share pays out, and what a YES+NO
+  pair is worth together.
+- `initial` — pairs the market maker buys at open, `initial * d` cash, in
+  exchange for `initial` shares of *each* option, which are immediately
+  posted for sale as two resting asks at `d / 2`.
+- `allow-mint` — whether new share pairs may be minted from matching demand.
 
-- **`d`** — the base value: what a winning share pays out, and what a YES+NO
-  pair is worth together (naturally `$1`, as on Polymarket, but configurable).
-- **`initial`** — pairs the market maker buys at open, `initial * d` cash, in
-  exchange for `initial` shares of *each* option, which are immediately posted
-  for sale as two resting asks at `d / 2`.
-- **`allow-mint`** — whether new share pairs may be minted from matching
-  demand (see below). `initial=0` requires `allow-mint=true`, or no shares
-  could ever exist.
+No escrow: cash and shares move only when an order actually fills. A placed
+order is validated against the placer's *current* balance/holdings; however
+resting orders can become unhonourable later and matching clamps fills as
+necessary.
 
-**No escrow.** Cash and shares move only when an order actually fills; nothing
-is reserved when an order is placed. A placed order is validated against the
-placer's *current* balance/holdings (a seller needs the shares net of their
-own other resting asks; a buyer needs the full cost, including commission, up
-front), but a resting order can still go stale later (e.g. the same user has
-other orders that jointly overcommit their balance) - matching then clamps
-the fill to whatever the counterparty can currently deliver/afford, dropping
-a resting order that can't be honoured at all rather than filling it short.
+Two ways shares come into existence:
+1. Initial allocation by the market maker at open.
+2. Minting when matching demand meets the conditions (order book matching may
+   create new pairs and pour cash into the pool to back them).
 
-**Two ways shares come into existence:**
-1. **Initial allocation** (above) - the market maker's opening purchase.
-2. **Minting** - `Event.placeOrder` direct-matches a bid against the opposite
-   side of the *same* option first; whatever remains, if minting is allowed,
-   is offered against the best resting bid on the *other* option whenever
-   their two prices sum to at least `d`. Both sides get new shares: the
-   incoming bid pays the complement of the resting bid's price, the resting
-   bid pays its own price in full, and `quantity * d` is poured into the
-   event's pool to back the new pairs.
+`buyShares` on an Order Book event is a market order: it sweeps the cheapest
+asks up to the requested quantity, clamped fill-by-fill, and never mints or
+rests a remainder.
 
-**`buyShares` on an Order Book event is a market order**: it sweeps the
-cheapest asks up to the requested quantity, clamped fill-by-fill the same way
-matching is, and never mints or rests a remainder - so it may fill for less
-than requested (`TradeReceipt.filledQuantity()`/`TradeResultDTO.filledQuantity()`
-report how much actually bought). `quoteTrade` walks the ask book the same
-way, read-only.
+Commission (on-purchase or on-close) is credited straight to the market maker's
+account as it's collected (not pooled).
 
-Commission (on-purchase or on-close, same as LMSR) is never pooled - it's
-credited straight to the market maker's account as it's collected, for
-*both* trading methods.
+## Key design choices & assumptions
+
+- Layering: three modules with `module-info` declarations; the UI sees only
+  `engine.api` + the DTOs. The engine's `model`, `lmsr`, `xml`, `mapper`,
+  `serialization` internals are hidden behind the API.
+- Immutable DTOs to prevent UI-side mutation of domain state.
+- `Event` is the aggregate root; `MarketEngineImpl` delegates to it for rules.
+- Money confined to `Account` (as `double` dollars). Every debit/credit appends
+  a `LedgerEntry` recording the resulting balance for charting.
+- Order Book has no escrow; matching performs on-fill clamping and may drop
+  resting orders that cannot be honoured.
+- Blocked users: a user cannot normally go negative; if their balance becomes
+  negative due to other activity, a blocked flag prevents some actions.
+- Binary events only: exactly two options per event.
+- Created events get the next free integer id.
+- Window/UI is resizable; content uses scroll panes and split panes.
+- State save/load writes/reads the full object graph with Java serialization
+  (offered from the File menu, separate from XML loading).
+
+## Main classes (high level)
+
+Highlights of primary classes and responsibilities (see code for full list):
+
+- javafx-ui: `GuessMarketApp`, `MainController`, `EventsController`, `UsersController` — UI entry, window shell, and tab controllers.
+- guess-market-engine: `MarketEngine` / `MarketEngineImpl`, `MarketCatalog`, `MarketEventPublisher`, `Event` (aggregate root), `User`, `Account`, `TradingMethod` (sealed → `LmsrMethod`, `OrderBookMethod`), `OrderBook` / `LimitOrder`, `LmsrCalculator`, `engine.xml` readers/validators and `engine.mapper` converters.
+- guess-market-dto: flat record DTOs used across the API boundary (`EventDTO`, `EventDetailsDTO`, `UserDTO`, `UserDetailsDTO`, trade/ledger DTOs).
+
+## Tests
+
+The engine module carries a JUnit 5 suite covering the LMSR maths, XML
+validation, the full Order-Book lifecycle (matching, minting, market buys,
+settlement), and state round-trip serialization. Run the tests with `mvn
+clean verify` or from your IDE.
+
+## Contributing
+
+- Build with Maven and run tests locally: `mvn clean verify`.
+- Follow the layering and do not export engine internals from `com.guessmarket.engine.api`.
+- Keep DTOs immutable and mappers one-way (domain → DTO).
+- Prefer building engine tests from inline XML fixtures or model constructors.
+
+## Further reading
+
+See `CLAUDE.md` and `ARCHITECTURE.md` for repository-specific conventions and
+in-depth architectural notes.

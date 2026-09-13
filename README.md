@@ -35,19 +35,40 @@ Requires JDK 25. IntelliJ: open the root `pom.xml` as a project.
 
 ## Repository structure and diagrams
 
-The project is split into three modules with strict layering. The diagrams used
-in this README are taken from README_Exercise2.html (they live in that file in
-this repository). If you want the original printable layout see
-`README_Exercise2.html` or `README_Exercise2.pdf` in the repo root.
+The project is split into three modules with strict layering, shown below.
+For the full write-up these diagrams are drawn from, see `README_Exercise2.html`
+or `README_Exercise2.pdf` in the repo root.
 
-- Modules diagram (from README_Exercise2): README_Exercise2.html
-- DTOs diagram (from README_Exercise2): README_Exercise2.html
-- Engine diagram (from README_Exercise2): README_Exercise2.html
-- UI diagram (from README_Exercise2): README_Exercise2.html
+### Modules
 
-(If you prefer the diagrams inline, open `README_Exercise2.html` — the images
-are embedded there as data URLs and are the canonical visuals used for this
-README.)
+`javafx-ui` calls `guess-market-engine`, which maps its domain to DTOs;
+`javafx-ui` reads only DTO fields, never engine internals directly.
+
+<img src="docs/diagrams/1-modules.png" alt="Module dependency diagram" width="380">
+
+### `guess-market-dto`
+
+Flat, immutable record DTOs (plus a few enums) with no behaviour and no
+dependencies — the only thing that crosses the engine/UI boundary.
+
+<img src="docs/diagrams/2-dto.png" alt="DTO diagram" width="650">
+
+### `guess-market-engine`
+
+`Event` is the aggregate root, holding options, trading method, users and
+trade/ledger history; `MarketEngineImpl` is the thin facade exposed as
+`engine.api`, backed by the model, LMSR, XML and serialization support
+packages.
+
+<img src="docs/diagrams/3-engine.png" alt="Engine diagram" width="650">
+
+### `javafx-ui`
+
+`GuessMarketApp` builds the engine and wires `MainController`, which hosts
+the `EventsController`/`UsersController` tabs and shared `ui.common` helpers
+(dialogs, charts, theming, trade rules).
+
+<img src="docs/diagrams/4-ui.png" alt="UI diagram" width="650">
 
 ## Domain model
 

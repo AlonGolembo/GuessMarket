@@ -118,4 +118,35 @@ class EventOrderBookMintTest {
         assertEquals(1000 + 5.0, mm.getAccountBalance(), 1e-9);       // 3 + 2 commission credited immediately
         assertEquals(50.0, e.getEventAccountBalance(), 1e-9);          // pool unaffected by commission
     }
+
+    @Test
+    void mintForcesTheOtherBidsOwnerNegativeWhenTheyveSpentTheMoneyInAnotherEventSince() {
+        // No escrow: a resting bid doesn't reserve cash, so its owner can spend the
+        // same account balance participating in a completely different event before
+        // the mint that relies on that bid actually runs.
+        User otherUser = user("otherUser", 100, Set.of());
+        User buyer2 = user("buyer2", 1000, Set.of());
+
+        Event eventA = new Event(10, "A", "a", 0, CommissionType.ON_PURCHASE,
+                List.of(new Option("X"), new Option("Y")), new OrderBookMethod(1, 200, true));
+        eventA.open(user("mmA", 1000, Set.of(10)));                 // mmA posts 200 X @ 0.5
+
+        Event eventB = new Event(20, "B", "b", 0, CommissionType.ON_PURCHASE,
+                List.of(new Option("Heads"), new Option("Tails")), new OrderBookMethod(1, 0, true));
+        eventB.open(user("mmB", 1000, Set.of(20)));
+
+        eventB.placeOrder(otherUser, 1, OrderSide.BID, 60, 0.6);    // rests; no cash moves yet (no escrow)
+
+        eventA.buy(otherUser, 0, 180);                              // spends 180*0.5=90 of otherUser's $100 elsewhere
+        assertEquals(10.0, otherUser.getAccountBalance(), 1e-9);    // only $10 left - can't honour the $36 bid anymore
+
+        // 0.5 + 0.6 >= baseValue(1) -> mints against otherUser's now-unaffordable resting bid
+        eventB.placeOrder(buyer2, 0, OrderSide.BID, 60, 0.5);
+
+        assertTrue(otherUser.isBlocked());
+        assertEquals(10.0 - 60 * 0.6, otherUser.getAccountBalance(), 1e-9);   // forced negative to honour the mint
+        assertArrayEquals(new int[]{0, 60}, eventB.holdingsOf("otherUser"));
+        assertEquals(1000 - 60 * 0.4, buyer2.getAccountBalance(), 1e-9);
+        assertArrayEquals(new int[]{60, 0}, eventB.holdingsOf("buyer2"));
+    }
 }

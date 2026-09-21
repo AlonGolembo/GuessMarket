@@ -12,7 +12,7 @@ import java.util.Map;
  * object identity with the {@link Event#getParticipants()} they appear in, so a
  * round-trip restores the whole graph consistently.
  */
-public record MarketSnapshot(Map<Integer, Event> events, Map<String, User> users) implements Serializable {
+public record MarketSnapshot(Map<String, Event> events, Map<String, User> users) implements Serializable {
 
     public MarketSnapshot {
         events = new LinkedHashMap<>(events);

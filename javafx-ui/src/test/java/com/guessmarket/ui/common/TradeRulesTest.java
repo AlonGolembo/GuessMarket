@@ -18,25 +18,25 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class TradeRulesTest {
 
     private static EventDTO event(EventStatus status) {
-        return new EventDTO(1, "E", "d", 10, CommissionType.ON_PURCHASE,
+        return new EventDTO("E", "d", 10, CommissionType.ON_PURCHASE,
                 List.of("A", "B"), TradingMethodType.LMSR, status);
     }
 
-    private static UserDTO user(Set<Integer> mmEvents) {
+    private static UserDTO user(Set<String> mmEvents) {
         return new UserDTO("u", 100.0, false, mmEvents, Map.of());
     }
 
     @Test
     void marketMakerCanActivateOnlyWhilePending() {
-        assertTrue(TradeRules.canActivate(user(Set.of(1)), event(EventStatus.NOT_ACTIVE)));
-        assertFalse(TradeRules.canActivate(user(Set.of(1)), event(EventStatus.ACTIVE)));
+        assertTrue(TradeRules.canActivate(user(Set.of("E")), event(EventStatus.NOT_ACTIVE)));
+        assertFalse(TradeRules.canActivate(user(Set.of("E")), event(EventStatus.ACTIVE)));
         assertFalse(TradeRules.canActivate(user(Set.of()), event(EventStatus.NOT_ACTIVE)));
     }
 
     @Test
     void nonMarketMakerCanTradeAnOpenEvent() {
         assertTrue(TradeRules.canTrade(user(Set.of()), event(EventStatus.ACTIVE)));
-        assertFalse(TradeRules.canTrade(user(Set.of(1)), event(EventStatus.ACTIVE)));   // MM
+        assertFalse(TradeRules.canTrade(user(Set.of("E")), event(EventStatus.ACTIVE)));   // MM
         assertFalse(TradeRules.canTrade(user(Set.of()), event(EventStatus.NOT_ACTIVE)));
         assertFalse(TradeRules.canTrade(user(Set.of()), event(EventStatus.CLOSED)));
     }
@@ -44,7 +44,7 @@ class TradeRulesTest {
     @Test
     void nullSelectionsAreSafe() {
         assertFalse(TradeRules.canTrade(null, event(EventStatus.ACTIVE)));
-        assertFalse(TradeRules.canActivate(user(Set.of(1)), null));
+        assertFalse(TradeRules.canActivate(user(Set.of("E")), null));
         assertFalse(TradeRules.isMarketMaker(null, null));
     }
 

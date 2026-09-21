@@ -40,7 +40,6 @@ public class Event implements Serializable {
 
     private static final Logger LOG = LogManager.getLogger(Event.class);
 
-    private final int id;
     private final String name;
     private final String description;
     private final int commissionPercentage;      // 0..90
@@ -60,13 +59,12 @@ public class Event implements Serializable {
     private Option winningOption;                 // set on close
     private OrderBook orderBook;                  // non-null iff tradingMethod.usesOrderBook()
 
-    public Event(int id, String name, String description, int commissionPercentage,
+    public Event(String name, String description, int commissionPercentage,
                  CommissionType commissionType, List<Option> options, TradingMethod tradingMethod) {
 
         validateCommission(commissionPercentage);
         validateOptions(options);
 
-        this.id = id;
         this.name = name;
         this.description = description;
         this.commissionPercentage = commissionPercentage;
@@ -109,11 +107,11 @@ public class Event implements Serializable {
     public void open(User marketMaker) {
         requireNotBlocked(marketMaker);
         if (status != EventStatus.NOT_ACTIVE) {
-            throw new MarketException("Event ID " + id + " cannot be opened from state " + status + ".");
+            throw new MarketException("Event '" + name + "' cannot be opened from state " + status + ".");
         }
-        if (!marketMaker.isMarketMakerFor(id)) {
+        if (!marketMaker.isMarketMakerFor(name)) {
             throw new MarketException(
-                    "User '" + marketMaker.getName() + "' is not the market maker for event ID " + id + ".");
+                    "User '" + marketMaker.getName() + "' is not the market maker for event '" + name + "'.");
         }
 
         double subsidy = tradingMethod.initialSubsidy();
@@ -121,7 +119,7 @@ public class Event implements Serializable {
             subsidy = 0.0;
         }
         if (subsidy > 0) {
-            marketMaker.debit(subsidy, LedgerEntryType.SUBSIDY, id);   // throws InsufficientFundsException -> event stays NOT_ACTIVE
+            marketMaker.debit(subsidy, LedgerEntryType.SUBSIDY, name);   // throws InsufficientFundsException -> event stays NOT_ACTIVE
             pool += subsidy;
         }
 
@@ -146,7 +144,7 @@ public class Event implements Serializable {
         marketMaker.addParticipatingEvent(this);
         status = EventStatus.ACTIVE;
         LOG.info("Event {} opened by market maker '{}'; subsidy {} funded into the pool{}",
-                id, marketMaker.getName(), subsidy,
+                name, marketMaker.getName(), subsidy,
                 initialShares > 0 ? "; " + initialShares + " of each option allocated and posted for sale" : "");
     }
 
@@ -166,7 +164,7 @@ public class Event implements Serializable {
     public TradeReceipt buy(User buyer, int optionIndex, int quantity) {
         requireNotBlocked(buyer);
         if (status != EventStatus.ACTIVE) {
-            throw new MarketException("Event ID " + id + " is not open for trading (state: " + status + ").");
+            throw new MarketException("Event '" + name + "' is not open for trading (state: " + status + ").");
         }
         if (orderBook != null) {
             return marketBuy(buyer, optionIndex, quantity);
@@ -174,7 +172,7 @@ public class Event implements Serializable {
 
         TradeReceipt receipt = quote(optionIndex, quantity);   // also validates optionIndex / quantity
 
-        buyer.debit(receipt.totalPaid(), LedgerEntryType.PURCHASE, id);   // InsufficientFundsException -> nothing below runs
+        buyer.debit(receipt.totalPaid(), LedgerEntryType.PURCHASE, name);   // InsufficientFundsException -> nothing below runs
 
         Option option = options.get(optionIndex);
         pool += receipt.sharesCost();
@@ -186,7 +184,7 @@ public class Event implements Serializable {
         tradeHistory.add(0, new TradeRecord(buyer.getName(), option.getName(), quantity, receipt.totalPaid()));
 
         LOG.info("Event {}: '{}' bought {} '{}' for {} (shares {}, commission {}); pool now {}",
-                id, buyer.getName(), quantity, option.getName(),
+                name, buyer.getName(), quantity, option.getName(),
                 receipt.totalPaid(), receipt.sharesCost(), receipt.commission(), pool);
         return receipt;
     }
@@ -271,7 +269,7 @@ public class Event implements Serializable {
                 if (affordableQuantity(buyer, execPrice) <= 0) {
                     break;   // the buyer can't afford even the cheapest remaining ask - stop, don't drop it
                 }
-                LOG.warn("Event {}: dropping stale resting order {} (no longer honourable)", id, ask.getId());
+                LOG.warn("Event {}: dropping stale resting order {} (no longer honourable)", name, ask.getId());
                 orderBook.remove(ask);
                 continue;
             }
@@ -291,7 +289,7 @@ public class Event implements Serializable {
 
         int filled = quantity - remaining;
         LOG.info("Event {}: '{}' market-bought {} of {} requested '{}' for {} (commission {})",
-                id, buyer.getName(), filled, quantity, options.get(optionIndex).getName(),
+                name, buyer.getName(), filled, quantity, options.get(optionIndex).getName(),
                 totalSharesCost, totalCommission);
         return new TradeReceipt(totalSharesCost, totalCommission, totalSharesCost + totalCommission, filled);
     }
@@ -308,7 +306,7 @@ public class Event implements Serializable {
      */
     public void settleAndClose(int winningOptionIndex) {
         if (status != EventStatus.ACTIVE) {
-            throw new MarketException("Event ID " + id + " is not open for settlement (state: " + status + ").");
+            throw new MarketException("Event '" + name + "' is not open for settlement (state: " + status + ").");
         }
         if (winningOptionIndex < 0 || winningOptionIndex >= options.size()) {
             throw new MarketException("Invalid winning option index: " + winningOptionIndex);
@@ -339,7 +337,7 @@ public class Event implements Serializable {
             User holder = participants.get(entry.getKey());
             double payout = heldWinningShares * payoutPerShare;
             if (holder != null && payout > 0) {
-                holder.credit(payout, LedgerEntryType.PAYOUT, id);
+                holder.credit(payout, LedgerEntryType.PAYOUT, name);
                 pool -= payout;
                 totalPaidToHolders += payout;
                 paidHolders++;
@@ -351,7 +349,7 @@ public class Event implements Serializable {
         double marketMakerSweep = 0.0;
         if (marketMaker != null && pool > 1e-9) {
             marketMakerSweep = pool;
-            marketMaker.credit(pool, LedgerEntryType.SETTLEMENT, id);
+            marketMaker.credit(pool, LedgerEntryType.SETTLEMENT, name);
             pool = 0.0;
         }
 
@@ -362,7 +360,7 @@ public class Event implements Serializable {
         }
 
         LOG.info("Event {} settled: winner '{}', paid {} to {} holder(s), swept {} to market maker '{}'",
-                id, winner.getName(), totalPaidToHolders, paidHolders, marketMakerSweep,
+                name, winner.getName(), totalPaidToHolders, paidHolders, marketMakerSweep,
                 marketMaker == null ? "-" : marketMaker.getName());
     }
 
@@ -395,10 +393,10 @@ public class Event implements Serializable {
     public OrderOutcome placeOrder(User user, int optionIndex, OrderSide side, int quantity, double price) {
         requireNotBlocked(user);
         if (status != EventStatus.ACTIVE) {
-            throw new MarketException("Event ID " + id + " is not open for trading (state: " + status + ").");
+            throw new MarketException("Event '" + name + "' is not open for trading (state: " + status + ").");
         }
         if (orderBook == null) {
-            throw new MarketException("Event ID " + id + " does not trade through an order book.");
+            throw new MarketException("Event '" + name + "' does not trade through an order book.");
         }
         if (optionIndex < 0 || optionIndex >= options.size()) {
             throw new MarketException("Invalid option index: " + optionIndex);
@@ -444,7 +442,7 @@ public class Event implements Serializable {
         double cashMoved = direct.shareCost() + mint.shareCost();
         double commission = direct.commission() + mint.commission();
         LOG.info("Event {}: '{}' placed {} {} '{}' @ {}; filled {}, resting {}",
-                id, user.getName(), side, quantity, options.get(optionIndex).getName(), price,
+                name, user.getName(), side, quantity, options.get(optionIndex).getName(), price,
                 filled, incoming.getRemaining());
         return new OrderOutcome(incoming.getId(), filled, incoming.getRemaining(), cashMoved, commission);
     }
@@ -453,20 +451,20 @@ public class Event implements Serializable {
     public void cancelOrder(User user, long orderId) {
         requireNotBlocked(user);
         if (orderBook == null) {
-            throw new MarketException("Event ID " + id + " does not trade through an order book.");
+            throw new MarketException("Event '" + name + "' does not trade through an order book.");
         }
         if (status != EventStatus.ACTIVE) {
-            throw new MarketException("Event ID " + id + " is not open for trading (state: " + status + ").");
+            throw new MarketException("Event '" + name + "' is not open for trading (state: " + status + ").");
         }
         LimitOrder order = orderBook.findById(orderId);
         if (order == null) {
-            throw new MarketException("No resting order with id " + orderId + " in event ID " + id + ".");
+            throw new MarketException("No resting order with id " + orderId + " in event '" + name + "'.");
         }
         if (!order.getUserName().equals(user.getName())) {
             throw new MarketException("User '" + user.getName() + "' does not own order " + orderId + ".");
         }
         orderBook.remove(order);
-        LOG.info("Event {}: '{}' cancelled order {}", id, user.getName(), orderId);
+        LOG.info("Event {}: '{}' cancelled order {}", name, user.getName(), orderId);
     }
 
     /** The live order book, or {@code null} for an event not using this trading method. */
@@ -512,7 +510,7 @@ public class Event implements Serializable {
             if (deliverable <= 0) {
                 // The seller can no longer deliver these shares - genuinely
                 // stale, drop it and try the next.
-                LOG.warn("Event {}: dropping stale resting order {} (seller can't deliver)", id, resting.getId());
+                LOG.warn("Event {}: dropping stale resting order {} (seller can't deliver)", name, resting.getId());
                 orderBook.remove(resting);
                 continue;
             }
@@ -554,13 +552,13 @@ public class Event implements Serializable {
                 : 0.0;
 
         if (overdrawBuyer) {
-            buyer.forceDebitAndBlock(shareCost + commission, LedgerEntryType.PURCHASE, id);
+            buyer.forceDebitAndBlock(shareCost + commission, LedgerEntryType.PURCHASE, name);
             LOG.warn("Event {}: '{}' forced to a negative balance ({}) honouring a resting order and is now BLOCKED",
-                    id, buyer.getName(), buyer.getAccountBalance());
+                    name, buyer.getName(), buyer.getAccountBalance());
         } else {
-            buyer.debit(shareCost + commission, LedgerEntryType.PURCHASE, id);
+            buyer.debit(shareCost + commission, LedgerEntryType.PURCHASE, name);
         }
-        seller.credit(shareCost, LedgerEntryType.SALE, id);
+        seller.credit(shareCost, LedgerEntryType.SALE, name);
         recordCommission(commission);
 
         holdingsByUser.computeIfAbsent(seller.getName(), k -> new int[options.size()])[optionIndex] -= quantity;
@@ -576,7 +574,7 @@ public class Event implements Serializable {
         orderBook.recordTrade(optionIndex, execPrice);
 
         LOG.info("Event {}: order-book trade - '{}' bought {} '{}' from '{}' @ {} (cost {}, commission {})",
-                id, buyer.getName(), quantity, optionName, seller.getName(), execPrice, shareCost, commission);
+                name, buyer.getName(), quantity, optionName, seller.getName(), execPrice, shareCost, commission);
         return new Fill(shareCost, commission);
     }
 
@@ -656,13 +654,13 @@ public class Event implements Serializable {
         double commissionA = commissionType == CommissionType.ON_PURCHASE ? costA * (commissionPercentage / 100.0) : 0.0;
         double commissionB = commissionType == CommissionType.ON_PURCHASE ? costB * (commissionPercentage / 100.0) : 0.0;
 
-        userA.debit(costA + commissionA, LedgerEntryType.PURCHASE, id);
+        userA.debit(costA + commissionA, LedgerEntryType.PURCHASE, name);
         if (overdrawUserB) {
-            userB.forceDebitAndBlock(costB + commissionB, LedgerEntryType.PURCHASE, id);
+            userB.forceDebitAndBlock(costB + commissionB, LedgerEntryType.PURCHASE, name);
             LOG.warn("Event {}: '{}' forced to a negative balance ({}) honouring a resting bid and is now BLOCKED",
-                    id, userB.getName(), userB.getAccountBalance());
+                    name, userB.getName(), userB.getAccountBalance());
         } else {
-            userB.debit(costB + commissionB, LedgerEntryType.PURCHASE, id);
+            userB.debit(costB + commissionB, LedgerEntryType.PURCHASE, name);
         }
         recordCommission(commissionA + commissionB);
 
@@ -684,7 +682,7 @@ public class Event implements Serializable {
         orderBook.recordTrade(optionB, priceB);
 
         LOG.info("Event {}: minted {} pair(s) - '{}' bought '{}' @ {}, '{}' bought '{}' @ {}",
-                id, quantity, userA.getName(), options.get(optionA).getName(), priceA,
+                name, quantity, userA.getName(), options.get(optionA).getName(), priceA,
                 userB.getName(), options.get(optionB).getName(), priceB);
         return new Fill(costA + commissionA, commissionA);
     }
@@ -725,14 +723,10 @@ public class Event implements Serializable {
             return;
         }
         totalCommissionCollected += amount;
-        marketMaker.credit(amount, LedgerEntryType.COMMISSION, id);
+        marketMaker.credit(amount, LedgerEntryType.COMMISSION, name);
     }
 
     // --- Accessors --------------------------------------------------------
-
-    public int getId() {
-        return id;
-    }
 
     public String getName() {
         return name;
@@ -802,16 +796,16 @@ public class Event implements Serializable {
     public boolean equals(Object o) {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
-        return id == ((Event) o).id;
+        return name.equals(((Event) o).name);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hashCode(id);
+        return Objects.hashCode(name);
     }
 
     @Override
     public String toString() {
-        return "Event[" + id + " '" + name + "', " + status + "]";
+        return "Event['" + name + "', " + status + "]";
     }
 }

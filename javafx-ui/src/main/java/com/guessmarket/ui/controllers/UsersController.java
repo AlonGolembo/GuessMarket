@@ -212,8 +212,8 @@ public class UsersController implements MarketDataChangeListener {
             EventDTO event = cellData.getValue();
             UserDTO selectedUser = usersTableView.getSelectionModel().getSelectedItem();
 
-            if (selectedUser != null && selectedUser.marketMakerEventIds() != null) {
-                boolean isMarketMaker = selectedUser.marketMakerEventIds().contains(event.id());
+            if (selectedUser != null && selectedUser.marketMakerEventNames() != null) {
+                boolean isMarketMaker = selectedUser.marketMakerEventNames().contains(event.name());
                 return new SimpleStringProperty(isMarketMaker ? "Market Maker" : "Participant");
             }
             return new SimpleStringProperty("Participant");
@@ -221,7 +221,7 @@ public class UsersController implements MarketDataChangeListener {
 
         userEventSharesCol.setCellValueFactory(cellData -> {
             UserDTO selectedUser = usersTableView.getSelectionModel().getSelectedItem();
-            int shares = selectedUser == null ? 0 : totalSharesHeld(selectedUser, cellData.getValue().id());
+            int shares = selectedUser == null ? 0 : totalSharesHeld(selectedUser, cellData.getValue().name());
             return new SimpleObjectProperty<>(shares);
         });
 
@@ -241,7 +241,7 @@ public class UsersController implements MarketDataChangeListener {
             return;
         }
 
-        Map<String, Integer> held = user.holdings().get(event.id());
+        Map<String, Integer> held = user.holdings().get(event.name());
         StringBuilder sb = new StringBuilder(event.name()).append("  •  ").append(event.status().name());
         if (held != null && !held.isEmpty()) {
             sb.append("  •  Your shares:");
@@ -249,10 +249,10 @@ public class UsersController implements MarketDataChangeListener {
         }
 
         if (event.status() == com.guessmarket.dto.EventStatus.CLOSED) {
-            EventDetailsDTO details = marketEngine.getEventDetails(event.id());
+            EventDetailsDTO details = marketEngine.getEventDetails(event.name());
             sb.append("\nWinner: ").append(details.winningOption() == null ? "-" : details.winningOption());
             double net = marketEngine.getUserDetails(user.name()).balanceHistory().stream()
-                    .filter(entry -> entry.eventId() != null && entry.eventId() == event.id())
+                    .filter(entry -> event.name().equals(entry.eventName()))
                     .mapToDouble(com.guessmarket.dto.LedgerEntryDTO::delta)
                     .sum();
             sb.append("  •  Your net result on this event: ")
@@ -474,7 +474,7 @@ public class UsersController implements MarketDataChangeListener {
             // Restore the event ComboBox selection from the refreshed list
             if (currentSelectedEvent != null) {
                 eventsList.stream()
-                        .filter(e -> e.id() == currentSelectedEvent.id())
+                        .filter(e -> e.name().equals(currentSelectedEvent.name()))
                         .findFirst()
                         .ifPresentOrElse(
                                 eventsComboBox::setValue,
@@ -531,12 +531,12 @@ public class UsersController implements MarketDataChangeListener {
         userBlockedLabel.setManaged(selectedUser.blocked());
         revealUserDetails(selectedUser);
 
-        java.util.Set<Integer> ids = selectedUser.holdings().keySet();
-        if (ids.isEmpty() || marketEngine == null) {
+        java.util.Set<String> names = selectedUser.holdings().keySet();
+        if (names.isEmpty() || marketEngine == null) {
             participatingEventsList.clear();
         } else {
             participatingEventsList.setAll(marketEngine.getAllEvents().stream()
-                    .filter(e -> ids.contains(e.id()))
+                    .filter(e -> names.contains(e.name()))
                     .toList());
         }
         renderBalanceGraph(selectedUser);
@@ -597,8 +597,8 @@ public class UsersController implements MarketDataChangeListener {
     }
 
     /** Total shares the given user holds in the given event, across all options. */
-    private static int totalSharesHeld(UserDTO user, int eventId) {
-        Map<String, Integer> byOption = user.holdings().get(eventId);
+    private static int totalSharesHeld(UserDTO user, String eventName) {
+        Map<String, Integer> byOption = user.holdings().get(eventName);
         if (byOption == null) {
             return 0;
         }
@@ -610,7 +610,7 @@ public class UsersController implements MarketDataChangeListener {
      */
     private void handleActiveEventSelected(EventDTO newEvent) {
         if (newEvent != null && marketEngine != null) {
-            EventDetailsDTO details = marketEngine.getEventDetails(newEvent.id());
+            EventDetailsDTO details = marketEngine.getEventDetails(newEvent.name());
             selectedEventDetails.set(details);
 
             // Populate trade history directly
@@ -723,7 +723,7 @@ public class UsersController implements MarketDataChangeListener {
 
         // 3. Execute trade
         LOG.info("Trade requested: user='{}', event={}, option#={}, shares={}",
-                selectedUser.name(), selectedEvent.id(), selectedOption, shares);
+                selectedUser.name(), selectedEvent.name(), selectedOption, shares);
         try {
             marketEngine.buyShares(
                     selectedUser,
@@ -737,7 +737,7 @@ public class UsersController implements MarketDataChangeListener {
 
         } catch (Exception ex) {
             LOG.warn("Trade failed for user '{}' on event {}: {}",
-                    selectedUser.name(), selectedEvent.id(), ex.getMessage());
+                    selectedUser.name(), selectedEvent.name(), ex.getMessage());
             Dialogs.error("Trade Execution Failed", ex);
         }
     }
@@ -779,11 +779,11 @@ public class UsersController implements MarketDataChangeListener {
         }
         // The engine enforces that the user is the event's market maker and can
         // fund the subsidy; surface whatever it rejects.
-        LOG.info("Activate event {} requested by '{}'", selectedEvent.id(), selectedUser.name());
+        LOG.info("Activate event {} requested by '{}'", selectedEvent.name(), selectedUser.name());
         try {
             marketEngine.activateEvent(selectedEvent, selectedUser);
         } catch (RuntimeException ex) {
-            LOG.warn("Activate event {} failed: {}", selectedEvent.id(), ex.getMessage());
+            LOG.warn("Activate event {} failed: {}", selectedEvent.name(), ex.getMessage());
             Dialogs.error("Could not activate event", ex);
         }
     }
@@ -798,11 +798,11 @@ public class UsersController implements MarketDataChangeListener {
             return;
         }
         LOG.info("End event {} requested by '{}' with winning option #{}",
-                selectedEvent.id(), selectedUser.name(), selectedOption);
+                selectedEvent.name(), selectedUser.name(), selectedOption);
         try {
-            marketEngine.closeEvent(selectedEvent.id(), selectedOption);
+            marketEngine.closeEvent(selectedEvent.name(), selectedOption);
         } catch (RuntimeException ex) {
-            LOG.warn("End event {} failed: {}", selectedEvent.id(), ex.getMessage());
+            LOG.warn("End event {} failed: {}", selectedEvent.name(), ex.getMessage());
             Dialogs.error("Could not close event", ex);
         }
     }
@@ -908,7 +908,7 @@ public class UsersController implements MarketDataChangeListener {
         }
 
         LOG.info("Order requested: user='{}', event={}, option#={}, side={}, qty={}, price={}",
-                selectedUser.name(), selectedEvent.id(), optionIndex1Based, side, quantity, price);
+                selectedUser.name(), selectedEvent.name(), optionIndex1Based, side, quantity, price);
         try {
             OrderResultDTO result = marketEngine.placeOrder(
                     selectedUser, selectedEvent, optionIndex1Based, side, quantity, price);
@@ -916,7 +916,7 @@ public class UsersController implements MarketDataChangeListener {
                     "Filled %d, resting %d.", result.filledQuantity(), result.restingQuantity()));
         } catch (RuntimeException ex) {
             LOG.warn("Place order failed for user '{}' on event {}: {}",
-                    selectedUser.name(), selectedEvent.id(), ex.getMessage());
+                    selectedUser.name(), selectedEvent.name(), ex.getMessage());
             Dialogs.error("Order Failed", ex);
         }
     }
@@ -932,7 +932,7 @@ public class UsersController implements MarketDataChangeListener {
             return;
         }
 
-        LOG.info("Cancel order {} requested by '{}' on event {}", selectedOrder.id(), selectedUser.name(), selectedEvent.id());
+        LOG.info("Cancel order {} requested by '{}' on event {}", selectedOrder.id(), selectedUser.name(), selectedEvent.name());
         try {
             marketEngine.cancelOrder(selectedUser, selectedEvent, selectedOrder.id());
         } catch (RuntimeException ex) {

@@ -10,7 +10,7 @@ import java.util.Objects;
  * which one. A pure data holder - it knows nothing about DTOs or mappers.
  *
  * <p>{@code delta} is signed: negative for a debit, positive for a credit.
- * {@code eventId} is {@code null} for {@link LedgerEntryType#INITIAL}.
+ * {@code eventName} is {@code null} for {@link LedgerEntryType#INITIAL}.
  */
 public final class LedgerEntry implements Serializable {
 
@@ -20,14 +20,14 @@ public final class LedgerEntry implements Serializable {
     private final double delta;
     private final double balanceAfter;
     private final LedgerEntryType type;
-    private final Integer eventId;
+    private final String eventName;
 
-    public LedgerEntry(double delta, double balanceAfter, LedgerEntryType type, Integer eventId) {
+    public LedgerEntry(double delta, double balanceAfter, LedgerEntryType type, String eventName) {
         this.at = LocalDateTime.now();
         this.delta = delta;
         this.balanceAfter = balanceAfter;
         this.type = Objects.requireNonNull(type, "type");
-        this.eventId = eventId;
+        this.eventName = eventName;
     }
 
     public LocalDateTime getTimestamp() {
@@ -49,13 +49,13 @@ public final class LedgerEntry implements Serializable {
     }
 
     /** The event this entry stems from, or {@code null} for the initial allocation. */
-    public Integer getEventId() {
-        return eventId;
+    public String getEventName() {
+        return eventName;
     }
 
     @Override
     public String toString() {
         return String.format("LedgerEntry[%s %+.2f -> %.2f%s]",
-                type, delta, balanceAfter, eventId == null ? "" : ", event " + eventId);
+                type, delta, balanceAfter, eventName == null ? "" : ", event " + eventName);
     }
 }

@@ -38,7 +38,7 @@ final class EventXmlValidator {
         List<Option> options = validateOptions(xml, id);
         TradingMethod method = validateMethod(xml, id);
 
-        return new Event(id, name, description,
+        return new Event(name, description,
                 commission.percentage(), commission.type(), options, method);
     }
 

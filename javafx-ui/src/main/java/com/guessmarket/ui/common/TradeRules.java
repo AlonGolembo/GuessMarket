@@ -16,8 +16,8 @@ public final class TradeRules {
 
     public static boolean isMarketMaker(UserDTO user, EventDTO event) {
         return user != null && event != null
-                && user.marketMakerEventIds() != null
-                && user.marketMakerEventIds().contains(event.id());
+                && user.marketMakerEventNames() != null
+                && user.marketMakerEventNames().contains(event.name());
     }
 
     /** A blocked user (balance went negative) may do nothing at all. */

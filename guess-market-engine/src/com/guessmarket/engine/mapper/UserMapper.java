@@ -21,7 +21,7 @@ public final class UserMapper {
                 user.getName(),
                 user.getAccountBalance(),
                 user.isBlocked(),
-                Set.copyOf(user.getMarketMakerEventIds()),
+                Set.copyOf(user.getMarketMakerEventNames()),
                 holdings(user)
         );
     }
@@ -36,9 +36,9 @@ public final class UserMapper {
         );
     }
 
-    /** eventId -&gt; (optionName -&gt; shares held), covering every event the user participates in. */
-    private static Map<Integer, Map<String, Integer>> holdings(User user) {
-        Map<Integer, Map<String, Integer>> byEvent = new LinkedHashMap<>();
+    /** eventName -&gt; (optionName -&gt; shares held), covering every event the user participates in. */
+    private static Map<String, Map<String, Integer>> holdings(User user) {
+        Map<String, Map<String, Integer>> byEvent = new LinkedHashMap<>();
         for (Event event : user.getParticipatingEvents().values()) {
             int[] held = event.holdingsOf(user.getName());
             Map<String, Integer> byOption = new LinkedHashMap<>();
@@ -46,7 +46,7 @@ public final class UserMapper {
             for (int i = 0; i < options.size(); i++) {
                 byOption.put(options.get(i).getName(), held[i]);
             }
-            byEvent.put(event.getId(), Map.copyOf(byOption));
+            byEvent.put(event.getName(), Map.copyOf(byOption));
         }
         return byEvent;
     }

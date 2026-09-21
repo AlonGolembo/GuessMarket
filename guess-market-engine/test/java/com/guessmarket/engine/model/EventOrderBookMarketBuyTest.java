@@ -14,18 +14,18 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 class EventOrderBookMarketBuyTest {
 
     private Event orderBookEvent(CommissionType type, int commissionPct, int d, int initial, boolean allowMint) {
-        return new Event(1, "Coin flip", "heads?", commissionPct, type,
+        return new Event("Coin flip", "heads?", commissionPct, type,
                 List.of(new Option("Heads"), new Option("Tails")), new OrderBookMethod(d, initial, allowMint));
     }
 
-    private User user(String name, double cash, Set<Integer> mmEvents) {
+    private User user(String name, double cash, Set<String> mmEvents) {
         return new User(name, cash, mmEvents);
     }
 
     @Test
     void marketBuySweepsTheCheapestAskAndReportsTheFilledQuantity() {
         Event e = orderBookEvent(CommissionType.ON_PURCHASE, 10, 1, 100, true);
-        User mm = user("mm", 1000, Set.of(1));
+        User mm = user("mm", 1000, Set.of("Coin flip"));
         e.open(mm);                                      // mm posts 100 Heads @ 0.5
 
         TradeReceipt receipt = e.buy(user("t", 1000, Set.of()), 0, 30);
@@ -39,7 +39,7 @@ class EventOrderBookMarketBuyTest {
     @Test
     void marketBuyStopsWhenTheBookRunsDryAndReportsAPartialFill() {
         Event e = orderBookEvent(CommissionType.ON_PURCHASE, 0, 1, 50, true);
-        e.open(user("mm", 1000, Set.of(1)));               // mm posts only 50 Heads @ 0.5
+        e.open(user("mm", 1000, Set.of("Coin flip")));               // mm posts only 50 Heads @ 0.5
         User trader = user("t", 1000, Set.of());
 
         TradeReceipt receipt = e.buy(trader, 0, 80);        // asks for 80, only 50 exist
@@ -53,7 +53,7 @@ class EventOrderBookMarketBuyTest {
     @Test
     void marketBuyNeverMintsAndNeverRestsARemainder() {
         Event e = orderBookEvent(CommissionType.ON_PURCHASE, 0, 1, 0, true);   // no initial allocation
-        e.open(user("mm", 1000, Set.of(1)));
+        e.open(user("mm", 1000, Set.of("Coin flip")));
         User bidder = user("bidder", 1000, Set.of());
         User buyer = user("buyer", 1000, Set.of());
 
@@ -70,7 +70,7 @@ class EventOrderBookMarketBuyTest {
     @Test
     void marketBuyClampsRatherThanThrowingWhenTheBuyerCantAffordEverything() {
         Event e = orderBookEvent(CommissionType.ON_PURCHASE, 0, 1, 100, true);
-        e.open(user("mm", 1000, Set.of(1)));                // mm posts 100 Heads @ 0.5
+        e.open(user("mm", 1000, Set.of("Coin flip")));                // mm posts 100 Heads @ 0.5
         User poor = user("t", 3.0, Set.of());
 
         TradeReceipt receipt = e.buy(poor, 0, 10);           // can afford floor(3.0/0.5) = 6
@@ -83,7 +83,7 @@ class EventOrderBookMarketBuyTest {
     @Test
     void quoteMatchesWhatBuyChargesForAnOrderBookEvent() {
         Event e = orderBookEvent(CommissionType.ON_PURCHASE, 15, 1, 100, true);
-        e.open(user("mm", 1000, Set.of(1)));
+        e.open(user("mm", 1000, Set.of("Coin flip")));
         User trader = user("t", 1000, Set.of());
 
         TradeReceipt quoted = e.quote(0, 40);

@@ -51,9 +51,9 @@ class GuessMarketXmlParserTest {
                 write("ok.xml", event("<GM-LMSR><b>100</b></GM-LMSR>")));
 
         assertEquals(1, market.events().size());
-        assertEquals("Coin flip", market.events().get(1).getName());
+        assertEquals("Coin flip", market.events().get("Coin flip").getName());
         assertTrue(market.users().containsKey("mm"));
-        assertTrue(market.users().get("mm").isMarketMakerFor(1));
+        assertTrue(market.users().get("mm").isMarketMakerFor("Coin flip"));
     }
 
     @Test

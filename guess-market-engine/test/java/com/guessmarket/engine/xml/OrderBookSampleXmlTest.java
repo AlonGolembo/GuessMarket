@@ -30,7 +30,7 @@ class OrderBookSampleXmlTest {
     void sampleParsesOpensTradesAndSettles() throws URISyntaxException {
         ParsedMarket market = GuessMarketXmlParser.parseAndValidateXml(samplePath().toString());
 
-        Event event = market.events().get(1);
+        Event event = market.events().get("Will it rain tomorrow?");
         assertEquals("Will it rain tomorrow?", event.getName());
         assertTrue(event.getTradingMethod() instanceof OrderBookMethod);
 

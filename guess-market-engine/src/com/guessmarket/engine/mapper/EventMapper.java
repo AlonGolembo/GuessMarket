@@ -32,7 +32,6 @@ public final class EventMapper {
                 .toList();
 
         return new EventDTO(
-                event.getId(),
                 event.getName(),
                 event.getDescription(),
                 event.getCommissionPercentage(),

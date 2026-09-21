@@ -22,11 +22,11 @@ class EventTest {
     private static final double SUBSIDY = B * Math.log(2);   // LMSR C(0,0)
 
     private Event event(CommissionType type, int commissionPct) {
-        return new Event(1, "Coin flip", "heads?", commissionPct, type,
+        return new Event("Coin flip", "heads?", commissionPct, type,
                 List.of(new Option("Heads"), new Option("Tails")), new LmsrMethod(B));
     }
 
-    private User user(String name, double cash, Set<Integer> mmEvents) {
+    private User user(String name, double cash, Set<String> mmEvents) {
         return new User(name, cash, mmEvents);
     }
 
@@ -35,7 +35,7 @@ class EventTest {
     @Test
     void openDebitsTheSubsidyFromTheMarketMakerAndActivates() {
         Event e = event(CommissionType.ON_PURCHASE, 0);
-        User mm = user("mm", 1000, Set.of(1));
+        User mm = user("mm", 1000, Set.of("Coin flip"));
 
         e.open(mm);
 
@@ -61,7 +61,7 @@ class EventTest {
     @Test
     void openFailsWithoutFundsAndLeavesEventPending() {
         Event e = event(CommissionType.ON_PURCHASE, 0);
-        User brokeMm = user("mm", 10, Set.of(1));
+        User brokeMm = user("mm", 10, Set.of("Coin flip"));
         assertThrows(InsufficientFundsException.class, () -> e.open(brokeMm));
         assertEquals(EventStatus.NOT_ACTIVE, e.getStatus());
         assertEquals(10, brokeMm.getAccountBalance(), 1e-9);
@@ -72,7 +72,7 @@ class EventTest {
     @Test
     void buyChargesLmsrCostPlusOnPurchaseCommissionAndRecordsTheTrade() {
         Event e = event(CommissionType.ON_PURCHASE, 10);
-        e.open(user("mm", 1000, Set.of(1)));
+        e.open(user("mm", 1000, Set.of("Coin flip")));
         User trader = user("t", 500, Set.of());
 
         TradeReceipt r = e.buy(trader, 0, 50);
@@ -90,7 +90,7 @@ class EventTest {
     @Test
     void holdingsAccumulateAcrossOptionsAndTrades() {
         Event e = event(CommissionType.ON_PURCHASE, 0);
-        e.open(user("mm", 10_000, Set.of(1)));
+        e.open(user("mm", 10_000, Set.of("Coin flip")));
         User trader = user("t", 10_000, Set.of());
 
         e.buy(trader, 0, 10);
@@ -104,7 +104,7 @@ class EventTest {
     @Test
     void quoteMatchesWhatBuyCharges() {
         Event e = event(CommissionType.ON_PURCHASE, 15);
-        e.open(user("mm", 1000, Set.of(1)));
+        e.open(user("mm", 1000, Set.of("Coin flip")));
         User trader = user("t", 1000, Set.of());
 
         TradeReceipt quoted = e.quote(1, 20);
@@ -116,7 +116,7 @@ class EventTest {
     @Test
     void unaffordableTradeIsRejectedWithoutChangingEventState() {
         Event e = event(CommissionType.ON_PURCHASE, 0);
-        e.open(user("mm", 1000, Set.of(1)));
+        e.open(user("mm", 1000, Set.of("Coin flip")));
         User poor = user("t", 1.0, Set.of());
 
         assertThrows(InsufficientFundsException.class, () -> e.buy(poor, 0, 10_000));
@@ -136,7 +136,7 @@ class EventTest {
     @Test
     void onCloseSettlementTakesTheFeeFromTheWinningPotAndPaysHoldersNet() {
         Event e = event(CommissionType.ON_CLOSE, 10);
-        e.open(user("mm", 10_000, Set.of(1)));
+        e.open(user("mm", 10_000, Set.of("Coin flip")));
         User trader = user("t", 1000, Set.of());
         e.buy(trader, 0, 40);                    // 40 Heads, no commission charged now
         double afterBuy = trader.getAccountBalance();
@@ -153,7 +153,7 @@ class EventTest {
     @Test
     void onPurchaseSettlementPaysFullDollarPerWinningShare() {
         Event e = event(CommissionType.ON_PURCHASE, 10);
-        e.open(user("mm", 10_000, Set.of(1)));
+        e.open(user("mm", 10_000, Set.of("Coin flip")));
         User trader = user("t", 1000, Set.of());
         e.buy(trader, 1, 25);                    // 25 Tails
         double afterBuy = trader.getAccountBalance();
@@ -166,7 +166,7 @@ class EventTest {
     @Test
     void settlingTwiceIsRejected() {
         Event e = event(CommissionType.ON_CLOSE, 0);
-        e.open(user("mm", 10_000, Set.of(1)));
+        e.open(user("mm", 10_000, Set.of("Coin flip")));
         e.settleAndClose(0);
         assertThrows(MarketException.class, () -> e.settleAndClose(1));
     }
@@ -174,7 +174,7 @@ class EventTest {
     @Test
     void settlementSweepsThePoolRemainderToTheMarketMaker() {
         Event e = event(CommissionType.ON_CLOSE, 10);
-        User mm = user("mm", 10_000, Set.of(1));
+        User mm = user("mm", 10_000, Set.of("Coin flip"));
         e.open(mm);
         double mmAfterOpen = mm.getAccountBalance();               // 10_000 - subsidy
         e.buy(user("t", 1_000, Set.of()), 0, 40);                  // 40 Heads
@@ -195,7 +195,7 @@ class EventTest {
     @Test
     void onPurchaseSettlementAlsoSweepsTheProceedsToTheMarketMaker() {
         Event e = event(CommissionType.ON_PURCHASE, 10);
-        User mm = user("mm", 10_000, Set.of(1));
+        User mm = user("mm", 10_000, Set.of("Coin flip"));
         e.open(mm);
         User trader = user("t", 1_000, Set.of());
         e.buy(trader, 1, 25);                                     // 25 Tails; 10% commission credited to mm now

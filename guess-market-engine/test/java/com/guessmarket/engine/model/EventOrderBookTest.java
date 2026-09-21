@@ -101,6 +101,44 @@ class EventOrderBookTest {
         assertThrows(InsufficientFundsException.class, () -> e.placeOrder(poor, 0, OrderSide.BID, 10, 0.5));
     }
 
+    @Test
+    void placeOrderRejectsWhenTheEventIsNotActive() {
+        Event e = orderBookEvent(CommissionType.ON_PURCHASE, 0, 1, 100, true);
+        // never opened
+
+        assertThrows(MarketException.class,
+                () -> e.placeOrder(user("t", 1000, Set.of()), 0, OrderSide.BID, 10, 0.5));
+    }
+
+    @Test
+    void placeOrderRejectsAnInvalidOptionIndex() {
+        Event e = orderBookEvent(CommissionType.ON_PURCHASE, 0, 1, 100, true);
+        e.open(user("mm", 1000, Set.of(1)));
+
+        assertThrows(MarketException.class,
+                () -> e.placeOrder(user("t", 1000, Set.of()), 5, OrderSide.BID, 10, 0.5));
+    }
+
+    @Test
+    void placeOrderRejectsNonPositiveQuantity() {
+        Event e = orderBookEvent(CommissionType.ON_PURCHASE, 0, 1, 100, true);
+        e.open(user("mm", 1000, Set.of(1)));
+
+        assertThrows(MarketException.class,
+                () -> e.placeOrder(user("t", 1000, Set.of()), 0, OrderSide.BID, 0, 0.5));
+    }
+
+    @Test
+    void freeSharesAreNetOfAllOfAUsersOwnRestingAsksOnThatOption() {
+        // mm's entire 100-share holding of Heads already backs its initial resting
+        // ask - zero free shares left, so it can't rest a second one on top.
+        Event e = orderBookEvent(CommissionType.ON_PURCHASE, 0, 1, 100, true);
+        User mm = user("mm", 1000, Set.of(1));
+        e.open(mm);
+
+        assertThrows(MarketException.class, () -> e.placeOrder(mm, 0, OrderSide.ASK, 1, 0.6));
+    }
+
     // --- matching ------------------------------------------------------------
 
     @Test
@@ -198,6 +236,26 @@ class EventOrderBookTest {
         e.open(user("mm", 1000, Set.of(1)));
 
         assertThrows(MarketException.class, () -> e.cancelOrder(user("t", 100, Set.of()), 999L));
+    }
+
+    @Test
+    void cancelOrderRejectsAnEventThatIsNotOrderBook() {
+        Event e = new Event(2, "E", "d", 0, CommissionType.ON_PURCHASE,
+                List.of(new Option("Heads"), new Option("Tails")), new LmsrMethod(100));
+        e.open(user("mm", 1000, Set.of(2)));
+
+        assertThrows(MarketException.class, () -> e.cancelOrder(user("t", 100, Set.of()), 1L));
+    }
+
+    @Test
+    void cancelOrderRejectsWhenTheEventIsNoLongerActive() {
+        Event e = orderBookEvent(CommissionType.ON_PURCHASE, 0, 1, 100, true);
+        e.open(user("mm", 1000, Set.of(1)));
+        User t = user("t", 1000, Set.of());
+        OrderOutcome outcome = e.placeOrder(t, 1, OrderSide.BID, 10, 0.4);   // rests, well below any ask
+        e.settleAndClose(0);
+
+        assertThrows(MarketException.class, () -> e.cancelOrder(t, outcome.orderId()));
     }
 
     // --- settlement --------------------------------------------------------

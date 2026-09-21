@@ -2,6 +2,7 @@ package com.guessmarket.engine.model;
 
 import com.guessmarket.dto.CommissionType;
 import com.guessmarket.dto.OrderSide;
+import com.guessmarket.engine.exception.MarketException;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -9,6 +10,7 @@ import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 /** {@link Event#buy}/{@link Event#quote} on an Order Book event: a market order against the ask book. */
 class EventOrderBookMarketBuyTest {
@@ -91,5 +93,50 @@ class EventOrderBookMarketBuyTest {
 
         assertEquals(quoted.filledQuantity(), charged.filledQuantity());
         assertEquals(quoted.totalPaid(), charged.totalPaid(), 1e-9);
+    }
+
+    @Test
+    void marketBuyRejectsNonPositiveQuantity() {
+        Event e = orderBookEvent(CommissionType.ON_PURCHASE, 0, 1, 100, true);
+        e.open(user("mm", 1000, Set.of(1)));
+
+        assertThrows(MarketException.class, () -> e.buy(user("t", 1000, Set.of()), 0, 0));
+    }
+
+    @Test
+    void marketBuyRejectsAnInvalidOptionIndex() {
+        Event e = orderBookEvent(CommissionType.ON_PURCHASE, 0, 1, 100, true);
+        e.open(user("mm", 1000, Set.of(1)));
+
+        assertThrows(MarketException.class, () -> e.buy(user("t", 1000, Set.of()), 5, 10));
+    }
+
+    @Test
+    void quoteOrderBookStopsWalkingTheBookOnceTheRequestedQuantityIsFilled() {
+        // Two price levels on Heads: mm's initial 100 @ 0.5, then a's resell of 20 @ 0.6.
+        // Quoting for less than mm's level alone must not touch a's level at all.
+        Event e = orderBookEvent(CommissionType.ON_PURCHASE, 0, 1, 100, false);
+        User mm = user("mm", 1000, Set.of(1));
+        e.open(mm);
+        User a = user("a", 1000, Set.of());
+        e.placeOrder(a, 0, OrderSide.BID, 20, 0.5);     // a buys 20 Heads from mm
+        e.placeOrder(a, 0, OrderSide.ASK, 20, 0.6);     // a rests a second, pricier level
+
+        TradeReceipt quoted = e.quote(0, 50);            // well within mm's remaining 80 @ 0.5
+
+        assertEquals(50, quoted.filledQuantity());
+        assertEquals(50 * 0.5, quoted.sharesCost(), 1e-9);
+    }
+
+    @Test
+    void quoteOrderBookChargesNoCommissionWhenNotOnPurchase() {
+        Event e = orderBookEvent(CommissionType.ON_CLOSE, 10, 1, 100, true);
+        e.open(user("mm", 1000, Set.of(1)));
+
+        TradeReceipt quoted = e.quote(0, 30);
+
+        assertEquals(30 * 0.5, quoted.sharesCost(), 1e-9);
+        assertEquals(0.0, quoted.commission(), 1e-9);
+        assertEquals(quoted.sharesCost(), quoted.totalPaid(), 1e-9);
     }
 }

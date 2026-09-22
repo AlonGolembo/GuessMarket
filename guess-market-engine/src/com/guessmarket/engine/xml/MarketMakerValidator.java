@@ -8,35 +8,31 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * Cross-entity check: every market-maker assignment points at a real event, and
- * every event has exactly one market maker.
+ * Cross-entity check: every event has exactly one market maker. (That every
+ * market-maker assignment points at a real event is already guaranteed by the
+ * id-to-name resolution in {@link MarketAssembler}, before this runs.)
  */
 final class MarketMakerValidator {
 
     private MarketMakerValidator() {}
 
-    static void validate(Map<Integer, Event> events, Map<String, User> users) throws XmlValidationException {
-        Map<Integer, Integer> marketMakersPerEvent = new HashMap<>();
+    static void validate(Map<String, Event> events, Map<String, User> users) throws XmlValidationException {
+        Map<String, Integer> marketMakersPerEvent = new HashMap<>();
 
         for (User user : users.values()) {
-            for (int eventId : user.getMarketMakerEventIds()) {
-                if (!events.containsKey(eventId)) {
-                    throw new XmlValidationException("User '" + user.getName()
-                            + "' is the market maker for event ID " + eventId + ", which does not exist.");
-                }
-                marketMakersPerEvent.merge(eventId, 1, Integer::sum);
+            for (String eventName : user.getMarketMakerEventNames()) {
+                marketMakersPerEvent.merge(eventName, 1, Integer::sum);
             }
         }
 
         for (Event event : events.values()) {
-            int count = marketMakersPerEvent.getOrDefault(event.getId(), 0);
+            int count = marketMakersPerEvent.getOrDefault(event.getName(), 0);
             if (count == 0) {
-                throw new XmlValidationException(
-                        "Event ID " + event.getId() + " ('" + event.getName() + "') has no market maker.");
+                throw new XmlValidationException("Event '" + event.getName() + "' has no market maker.");
             }
             if (count > 1) {
-                throw new XmlValidationException("Event ID " + event.getId() + " ('" + event.getName()
-                        + "') has " + count + " market makers; exactly one is required.");
+                throw new XmlValidationException("Event '" + event.getName()
+                        + "' has " + count + " market makers; exactly one is required.");
             }
         }
     }

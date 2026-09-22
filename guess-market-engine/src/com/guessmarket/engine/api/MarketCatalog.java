@@ -15,12 +15,12 @@ import java.util.Map;
  */
 final class MarketCatalog {
 
-    private Map<Integer, Event> events = new LinkedHashMap<>();
+    private Map<String, Event> events = new LinkedHashMap<>();
     private Map<String, User> users = new LinkedHashMap<>();
     private boolean loaded;
 
     /** Replaces the whole catalog (XML load, or state restore). */
-    void replace(Map<Integer, Event> events, Map<String, User> users) {
+    void replace(Map<String, Event> events, Map<String, User> users) {
         this.events = new LinkedHashMap<>(events);
         this.users = new LinkedHashMap<>(users);
         this.loaded = true;
@@ -29,13 +29,10 @@ final class MarketCatalog {
     /** Adds one freshly created event to the loaded market. */
     void addEvent(Event event) {
         requireLoaded();
-        events.put(event.getId(), event);
-    }
-
-    /** The lowest positive id not already used by a loaded event. */
-    int nextEventId() {
-        requireLoaded();
-        return events.keySet().stream().mapToInt(Integer::intValue).max().orElse(0) + 1;
+        if (events.containsKey(event.getName())) {
+            throw new MarketException("An event named '" + event.getName() + "' already exists.");
+        }
+        events.put(event.getName(), event);
     }
 
     boolean isLoaded() {
@@ -59,7 +56,7 @@ final class MarketCatalog {
     }
 
     /** The live event map, for the serializer only. */
-    Map<Integer, Event> eventMap() {
+    Map<String, Event> eventMap() {
         requireLoaded();
         return events;
     }
@@ -69,11 +66,11 @@ final class MarketCatalog {
         return users;
     }
 
-    Event event(int id) {
+    Event event(String name) {
         requireLoaded();
-        Event event = events.get(id);
+        Event event = events.get(name);
         if (event == null) {
-            throw new MarketException("Event with ID " + id + " does not exist.");
+            throw new MarketException("Event '" + name + "' does not exist.");
         }
         return event;
     }

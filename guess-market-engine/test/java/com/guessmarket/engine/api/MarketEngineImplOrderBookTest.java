@@ -77,7 +77,7 @@ class MarketEngineImplOrderBookTest {
         assertNull(result.restingOrderId());
         assertEquals(30 * 0.5, result.cashMoved(), 1e-9);
         assertEquals(30 * 0.5 * 0.10, result.commission(), 1e-9);
-        assertEquals(Map.of("Heads", 30, "Tails", 0), engine.getAllUsers().get("a").holdings().get(1));
+        assertEquals(Map.of("Heads", 30, "Tails", 0), engine.getAllUsers().get("a").holdings().get("Coin flip"));
     }
 
     @Test
@@ -135,7 +135,7 @@ class MarketEngineImplOrderBookTest {
         assertEquals(10, result.restingQuantity());
         assertNotNull(result.restingOrderId());
 
-        EventDetailsDTO details = engine.getEventDetails(1);
+        EventDetailsDTO details = engine.getEventDetails("Coin flip");
         assertTrue(details.restingOrders().stream()
                 .anyMatch(o -> o.id() == result.restingOrderId() && o.userName().equals("a") && o.remaining() == 10));
     }
@@ -146,7 +146,7 @@ class MarketEngineImplOrderBookTest {
 
         engine.cancelOrder(user("a"), event(), placed.restingOrderId());
 
-        assertTrue(engine.getEventDetails(1).restingOrders().stream()
+        assertTrue(engine.getEventDetails("Coin flip").restingOrders().stream()
                 .noneMatch(o -> o.id() == placed.restingOrderId()));
     }
 
@@ -169,7 +169,7 @@ class MarketEngineImplOrderBookTest {
     void eventDetailsExposeTheFiveOrderBookIndicators() {
         engine.placeOrder(user("a"), event(), 1, OrderSide.BID, 30, 0.6);   // trades at 0.5
 
-        OrderBookQuoteDTO quote = engine.getEventDetails(1).orderBookQuotes().get("Heads");
+        OrderBookQuoteDTO quote = engine.getEventDetails("Coin flip").orderBookQuotes().get("Heads");
 
         assertEquals(0.5, quote.lastTrade(), 1e-9);
         assertEquals(0.5, quote.bestAsk(), 1e-9);         // mm's remaining ask

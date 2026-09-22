@@ -8,8 +8,6 @@
         <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
         <outputRelativeToContentRoot value="true" />
         <module name="javafx-ui" />
-        <module name="guess-market-engine" />
-        <module name="guess-market-dto" />
       </profile>
     </annotationProcessing>
   </component>

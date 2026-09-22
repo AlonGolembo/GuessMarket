@@ -120,10 +120,9 @@ public class MarketEngineImpl implements MarketEngine {
             throw new MarketException(e.getMessage(), e);
         }
 
-        int id = catalog.nextEventId();
         Event event;
         try {
-            event = new Event(id, requireText(spec.name(), "name"), requireText(spec.description(), "description"),
+            event = new Event(requireText(spec.name(), "name"), requireText(spec.description(), "description"),
                     spec.commissionPercentage(), spec.commissionType(), options, method);
         } catch (IllegalArgumentException e) {
             throw new MarketException(e.getMessage(), e);
@@ -136,10 +135,10 @@ public class MarketEngineImpl implements MarketEngine {
         }
 
         // All checks passed - commit.
-        marketMaker.addMarketMakerEvent(id);
         catalog.addEvent(event);
-        logger.info("Created event {} ('{}'), market maker '{}' (subsidy {}, balance {})",
-                id, event.getName(), marketMaker.getName(), subsidy, balance);
+        marketMaker.addMarketMakerEvent(event.getName());
+        logger.info("Created event '{}', market maker '{}' (subsidy {}, balance {})",
+                event.getName(), marketMaker.getName(), subsidy, balance);
         publisher.publish();
         return EventMapper.toEventDTO(event);
     }
@@ -202,8 +201,8 @@ public class MarketEngineImpl implements MarketEngine {
     }
 
     @Override
-    public EventDetailsDTO getEventDetails(int eventId) throws MarketException {
-        return EventMapper.toEventDetailsDTO(catalog.event(eventId));
+    public EventDetailsDTO getEventDetails(String eventName) throws MarketException {
+        return EventMapper.toEventDetailsDTO(catalog.event(eventName));
     }
 
     @Override
@@ -220,29 +219,29 @@ public class MarketEngineImpl implements MarketEngine {
 
     @Override
     public void activateEvent(EventDTO selectedEvent, UserDTO selectedUser) {
-        Event event = catalog.event(selectedEvent.id());
+        Event event = catalog.event(selectedEvent.name());
         User marketMaker = catalog.user(selectedUser.name());
         event.open(marketMaker);
-        logger.info("Event {} ('{}') activated by market maker '{}'",
-                event.getId(), event.getName(), marketMaker.getName());
+        logger.info("Event '{}' activated by market maker '{}'",
+                event.getName(), marketMaker.getName());
         publisher.publish();
     }
 
     @Override
     public TradeQuoteDTO quoteTrade(UserDTO buyerDTO, EventDTO eventDTO, int optionIndex1Based, int quantity)
             throws MarketException {
-        TradeReceipt r = catalog.event(eventDTO.id()).quote(optionIndex1Based - 1, quantity);
+        TradeReceipt r = catalog.event(eventDTO.name()).quote(optionIndex1Based - 1, quantity);
         return new TradeQuoteDTO(r.sharesCost(), r.commission(), r.totalPaid(), r.filledQuantity());
     }
 
     @Override
     public TradeResultDTO buyShares(UserDTO buyerDTO, EventDTO eventDTO, int optionIndex1Based, int quantity)
             throws MarketException {
-        Event event = catalog.event(eventDTO.id());
+        Event event = catalog.event(eventDTO.name());
         User buyer = catalog.user(buyerDTO.name());
         TradeReceipt receipt = event.buy(buyer, optionIndex1Based - 1, quantity);
-        logger.info("'{}' bought {} of {} requested share(s) of option #{} in event {} for {} (cost {}, commission {})",
-                buyer.getName(), receipt.filledQuantity(), quantity, optionIndex1Based, event.getId(),
+        logger.info("'{}' bought {} of {} requested share(s) of option #{} in event '{}' for {} (cost {}, commission {})",
+                buyer.getName(), receipt.filledQuantity(), quantity, optionIndex1Based, event.getName(),
                 receipt.totalPaid(), receipt.sharesCost(), receipt.commission());
         publisher.publish();
         return new TradeResultDTO(
@@ -253,11 +252,11 @@ public class MarketEngineImpl implements MarketEngine {
     @Override
     public OrderResultDTO placeOrder(UserDTO userDTO, EventDTO eventDTO, int optionIndex1Based, OrderSide side,
                                       int quantity, double price) throws MarketException {
-        Event event = catalog.event(eventDTO.id());
+        Event event = catalog.event(eventDTO.name());
         User user = catalog.user(userDTO.name());
         OrderOutcome outcome = event.placeOrder(user, optionIndex1Based - 1, side, quantity, price);
-        logger.info("'{}' placed a {} order for {} share(s) of option #{} in event {} @ {}: filled {}, resting {}",
-                user.getName(), side, quantity, optionIndex1Based, event.getId(), price,
+        logger.info("'{}' placed a {} order for {} share(s) of option #{} in event '{}' @ {}: filled {}, resting {}",
+                user.getName(), side, quantity, optionIndex1Based, event.getName(), price,
                 outcome.filledQuantity(), outcome.restingQuantity());
         publisher.publish();
         return new OrderResultDTO(
@@ -268,19 +267,19 @@ public class MarketEngineImpl implements MarketEngine {
 
     @Override
     public void cancelOrder(UserDTO userDTO, EventDTO eventDTO, long orderId) throws MarketException {
-        Event event = catalog.event(eventDTO.id());
+        Event event = catalog.event(eventDTO.name());
         User user = catalog.user(userDTO.name());
         event.cancelOrder(user, orderId);
-        logger.info("'{}' cancelled order {} in event {}", user.getName(), orderId, event.getId());
+        logger.info("'{}' cancelled order {} in event '{}'", user.getName(), orderId, event.getName());
         publisher.publish();
     }
 
     @Override
-    public void closeEvent(int eventId, int winningOptionIndex1Based) throws MarketException {
-        Event event = catalog.event(eventId);
+    public void closeEvent(String eventName, int winningOptionIndex1Based) throws MarketException {
+        Event event = catalog.event(eventName);
         event.settleAndClose(winningOptionIndex1Based - 1);
-        logger.info("Event {} ('{}') closed; winning option #{}",
-                event.getId(), event.getName(), winningOptionIndex1Based);
+        logger.info("Event '{}' closed; winning option #{}",
+                event.getName(), winningOptionIndex1Based);
         publisher.publish();
     }
 }

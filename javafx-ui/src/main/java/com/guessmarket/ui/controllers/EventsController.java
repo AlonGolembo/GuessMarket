@@ -55,7 +55,6 @@ public class EventsController implements MarketDataChangeListener {
     // FXML UI Controls - Main Events Table
     // =========================================================================
     @FXML private TableView<EventDTO> eventsTableView;
-    @FXML private TableColumn<EventDTO, Integer> eventIdCol;
     @FXML private TableColumn<EventDTO, String> eventNameCol;
     @FXML private TableColumn<EventDTO, String> eventStatusCol;
     @FXML private TableColumn<EventDTO, String> commissionMethodCol;
@@ -109,7 +108,7 @@ public class EventsController implements MarketDataChangeListener {
 
     // Trade-panel reveal animation (fade + slide-up when a new event is selected)
     private ParallelTransition detailReveal;
-    private Integer lastRevealedEventId;
+    private String lastRevealedEventName;
 
     // =========================================================================
     // Lifecycle & Initialization
@@ -155,11 +154,11 @@ public class EventsController implements MarketDataChangeListener {
             return;
         }
         if (selectedEvent == null) {
-            lastRevealedEventId = null;
+            lastRevealedEventName = null;
             return;
         }
-        boolean newSelection = lastRevealedEventId == null || lastRevealedEventId != selectedEvent.id();
-        lastRevealedEventId = selectedEvent.id();
+        boolean newSelection = lastRevealedEventName == null || !lastRevealedEventName.equals(selectedEvent.name());
+        lastRevealedEventName = selectedEvent.name();
         if (newSelection && detailReveal != null && AnimationSettings.isEventPanelRevealEnabled()) {
             detailReveal.stop();
             eventTradeDetailsContainer.setOpacity(0.0);
@@ -173,8 +172,6 @@ public class EventsController implements MarketDataChangeListener {
     }
 
     private void setupEventsTableColumns() {
-        eventIdCol.setCellValueFactory(cellData ->
-                new SimpleObjectProperty<>(cellData.getValue().id()));
         eventNameCol.setCellValueFactory(cellData ->
                 new SimpleStringProperty(cellData.getValue().name()));
         eventStatusCol.setCellValueFactory(cellData ->
@@ -262,7 +259,7 @@ public class EventsController implements MarketDataChangeListener {
 
             if (currentSelectedEvent != null) {
                 eventsTableView.getItems().stream()
-                        .filter(e -> e.id() == currentSelectedEvent.id())
+                        .filter(e -> e.name().equals(currentSelectedEvent.name()))
                         .findFirst()
                         .ifPresentOrElse(
                                 e -> {
@@ -295,7 +292,7 @@ public class EventsController implements MarketDataChangeListener {
             return;
         }
 
-        EventDetailsDTO details = marketEngine.getEventDetails(selectedEvent.id());
+        EventDetailsDTO details = marketEngine.getEventDetails(selectedEvent.name());
         participationList.setAll(details.participantHoldings());
         updateGraphs(selectedEvent, details);
         showClosedSummary(selectedEvent, details);

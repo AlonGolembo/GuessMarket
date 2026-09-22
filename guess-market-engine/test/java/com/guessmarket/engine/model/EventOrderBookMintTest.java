@@ -14,18 +14,18 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class EventOrderBookMintTest {
 
     private Event orderBookEvent(CommissionType type, int commissionPct, int d, int initial, boolean allowMint) {
-        return new Event(1, "Coin flip", "heads?", commissionPct, type,
+        return new Event("Coin flip", "heads?", commissionPct, type,
                 List.of(new Option("Heads"), new Option("Tails")), new OrderBookMethod(d, initial, allowMint));
     }
 
-    private User user(String name, double cash, Set<Integer> mmEvents) {
+    private User user(String name, double cash, Set<String> mmEvents) {
         return new User(name, cash, mmEvents);
     }
 
     @Test
     void equalQuantityMintCreatesNewSharesForBothSidesAndFundsThePool() {
         Event e = orderBookEvent(CommissionType.ON_PURCHASE, 0, 1, 0, true);   // d=1, no initial allocation
-        e.open(user("mm", 1000, Set.of(1)));
+        e.open(user("mm", 1000, Set.of("Coin flip")));
         User a = user("a", 1000, Set.of());
         User b = user("b", 1000, Set.of());
 
@@ -50,7 +50,7 @@ class EventOrderBookMintTest {
     @Test
     void partialMintLeavesTheLargerBidsRemainderResting() {
         Event e = orderBookEvent(CommissionType.ON_PURCHASE, 0, 1, 0, true);
-        e.open(user("mm", 1000, Set.of(1)));
+        e.open(user("mm", 1000, Set.of("Coin flip")));
         User a = user("a", 1000, Set.of());
         User b = user("b", 1000, Set.of());
 
@@ -73,7 +73,7 @@ class EventOrderBookMintTest {
         // initial > 0 so validate() accepts allowMint=false; prices kept below mm's
         // 0.5 asks so both bids purely rest instead of direct-matching mm.
         Event e = orderBookEvent(CommissionType.ON_PURCHASE, 0, 1, 10, false);
-        e.open(user("mm", 1000, Set.of(1)));
+        e.open(user("mm", 1000, Set.of("Coin flip")));
         User a = user("a", 1000, Set.of());
         User b = user("b", 1000, Set.of());
 
@@ -88,7 +88,7 @@ class EventOrderBookMintTest {
     @Test
     void mintingRequiresThePricesToSumToAtLeastTheBaseValue() {
         Event e = orderBookEvent(CommissionType.ON_PURCHASE, 0, 1, 0, true);
-        e.open(user("mm", 1000, Set.of(1)));
+        e.open(user("mm", 1000, Set.of("Coin flip")));
         User a = user("a", 1000, Set.of());
         User b = user("b", 1000, Set.of());
 
@@ -104,7 +104,7 @@ class EventOrderBookMintTest {
     @Test
     void mintChargesOnPurchaseCommissionToEachBuyerCreditedToTheMarketMakerImmediately() {
         Event e = orderBookEvent(CommissionType.ON_PURCHASE, 10, 1, 0, true);
-        User mm = user("mm", 1000, Set.of(1));
+        User mm = user("mm", 1000, Set.of("Coin flip"));
         e.open(mm);
         User a = user("a", 1000, Set.of());
         User b = user("b", 1000, Set.of());

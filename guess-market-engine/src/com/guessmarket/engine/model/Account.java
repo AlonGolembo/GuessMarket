@@ -11,8 +11,8 @@ import java.util.List;
  * A monetary balance owned by a {@link User} or an {@link Event}.
  *
  * <p>The balance is encapsulated: it can only move through
- * {@link #debit(double, LedgerEntryType, Integer)} and
- * {@link #credit(double, LedgerEntryType, Integer)}, both of which validate their
+ * {@link #debit(double, LedgerEntryType, String)} and
+ * {@link #credit(double, LedgerEntryType, String)}, both of which validate their
  * argument; a normal debit that would overdraw the account is refused. The one
  * exception is {@link #debitAllowingOverdraw} - used only to force a standing
  * obligation through and then block the holder. There is deliberately no setter.
@@ -53,18 +53,18 @@ public final class Account implements Serializable {
     /**
      * Removes {@code amount} from the balance and records the reason.
      *
-     * @param type    why the money is leaving
-     * @param eventId the event this stems from, or {@code null}
+     * @param type      why the money is leaving
+     * @param eventName the event this stems from, or {@code null}
      * @throws IllegalArgumentException     if {@code amount} is not strictly positive
      * @throws InsufficientFundsException   if {@code amount} exceeds the balance
      */
-    public void debit(double amount, LedgerEntryType type, Integer eventId) {
+    public void debit(double amount, LedgerEntryType type, String eventName) {
         requirePositive(amount);
         if (amount > balance) {
             throw new InsufficientFundsException(amount, balance);
         }
         balance -= amount;
-        appendEntry(-amount, type, eventId);
+        appendEntry(-amount, type, eventName);
     }
 
     /**
@@ -76,23 +76,23 @@ public final class Account implements Serializable {
      *
      * @throws IllegalArgumentException if {@code amount} is not strictly positive
      */
-    public void debitAllowingOverdraw(double amount, LedgerEntryType type, Integer eventId) {
+    public void debitAllowingOverdraw(double amount, LedgerEntryType type, String eventName) {
         requirePositive(amount);
         balance -= amount;
-        appendEntry(-amount, type, eventId);
+        appendEntry(-amount, type, eventName);
     }
 
     /**
      * Adds {@code amount} to the balance and records the reason.
      *
-     * @param type    why the money is arriving
-     * @param eventId the event this stems from, or {@code null}
+     * @param type      why the money is arriving
+     * @param eventName the event this stems from, or {@code null}
      * @throws IllegalArgumentException if {@code amount} is not strictly positive
      */
-    public void credit(double amount, LedgerEntryType type, Integer eventId) {
+    public void credit(double amount, LedgerEntryType type, String eventName) {
         requirePositive(amount);
         balance += amount;
-        appendEntry(amount, type, eventId);
+        appendEntry(amount, type, eventName);
     }
 
     /** This account's balance history, oldest first (unmodifiable). */
@@ -103,11 +103,11 @@ public final class Account implements Serializable {
         return Collections.unmodifiableList(ledger);
     }
 
-    private void appendEntry(double delta, LedgerEntryType type, Integer eventId) {
+    private void appendEntry(double delta, LedgerEntryType type, String eventName) {
         if (ledger == null) {
             ledger = new ArrayList<>();
         }
-        ledger.add(new LedgerEntry(delta, balance, type, eventId));
+        ledger.add(new LedgerEntry(delta, balance, type, eventName));
     }
 
     private static void requirePositive(double amount) {

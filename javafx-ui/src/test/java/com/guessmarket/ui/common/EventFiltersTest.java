@@ -14,7 +14,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class EventFiltersTest {
 
     private static EventDTO event(TradingMethodType method, EventStatus status, CommissionType commission) {
-        return new EventDTO(1, "E", "d", 10, commission, List.of("A", "B"), method, status);
+        return new EventDTO("E", "d", 10, commission, List.of("A", "B"), method, status);
     }
 
     private static final EventDTO LMSR_ACTIVE_ONPURCHASE =

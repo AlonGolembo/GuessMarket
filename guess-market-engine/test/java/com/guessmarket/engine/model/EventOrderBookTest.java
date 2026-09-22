@@ -19,11 +19,11 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class EventOrderBookTest {
 
     private Event orderBookEvent(CommissionType type, int commissionPct, int d, int initial, boolean allowMint) {
-        return new Event(1, "Coin flip", "heads?", commissionPct, type,
+        return new Event("Coin flip", "heads?", commissionPct, type,
                 List.of(new Option("Heads"), new Option("Tails")), new OrderBookMethod(d, initial, allowMint));
     }
 
-    private User user(String name, double cash, Set<Integer> mmEvents) {
+    private User user(String name, double cash, Set<String> mmEvents) {
         return new User(name, cash, mmEvents);
     }
 
@@ -32,7 +32,7 @@ class EventOrderBookTest {
     @Test
     void openPaysTheMarketMakerForThePairsAndPostsInitialAsksAtHalfBaseValue() {
         Event e = orderBookEvent(CommissionType.ON_PURCHASE, 0, 1, 100, true);
-        User mm = user("mm", 1000, Set.of(1));
+        User mm = user("mm", 1000, Set.of("Coin flip"));
 
         e.open(mm);
 
@@ -53,7 +53,7 @@ class EventOrderBookTest {
     @Test
     void openWithNoInitialAllocationStillCreatesAnEmptyBookWhenMintingIsAllowed() {
         Event e = orderBookEvent(CommissionType.ON_PURCHASE, 0, 1, 0, true);
-        User mm = user("mm", 1000, Set.of(1));
+        User mm = user("mm", 1000, Set.of("Coin flip"));
 
         e.open(mm);
 
@@ -66,9 +66,9 @@ class EventOrderBookTest {
 
     @Test
     void placeOrderRejectsAnEventThatIsNotOrderBook() {
-        Event e = new Event(2, "E", "d", 0, CommissionType.ON_PURCHASE,
+        Event e = new Event("E", "d", 0, CommissionType.ON_PURCHASE,
                 List.of(new Option("Heads"), new Option("Tails")), new LmsrMethod(100));
-        e.open(user("mm", 1000, Set.of(2)));
+        e.open(user("mm", 1000, Set.of("E")));
 
         assertThrows(MarketException.class, () -> e.placeOrder(user("t", 100, Set.of()), 0, OrderSide.BID, 10, 0.5));
     }
@@ -76,7 +76,7 @@ class EventOrderBookTest {
     @Test
     void placeOrderValidatesPriceIsWithinZeroToBaseValue() {
         Event e = orderBookEvent(CommissionType.ON_PURCHASE, 0, 1, 100, true);
-        e.open(user("mm", 1000, Set.of(1)));
+        e.open(user("mm", 1000, Set.of("Coin flip")));
         User t = user("t", 1000, Set.of());
 
         assertThrows(MarketException.class, () -> e.placeOrder(t, 0, OrderSide.BID, 10, 0.0));
@@ -86,7 +86,7 @@ class EventOrderBookTest {
     @Test
     void askIsRejectedWithoutEnoughFreeShares() {
         Event e = orderBookEvent(CommissionType.ON_PURCHASE, 0, 1, 100, true);
-        e.open(user("mm", 1000, Set.of(1)));
+        e.open(user("mm", 1000, Set.of("Coin flip")));
         User t = user("t", 1000, Set.of());   // holds nothing
 
         assertThrows(MarketException.class, () -> e.placeOrder(t, 0, OrderSide.ASK, 10, 0.5));
@@ -95,7 +95,7 @@ class EventOrderBookTest {
     @Test
     void bidIsRejectedWhenUnaffordable() {
         Event e = orderBookEvent(CommissionType.ON_PURCHASE, 0, 1, 100, true);
-        e.open(user("mm", 1000, Set.of(1)));
+        e.open(user("mm", 1000, Set.of("Coin flip")));
         User poor = user("t", 1.0, Set.of());
 
         assertThrows(InsufficientFundsException.class, () -> e.placeOrder(poor, 0, OrderSide.BID, 10, 0.5));
@@ -144,7 +144,7 @@ class EventOrderBookTest {
     @Test
     void unmatchedBidRestsUntouched() {
         Event e = orderBookEvent(CommissionType.ON_PURCHASE, 0, 1, 100, true);
-        e.open(user("mm", 1000, Set.of(1)));
+        e.open(user("mm", 1000, Set.of("Coin flip")));
         User t = user("t", 1000, Set.of());
 
         OrderOutcome outcome = e.placeOrder(t, 0, OrderSide.BID, 10, 0.4);   // below the 0.5 ask
@@ -159,7 +159,7 @@ class EventOrderBookTest {
     @Test
     void directMatchExecutesAtTheRestingPriceAndChargesOnPurchaseCommission() {
         Event e = orderBookEvent(CommissionType.ON_PURCHASE, 10, 1, 100, true);
-        User mm = user("mm", 1000, Set.of(1));
+        User mm = user("mm", 1000, Set.of("Coin flip"));
         e.open(mm);                                          // mm posts 100 Heads @ 0.5
         User trader = user("t", 1000, Set.of());
 
@@ -179,7 +179,7 @@ class EventOrderBookTest {
     @Test
     void anIncomingOrderCanFillAcrossTwoPriceLevelsFromTwoSellers() {
         Event e = orderBookEvent(CommissionType.ON_PURCHASE, 0, 1, 100, false);
-        User mm = user("mm", 1000, Set.of(1));
+        User mm = user("mm", 1000, Set.of("Coin flip"));
         e.open(mm);                                          // mm: ask 100 Heads @ 0.5
         User a = user("a", 1000, Set.of());
         User b = user("b", 1000, Set.of());
@@ -210,7 +210,7 @@ class EventOrderBookTest {
     @Test
     void cancelOrderRemovesAnOwnedRestingOrder() {
         Event e = orderBookEvent(CommissionType.ON_PURCHASE, 0, 1, 100, true);
-        e.open(user("mm", 1000, Set.of(1)));
+        e.open(user("mm", 1000, Set.of("Coin flip")));
         User t = user("t", 1000, Set.of());
         OrderOutcome outcome = e.placeOrder(t, 0, OrderSide.BID, 10, 0.4);
 
@@ -222,7 +222,7 @@ class EventOrderBookTest {
     @Test
     void cancelOrderRejectsSomeoneElsesOrder() {
         Event e = orderBookEvent(CommissionType.ON_PURCHASE, 0, 1, 100, true);
-        e.open(user("mm", 1000, Set.of(1)));
+        e.open(user("mm", 1000, Set.of("Coin flip")));
         User t = user("t", 1000, Set.of());
         User other = user("other", 1000, Set.of());
         OrderOutcome outcome = e.placeOrder(t, 0, OrderSide.BID, 10, 0.4);
@@ -233,7 +233,7 @@ class EventOrderBookTest {
     @Test
     void cancelOrderRejectsAnUnknownId() {
         Event e = orderBookEvent(CommissionType.ON_PURCHASE, 0, 1, 100, true);
-        e.open(user("mm", 1000, Set.of(1)));
+        e.open(user("mm", 1000, Set.of("Coin flip")));
 
         assertThrows(MarketException.class, () -> e.cancelOrder(user("t", 100, Set.of()), 999L));
     }
@@ -263,7 +263,7 @@ class EventOrderBookTest {
     @Test
     void settlementPaysBaseValuePerWinningShareAndClearsTheBook() {
         Event e = orderBookEvent(CommissionType.ON_PURCHASE, 0, 5, 100, true);   // d=5
-        User mm = user("mm", 10_000, Set.of(1));
+        User mm = user("mm", 10_000, Set.of("Coin flip"));
         e.open(mm);
         User trader = user("t", 10_000, Set.of());
         e.placeOrder(trader, 0, OrderSide.BID, 40, 2.5);      // buys 40 Heads @ mm's initial ask price (d/2)

@@ -28,19 +28,19 @@ public class User implements Serializable {
     private final String name;
     private final Account account;
     /** Grows when the user is made market maker of a newly created event. */
-    private Set<Integer> marketMakerEventIds;
+    private Set<String> marketMakerEventNames;
     /** {@code true} once the balance went negative - the user can no longer act. */
     private boolean blocked;
 
-    /** Events this user currently participates in, keyed by event id. Populated as trades happen. */
-    private final Map<Integer, Event> participatingEvents = new HashMap<>();
+    /** Events this user currently participates in, keyed by event name. Populated as trades happen. */
+    private final Map<String, Event> participatingEvents = new HashMap<>();
 
-    public User(String name, double initialBalance, Set<Integer> marketMakerEventIds) {
+    public User(String name, double initialBalance, Set<String> marketMakerEventNames) {
         this.name = Objects.requireNonNull(name, "name");
         this.account = new Account(initialBalance);
-        this.marketMakerEventIds = new LinkedHashSet<>();
-        if (marketMakerEventIds != null) {
-            this.marketMakerEventIds.addAll(marketMakerEventIds);
+        this.marketMakerEventNames = new LinkedHashSet<>();
+        if (marketMakerEventNames != null) {
+            this.marketMakerEventNames.addAll(marketMakerEventNames);
         }
     }
 
@@ -58,12 +58,12 @@ public class User implements Serializable {
         return account.balance();
     }
 
-    public void debit(double amount, LedgerEntryType type, Integer eventId) {
-        account.debit(amount, type, eventId);
+    public void debit(double amount, LedgerEntryType type, String eventName) {
+        account.debit(amount, type, eventName);
     }
 
-    public void credit(double amount, LedgerEntryType type, Integer eventId) {
-        account.credit(amount, type, eventId);
+    public void credit(double amount, LedgerEntryType type, String eventName) {
+        account.credit(amount, type, eventName);
     }
 
     /**
@@ -71,8 +71,8 @@ public class User implements Serializable {
      * blocks the user. Only for honouring a standing obligation they can no longer
      * cover (see the class doc).
      */
-    public void forceDebitAndBlock(double amount, LedgerEntryType type, Integer eventId) {
-        account.debitAllowingOverdraw(amount, type, eventId);
+    public void forceDebitAndBlock(double amount, LedgerEntryType type, String eventName) {
+        account.debitAllowingOverdraw(amount, type, eventName);
         blocked = true;
     }
 
@@ -81,29 +81,29 @@ public class User implements Serializable {
         return blocked;
     }
 
-    /** Ids of the events this user is the market maker for (unmodifiable). */
-    public Set<Integer> getMarketMakerEventIds() {
-        return Collections.unmodifiableSet(marketMakerEventIds);
+    /** Names of the events this user is the market maker for (unmodifiable). */
+    public Set<String> getMarketMakerEventNames() {
+        return Collections.unmodifiableSet(marketMakerEventNames);
     }
 
-    public boolean isMarketMakerFor(int eventId) {
-        return marketMakerEventIds.contains(eventId);
+    public boolean isMarketMakerFor(String eventName) {
+        return marketMakerEventNames.contains(eventName);
     }
 
     /** Assigns this user as the market maker of the given (newly created) event. */
-    public void addMarketMakerEvent(int eventId) {
-        if (!(marketMakerEventIds instanceof LinkedHashSet<Integer>)) {
-            marketMakerEventIds = new LinkedHashSet<>(marketMakerEventIds);
+    public void addMarketMakerEvent(String eventName) {
+        if (!(marketMakerEventNames instanceof LinkedHashSet<String>)) {
+            marketMakerEventNames = new LinkedHashSet<>(marketMakerEventNames);
         }
-        marketMakerEventIds.add(eventId);
+        marketMakerEventNames.add(eventName);
     }
 
-    public Map<Integer, Event> getParticipatingEvents() {
+    public Map<String, Event> getParticipatingEvents() {
         return participatingEvents;
     }
 
     public void addParticipatingEvent(Event event) {
-        participatingEvents.put(event.getId(), event);
+        participatingEvents.put(event.getName(), event);
     }
 
     @Override

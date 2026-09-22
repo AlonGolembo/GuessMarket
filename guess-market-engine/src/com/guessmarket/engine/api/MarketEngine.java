@@ -42,7 +42,7 @@ public interface MarketEngine {
     List<EventDTO> getActiveEvents() throws MarketException;
 
     // Returns detailed trading status, option prices, account balance, trade history of a specific event
-    EventDetailsDTO getEventDetails(int eventId) throws MarketException;
+    EventDetailsDTO getEventDetails(String eventName) throws MarketException;
 
     // Returns a user's summary plus their full cash-balance history (oldest entry first)
     UserDetailsDTO getUserDetails(String name) throws MarketException;
@@ -64,7 +64,7 @@ public interface MarketEngine {
     void cancelOrder(UserDTO user, EventDTO event, long orderId) throws MarketException;
 
     // Closes an event and declares the winning option
-    void closeEvent(int eventId, int winningOptionIndex1Based) throws MarketException;
+    void closeEvent(String eventName, int winningOptionIndex1Based) throws MarketException;
 
     // saves the current market system state
     void saveState(String filePath) throws MarketException;

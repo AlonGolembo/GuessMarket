@@ -17,6 +17,12 @@ import java.util.Map;
  * Turns a raw {@link GuessMarketXml} tree into a validated {@link ParsedMarket},
  * delegating field checks to the focused validators and finishing with the
  * cross-entity market-maker check.
+ *
+ * <p>Events are identified by name everywhere outside this class, but the XML
+ * file itself still assigns each {@code <GM-event>} a numeric {@code <id>} and
+ * expresses {@code <GM-market-maker>} refs against that id (the file format is
+ * unchanged). This class is the one place that still deals with those raw ids:
+ * it resolves each ref to the event it names, then discards the id.
  */
 final class MarketAssembler {
 
@@ -29,17 +35,31 @@ final class MarketAssembler {
             throw new XmlValidationException("XML file contains no events (<GM-event> tags).");
         }
 
-        Map<Integer, Event> events = new LinkedHashMap<>();
+        Map<Integer, Event> eventsByRawId = new LinkedHashMap<>();
+        Map<String, Event> events = new LinkedHashMap<>();
         HashSet<Integer> usedIds = new HashSet<>();
+        HashSet<String> usedEventNames = new HashSet<>();
         for (EventXml eventXml : root.getEvents()) {
             Event event = EventXmlValidator.validate(eventXml, usedIds);
-            events.put(event.getId(), event);
+            if (!usedEventNames.add(event.getName())) {
+                throw new XmlValidationException("Duplicate event name: " + event.getName() + ".");
+            }
+            eventsByRawId.put(eventXml.getId(), event);
+            events.put(event.getName(), event);
         }
 
         Map<String, User> users = new LinkedHashMap<>();
-        HashSet<String> usedNames = new HashSet<>();
+        HashSet<String> usedUserNames = new HashSet<>();
         for (UserXml userXml : root.getUsers()) {
-            User user = UserXmlValidator.validate(userXml, usedNames);
+            User user = UserXmlValidator.validate(userXml, usedUserNames);
+            for (Integer rawEventId : userXml.getMarketMakerEvents()) {
+                Event event = eventsByRawId.get(rawEventId);
+                if (event == null) {
+                    throw new XmlValidationException("User '" + user.getName()
+                            + "' is the market maker for event ID " + rawEventId + ", which does not exist.");
+                }
+                user.addMarketMakerEvent(event.getName());
+            }
             users.put(user.getName(), user);
         }
 

@@ -6,7 +6,12 @@ import com.guessmarket.engine.xml.jaxb.UserXml;
 
 import java.util.Set;
 
-/** Validates one {@code <GM-user>} and builds the domain {@link User}. */
+/**
+ * Validates one {@code <GM-user>} and builds the domain {@link User}, minus its
+ * market-maker assignments - those reference events by the raw XML {@code id},
+ * which only {@link MarketAssembler} can resolve to an event name once every
+ * {@code <GM-event>} has been parsed.
+ */
 final class UserXmlValidator {
 
     private UserXmlValidator() {}
@@ -22,6 +27,6 @@ final class UserXmlValidator {
         if (xml.getInitialCash() == null || xml.getInitialCash() < 0) {
             throw new XmlValidationException("User '" + name + "': <initial-cash> is missing or negative.");
         }
-        return new User(name, xml.getInitialCash(), xml.getMarketMakerEvents());
+        return new User(name, xml.getInitialCash(), Set.of());
     }
 }

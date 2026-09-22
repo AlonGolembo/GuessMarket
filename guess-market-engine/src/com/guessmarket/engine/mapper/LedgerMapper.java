@@ -20,7 +20,7 @@ public final class LedgerMapper {
                 entry.getDelta(),
                 entry.getBalanceAfter(),
                 entry.getType().name(),
-                entry.getEventId()
+                entry.getEventName()
         );
     }
 }

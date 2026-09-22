@@ -50,8 +50,7 @@
                                 </Label>
                                 <TableView fx:id="eventsTableView" VBox.vgrow="ALWAYS">
                                     <columns>
-                                        <TableColumn fx:id="eventIdCol" prefWidth="60.0" style="-fx-alignment: CENTER;" text="ID" />
-                                        <TableColumn fx:id="eventNameCol" prefWidth="95.0" style="-fx-alignment: CENTER;" text="Event Name" />
+                                        <TableColumn fx:id="eventNameCol" prefWidth="150.0" style="-fx-alignment: CENTER;" text="Event Name" />
                                         <TableColumn fx:id="eventStatusCol" prefWidth="99.0" style="-fx-alignment: CENTER;" text="Status" />
                                         <TableColumn fx:id="eventMethodCol" prefWidth="90.0" style="-fx-alignment: CENTER;" text="Event Method" />
                                         <TableColumn fx:id="commissionMethodCol" prefWidth="90.0" style="-fx-alignment: CENTER;" text="Commission Method" />

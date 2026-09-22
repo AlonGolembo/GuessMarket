@@ -216,9 +216,9 @@ public class MainController {
 
         try {
             EventDTO created = engine.createEvent(spec.get());
-            LOG.info("Event {} ('{}') created", created.id(), created.name());
+            LOG.info("Event '{}' created", created.name());
             Dialogs.info("Event created",
-                    "Event '" + created.name() + "' (ID " + created.id() + ") was created successfully.");
+                    "Event '" + created.name() + "' was created successfully.");
         } catch (MarketException ex) {
             LOG.warn("Event creation rejected: {}", ex.getMessage());
             Dialogs.error("Could not create the event", ex);

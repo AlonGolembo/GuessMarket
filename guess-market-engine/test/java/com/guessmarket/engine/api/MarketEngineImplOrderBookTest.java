@@ -38,12 +38,6 @@ class MarketEngineImplOrderBookTest {
               <GM-method><GM-order-book d="1" initial="100" allow-mint="true"/></GM-method>
             </GM-event>
           </GM-events>
-          <GM-users>
-            <GM-user name="mm"><initial-cash>1000</initial-cash>
-              <GM-market-maker><event id="1"/></GM-market-maker></GM-user>
-            <GM-user name="a"><initial-cash>1000</initial-cash></GM-user>
-            <GM-user name="b"><initial-cash>1000</initial-cash></GM-user>
-          </GM-users>
         </Guess-Market>
         """;
 
@@ -56,8 +50,14 @@ class MarketEngineImplOrderBookTest {
         String xmlPath = dir.resolve("market.xml").toString();
         Files.writeString(Path.of(xmlPath), XML);
         engine = new MarketEngineImpl();
-        engine.loadXmlFile(xmlPath);
-        engine.activateEvent(event(), user("mm"));   // mm posts 100 Heads @ 0.5, 100 Tails @ 0.5
+        engine.login("mm");
+        engine.deposit("mm", 1000);
+        engine.login("a");
+        engine.deposit("a", 1000);
+        engine.login("b");
+        engine.deposit("b", 1000);
+        engine.loadXmlFile(xmlPath, "mm");
+        engine.activateEvent(event().name(), user("mm").name());   // mm posts 100 Heads @ 0.5, 100 Tails @ 0.5
     }
 
     private EventDTO event() {
@@ -70,7 +70,7 @@ class MarketEngineImplOrderBookTest {
 
     @Test
     void placeOrderMatchesDirectlyAndReportsCashMovedAndCommission() {
-        OrderResultDTO result = engine.placeOrder(user("a"), event(), 1, OrderSide.BID, 30, 0.6);
+        OrderResultDTO result = engine.placeOrder(user("a").name(), event().name(), 1, OrderSide.BID, 30, 0.6);
 
         assertEquals(30, result.filledQuantity());
         assertEquals(0, result.restingQuantity());
@@ -91,31 +91,31 @@ class MarketEngineImplOrderBookTest {
                   <GM-method><GM-order-book d="1" initial="100" allow-mint="false"/></GM-method>
                 </GM-event>
               </GM-events>
-              <GM-users>
-                <GM-user name="mm"><initial-cash>1000</initial-cash>
-                  <GM-market-maker><event id="1"/></GM-market-maker></GM-user>
-                <GM-user name="a"><initial-cash>200</initial-cash></GM-user>
-                <GM-user name="b"><initial-cash>30</initial-cash></GM-user>
-              </GM-users>
             </Guess-Market>
             """;
         Path p = dir.resolve("m2.xml");
         Files.writeString(p, xml);
         MarketEngine e = new MarketEngineImpl();
-        e.loadXmlFile(p.toString());
+        e.login("mm");
+        e.deposit("mm", 1000);
+        e.login("a");
+        e.deposit("a", 200);
+        e.login("b");
+        e.deposit("b", 30);
+        e.loadXmlFile(p.toString(), "mm");
         EventDTO ev = e.getAllEvents().get(0);
-        e.activateEvent(ev, e.getAllUsers().get("mm"));
+        e.activateEvent(ev.name(), e.getAllUsers().get("mm").name());
 
         // 'a' buys all 100 of the market maker's Heads (bid @ 0.5 crosses the ask @ 0.5).
-        e.placeOrder(e.getAllUsers().get("a"), ev, 1, OrderSide.BID, 100, 0.5);
+        e.placeOrder(e.getAllUsers().get("a").name(), ev.name(), 1, OrderSide.BID, 100, 0.5);
 
         // 'b' has only $30 but rests two Heads bids of 20 @ $1.00 - jointly $40.
-        e.placeOrder(e.getAllUsers().get("b"), ev, 1, OrderSide.BID, 20, 1.0);
-        e.placeOrder(e.getAllUsers().get("b"), ev, 1, OrderSide.BID, 20, 1.0);
+        e.placeOrder(e.getAllUsers().get("b").name(), ev.name(), 1, OrderSide.BID, 20, 1.0);
+        e.placeOrder(e.getAllUsers().get("b").name(), ev.name(), 1, OrderSide.BID, 20, 1.0);
         assertFalse(e.getAllUsers().get("b").blocked());
 
         // 'a' sells 40 Heads @ 0.5 - both of b's $1.00 bids match; the second can't be covered.
-        e.placeOrder(e.getAllUsers().get("a"), ev, 1, OrderSide.ASK, 40, 0.5);
+        e.placeOrder(e.getAllUsers().get("a").name(), ev.name(), 1, OrderSide.ASK, 40, 0.5);
 
         UserDTO b = e.getAllUsers().get("b");
         assertTrue(b.blocked(), "b should be blocked after being forced negative");
@@ -123,13 +123,13 @@ class MarketEngineImplOrderBookTest {
 
         // A blocked user is refused every further action.
         MarketException ex = assertThrows(MarketException.class,
-                () -> e.placeOrder(e.getAllUsers().get("b"), ev, 2, OrderSide.BID, 1, 0.1));
+                () -> e.placeOrder(e.getAllUsers().get("b").name(), ev.name(), 2, OrderSide.BID, 1, 0.1));
         assertTrue(ex.getMessage().toLowerCase().contains("block"));
     }
 
     @Test
     void placeOrderThatDoesNotCrossRestsAndIsReportedInEventDetails() {
-        OrderResultDTO result = engine.placeOrder(user("a"), event(), 1, OrderSide.BID, 10, 0.2);
+        OrderResultDTO result = engine.placeOrder(user("a").name(), event().name(), 1, OrderSide.BID, 10, 0.2);
 
         assertEquals(0, result.filledQuantity());
         assertEquals(10, result.restingQuantity());
@@ -142,9 +142,9 @@ class MarketEngineImplOrderBookTest {
 
     @Test
     void cancelOrderRemovesARestingOrder() {
-        OrderResultDTO placed = engine.placeOrder(user("a"), event(), 1, OrderSide.BID, 10, 0.2);
+        OrderResultDTO placed = engine.placeOrder(user("a").name(), event().name(), 1, OrderSide.BID, 10, 0.2);
 
-        engine.cancelOrder(user("a"), event(), placed.restingOrderId());
+        engine.cancelOrder(user("a").name(), event().name(), placed.restingOrderId());
 
         assertTrue(engine.getEventDetails("Coin flip").restingOrders().stream()
                 .noneMatch(o -> o.id() == placed.restingOrderId()));
@@ -152,14 +152,14 @@ class MarketEngineImplOrderBookTest {
 
     @Test
     void cancelOrderRejectsSomeoneElsesOrder() {
-        OrderResultDTO placed = engine.placeOrder(user("a"), event(), 1, OrderSide.BID, 10, 0.2);
+        OrderResultDTO placed = engine.placeOrder(user("a").name(), event().name(), 1, OrderSide.BID, 10, 0.2);
 
-        assertThrows(MarketException.class, () -> engine.cancelOrder(user("b"), event(), placed.restingOrderId()));
+        assertThrows(MarketException.class, () -> engine.cancelOrder(user("b").name(), event().name(), placed.restingOrderId()));
     }
 
     @Test
     void buyIsAMarketOrderThatCanPartiallyFill() {
-        TradeResultDTO result = engine.buyShares(user("a"), event(), 2, 150);   // only 100 Tails exist
+        TradeResultDTO result = engine.buyShares(user("a").name(), event().name(), 2, 150);   // only 100 Tails exist
 
         assertEquals(100, result.filledQuantity());
         assertEquals(100 * 0.5, result.sharesCost(), 1e-9);
@@ -167,7 +167,7 @@ class MarketEngineImplOrderBookTest {
 
     @Test
     void eventDetailsExposeTheFiveOrderBookIndicators() {
-        engine.placeOrder(user("a"), event(), 1, OrderSide.BID, 30, 0.6);   // trades at 0.5
+        engine.placeOrder(user("a").name(), event().name(), 1, OrderSide.BID, 30, 0.6);   // trades at 0.5
 
         OrderBookQuoteDTO quote = engine.getEventDetails("Coin flip").orderBookQuotes().get("Heads");
 

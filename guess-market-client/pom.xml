@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>com.guessmarket</groupId>
+    <artifactId>guess-market-parent</artifactId>
+    <version>1.0-SNAPSHOT</version>
+  </parent>
+
+  <artifactId>guess-market-client</artifactId>
+  <name>Guess Market :: Client (client-server)</name>
+  <description>
+    JavaFX front-end for the client-server build: talks to a running
+    guess-market-server over HTTP/JSON via HttpMarketEngine instead of
+    embedding the engine in-process. Run with: mvn -pl guess-market-client javafx:run
+    (start the server and deploy it to Tomcat first).
+  </description>
+
+  <dependencies>
+    <dependency>
+      <groupId>com.guessmarket</groupId>
+      <artifactId>guess-market-engine</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>com.guessmarket</groupId>
+      <artifactId>guess-market-dto</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>org.openjfx</groupId>
+      <artifactId>javafx-controls</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.openjfx</groupId>
+      <artifactId>javafx-fxml</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>com.google.code.gson</groupId>
+      <artifactId>gson</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>org.apache.logging.log4j</groupId>
+      <artifactId>log4j-api</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.logging.log4j</groupId>
+      <artifactId>log4j-core</artifactId>
+      <scope>runtime</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter</artifactId>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
+
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.openjfx</groupId>
+        <artifactId>javafx-maven-plugin</artifactId>
+        <configuration>
+          <mainClass>com.guessmarket.client/com.guessmarket.client.GuessMarketApp</mainClass>
+        </configuration>
+      </plugin>
+    </plugins>
+  </build>
+</project>

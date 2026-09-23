@@ -127,13 +127,13 @@ class EventOrderBookMintTest {
         User otherUser = user("otherUser", 100, Set.of());
         User buyer2 = user("buyer2", 1000, Set.of());
 
-        Event eventA = new Event(10, "A", "a", 0, CommissionType.ON_PURCHASE,
+        Event eventA = new Event("A", "a", 0, CommissionType.ON_PURCHASE,
                 List.of(new Option("X"), new Option("Y")), new OrderBookMethod(1, 200, true));
-        eventA.open(user("mmA", 1000, Set.of(10)));                 // mmA posts 200 X @ 0.5
+        eventA.open(user("mmA", 1000, Set.of("A")));                 // mmA posts 200 X @ 0.5
 
-        Event eventB = new Event(20, "B", "b", 0, CommissionType.ON_PURCHASE,
+        Event eventB = new Event("B", "b", 0, CommissionType.ON_PURCHASE,
                 List.of(new Option("Heads"), new Option("Tails")), new OrderBookMethod(1, 0, true));
-        eventB.open(user("mmB", 1000, Set.of(20)));
+        eventB.open(user("mmB", 1000, Set.of("B")));
 
         eventB.placeOrder(otherUser, 1, OrderSide.BID, 60, 0.6);    // rests; no cash moves yet (no escrow)
 

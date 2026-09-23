@@ -1,9 +1,11 @@
 package com.guessmarket.engine.xml;
 
 import com.guessmarket.engine.model.Event;
-import com.guessmarket.engine.model.User;
 
 import java.util.Map;
 
-/** The validated result of reading a market XML file: its events and its users. */
-public record ParsedMarket(Map<String, Event> events, Map<String, User> users) {}
+/**
+ * The validated result of reading an events XML file. The schema no longer
+ * carries users - they register via {@code MarketEngine.login()} instead.
+ */
+public record ParsedMarket(Map<String, Event> events) {}

@@ -14,4 +14,9 @@ public final class GuessMarketXmlParser {
     public static ParsedMarket parseAndValidateXml(String filePath) throws XmlValidationException {
         return MarketAssembler.assemble(XmlMarketReader.read(filePath));
     }
+
+    /** Same validation, for XML content already in memory (e.g. a server upload). */
+    public static ParsedMarket parseAndValidateXmlContent(String xmlContent) throws XmlValidationException {
+        return MarketAssembler.assemble(XmlMarketReader.readContent(xmlContent));
+    }
 }

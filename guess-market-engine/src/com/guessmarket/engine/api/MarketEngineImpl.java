@@ -16,6 +16,7 @@ import com.guessmarket.engine.exception.XmlValidationException;
 import com.guessmarket.engine.mapper.EventMapper;
 import com.guessmarket.engine.mapper.UserMapper;
 import com.guessmarket.engine.model.Event;
+import com.guessmarket.engine.model.LedgerEntryType;
 import com.guessmarket.engine.model.LmsrMethod;
 import com.guessmarket.engine.model.Option;
 import com.guessmarket.engine.model.OrderBookMethod;
@@ -61,28 +62,82 @@ public class MarketEngineImpl implements MarketEngine {
     // --- Loading & persistence --------------------------------------------
 
     @Override
-    public void loadXmlFile(String filePath) throws MarketException {
-        logger.info("Loading market XML: {}", filePath);
+    public void loadXmlFile(String filePath, String uploaderName) throws MarketException {
+        User uploader = catalog.user(uploaderName);
+        logger.info("Loading market XML: {} (uploaded by '{}')", filePath, uploaderName);
+        ParsedMarket parsed;
         try {
-            ParsedMarket parsed = GuessMarketXmlParser.parseAndValidateXml(filePath);
-            catalog.replace(parsed.events(), parsed.users());
-            logger.info("Loaded {} event(s) and {} user(s) from {}",
-                    parsed.events().size(), parsed.users().size(), filePath);
+            parsed = GuessMarketXmlParser.parseAndValidateXml(filePath);
         } catch (MarketException e) {
             logger.warn("Rejected XML {}: {}", filePath, e.getMessage());
             throw e;
         }
+        addParsedEvents(uploader, parsed, filePath);
+    }
+
+    @Override
+    public List<String> uploadEventsXml(String uploaderName, String xmlContent) throws MarketException {
+        User uploader = catalog.user(uploaderName);
+        logger.info("Receiving uploaded market XML from '{}'", uploaderName);
+        ParsedMarket parsed;
+        try {
+            parsed = GuessMarketXmlParser.parseAndValidateXmlContent(xmlContent);
+        } catch (MarketException e) {
+            logger.warn("Rejected uploaded XML from '{}': {}", uploaderName, e.getMessage());
+            throw e;
+        }
+        return addParsedEvents(uploader, parsed, "upload from '" + uploaderName + "'");
+    }
+
+    /**
+     * Validates every parsed event against the existing catalog before adding
+     * any of them - so a colliding source is rejected as a whole - then adds
+     * them all, makes {@code uploader} their market maker, and returns their names.
+     */
+    private List<String> addParsedEvents(User uploader, ParsedMarket parsed, String source) {
+        for (String name : parsed.events().keySet()) {
+            if (catalog.hasEvent(name)) {
+                throw new MarketException("Cannot load " + source + ": an event named '" + name + "' already exists.");
+            }
+        }
+        for (Event event : parsed.events().values()) {
+            catalog.addEvent(event);
+            uploader.addMarketMakerEvent(event.getName());
+        }
+        logger.info("Loaded {} event(s) from {}, market maker '{}'",
+                parsed.events().size(), source, uploader.getName());
         publisher.publish();
+        return List.copyOf(parsed.events().keySet());
     }
 
     @Override
     public boolean isFileLoaded() {
-        return catalog.isLoaded();
+        return catalog.eventCount() > 0;
+    }
+
+    @Override
+    public UserDTO login(String name) throws MarketException {
+        String trimmed = name == null ? "" : name.trim();
+        if (trimmed.isEmpty()) {
+            throw new MarketException("A user name is required.");
+        }
+        User user = new User(trimmed, 0.0, null);
+        catalog.addUser(user);
+        logger.info("User '{}' logged in", trimmed);
+        publisher.publish();
+        return UserMapper.toUserDTO(user);
+    }
+
+    @Override
+    public void deposit(String userName, double amount) throws MarketException {
+        User user = catalog.user(userName);
+        user.credit(amount, LedgerEntryType.DEPOSIT, null);
+        logger.info("User '{}' deposited {}", userName, amount);
+        publisher.publish();
     }
 
     @Override
     public void saveState(String filePath) throws MarketException {
-        catalog.requireLoaded();
         logger.info("Saving market state to {}", filePath);
         StateSerializer.save(new MarketSnapshot(catalog.eventMap(), catalog.userMap()), filePath);
     }
@@ -105,8 +160,6 @@ public class MarketEngineImpl implements MarketEngine {
 
     @Override
     public EventDTO createEvent(NewEventDTO spec) throws MarketException {
-        catalog.requireLoaded();
-
         User marketMaker = catalog.user(spec.marketMakerName());
         if (marketMaker.isBlocked()) {
             throw new MarketException("User '" + marketMaker.getName()
@@ -218,9 +271,9 @@ public class MarketEngineImpl implements MarketEngine {
     // --- Commands (delegate to the Event aggregate) ----------------------
 
     @Override
-    public void activateEvent(EventDTO selectedEvent, UserDTO selectedUser) {
-        Event event = catalog.event(selectedEvent.name());
-        User marketMaker = catalog.user(selectedUser.name());
+    public void activateEvent(String eventName, String userName) {
+        Event event = catalog.event(eventName);
+        User marketMaker = catalog.user(userName);
         event.open(marketMaker);
         logger.info("Event '{}' activated by market maker '{}'",
                 event.getName(), marketMaker.getName());
@@ -228,17 +281,17 @@ public class MarketEngineImpl implements MarketEngine {
     }
 
     @Override
-    public TradeQuoteDTO quoteTrade(UserDTO buyerDTO, EventDTO eventDTO, int optionIndex1Based, int quantity)
+    public TradeQuoteDTO quoteTrade(String userName, String eventName, int optionIndex1Based, int quantity)
             throws MarketException {
-        TradeReceipt r = catalog.event(eventDTO.name()).quote(optionIndex1Based - 1, quantity);
+        TradeReceipt r = catalog.event(eventName).quote(optionIndex1Based - 1, quantity);
         return new TradeQuoteDTO(r.sharesCost(), r.commission(), r.totalPaid(), r.filledQuantity());
     }
 
     @Override
-    public TradeResultDTO buyShares(UserDTO buyerDTO, EventDTO eventDTO, int optionIndex1Based, int quantity)
+    public TradeResultDTO buyShares(String userName, String eventName, int optionIndex1Based, int quantity)
             throws MarketException {
-        Event event = catalog.event(eventDTO.name());
-        User buyer = catalog.user(buyerDTO.name());
+        Event event = catalog.event(eventName);
+        User buyer = catalog.user(userName);
         TradeReceipt receipt = event.buy(buyer, optionIndex1Based - 1, quantity);
         logger.info("'{}' bought {} of {} requested share(s) of option #{} in event '{}' for {} (cost {}, commission {})",
                 buyer.getName(), receipt.filledQuantity(), quantity, optionIndex1Based, event.getName(),
@@ -250,10 +303,10 @@ public class MarketEngineImpl implements MarketEngine {
     }
 
     @Override
-    public OrderResultDTO placeOrder(UserDTO userDTO, EventDTO eventDTO, int optionIndex1Based, OrderSide side,
+    public OrderResultDTO placeOrder(String userName, String eventName, int optionIndex1Based, OrderSide side,
                                       int quantity, double price) throws MarketException {
-        Event event = catalog.event(eventDTO.name());
-        User user = catalog.user(userDTO.name());
+        Event event = catalog.event(eventName);
+        User user = catalog.user(userName);
         OrderOutcome outcome = event.placeOrder(user, optionIndex1Based - 1, side, quantity, price);
         logger.info("'{}' placed a {} order for {} share(s) of option #{} in event '{}' @ {}: filled {}, resting {}",
                 user.getName(), side, quantity, optionIndex1Based, event.getName(), price,
@@ -266,9 +319,9 @@ public class MarketEngineImpl implements MarketEngine {
     }
 
     @Override
-    public void cancelOrder(UserDTO userDTO, EventDTO eventDTO, long orderId) throws MarketException {
-        Event event = catalog.event(eventDTO.name());
-        User user = catalog.user(userDTO.name());
+    public void cancelOrder(String userName, String eventName, long orderId) throws MarketException {
+        Event event = catalog.event(eventName);
+        User user = catalog.user(userName);
         event.cancelOrder(user, orderId);
         logger.info("'{}' cancelled order {} in event '{}'", user.getName(), orderId, event.getName());
         publisher.publish();

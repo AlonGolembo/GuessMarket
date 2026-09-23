@@ -34,15 +34,15 @@ class EventTest {
 
     @Test
     void constructorRejectsANullOptionsList() {
-        assertThrows(IllegalArgumentException.class, () -> new Event(1, "n", "d", 0,
+        assertThrows(IllegalArgumentException.class, () -> new Event("n", "d", 0,
                 CommissionType.ON_PURCHASE, null, new LmsrMethod(B)));
     }
 
     @Test
     void constructorRejectsAnOptionsListThatIsNotExactlyTwo() {
-        assertThrows(IllegalArgumentException.class, () -> new Event(1, "n", "d", 0,
+        assertThrows(IllegalArgumentException.class, () -> new Event("n", "d", 0,
                 CommissionType.ON_PURCHASE, List.of(new Option("Only one")), new LmsrMethod(B)));
-        assertThrows(IllegalArgumentException.class, () -> new Event(1, "n", "d", 0,
+        assertThrows(IllegalArgumentException.class, () -> new Event("n", "d", 0,
                 CommissionType.ON_PURCHASE,
                 List.of(new Option("A"), new Option("B"), new Option("C")), new LmsrMethod(B)));
     }
@@ -97,14 +97,14 @@ class EventTest {
     @Test
     void openCannotBeCalledTwice() {
         Event e = event(CommissionType.ON_PURCHASE, 0);
-        e.open(user("mm", 1000, Set.of(1)));
-        assertThrows(MarketException.class, () -> e.open(user("mm", 1000, Set.of(1))));
+        e.open(user("mm", 1000, Set.of("Coin flip")));
+        assertThrows(MarketException.class, () -> e.open(user("mm", 1000, Set.of("Coin flip"))));
     }
 
     @Test
     void openCannotBeCalledOnAClosedEvent() {
         Event e = event(CommissionType.ON_CLOSE, 0);
-        User mm = user("mm", 1000, Set.of(1));
+        User mm = user("mm", 1000, Set.of("Coin flip"));
         e.open(mm);
         e.settleAndClose(0);
         assertThrows(MarketException.class, () -> e.open(mm));
@@ -114,9 +114,9 @@ class EventTest {
     void openTreatsANonPositiveBSSubsidyAsZeroRatherThanFailing() {
         // b<=0 makes LmsrMethod.initialSubsidy() report NaN rather than throwing
         // (validate() is what catches a bad b; Event.open() must not blow up on it).
-        Event e = new Event(1, "Coin flip", "heads?", 0, CommissionType.ON_PURCHASE,
+        Event e = new Event("Coin flip", "heads?", 0, CommissionType.ON_PURCHASE,
                 List.of(new Option("Heads"), new Option("Tails")), new LmsrMethod(0));
-        User mm = user("mm", 1000, Set.of(1));
+        User mm = user("mm", 1000, Set.of("Coin flip"));
 
         e.open(mm);
 
@@ -192,7 +192,7 @@ class EventTest {
     @Test
     void quoteRejectsNonPositiveQuantity() {
         Event e = event(CommissionType.ON_PURCHASE, 0);
-        e.open(user("mm", 1000, Set.of(1)));
+        e.open(user("mm", 1000, Set.of("Coin flip")));
         assertThrows(MarketException.class, () -> e.quote(0, 0));
         assertThrows(MarketException.class, () -> e.quote(0, -5));
     }
@@ -200,7 +200,7 @@ class EventTest {
     @Test
     void quoteRejectsAnInvalidOptionIndex() {
         Event e = event(CommissionType.ON_PURCHASE, 0);
-        e.open(user("mm", 1000, Set.of(1)));
+        e.open(user("mm", 1000, Set.of("Coin flip")));
         assertThrows(MarketException.class, () -> e.quote(-1, 10));
         assertThrows(MarketException.class, () -> e.quote(2, 10));
     }
@@ -248,7 +248,7 @@ class EventTest {
     @Test
     void settleRejectsAnInvalidWinningOptionIndex() {
         Event e = event(CommissionType.ON_CLOSE, 0);
-        e.open(user("mm", 10_000, Set.of(1)));
+        e.open(user("mm", 10_000, Set.of("Coin flip")));
         assertThrows(MarketException.class, () -> e.settleAndClose(-1));
         assertThrows(MarketException.class, () -> e.settleAndClose(2));
     }

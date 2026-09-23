@@ -442,7 +442,7 @@ public class UsersController implements MarketDataChangeListener {
      */
     @Override
     public void onMarketDataChanged() {
-        if (marketEngine == null || !marketEngine.isFileLoaded()) return;
+        if (marketEngine == null) return;
 
         // Ensure UI updates always run safely on the JavaFX Application Thread
         Platform.runLater(() -> {
@@ -672,9 +672,13 @@ public class UsersController implements MarketDataChangeListener {
         if (optionIndex1Based < 1) {
             return null;
         }
+        UserDTO selectedUser = usersTableView.getSelectionModel().getSelectedItem();
+        if (selectedUser == null) {
+            return null;
+        }
         try {
             return marketEngine.quoteTrade(
-                    usersTableView.getSelectionModel().getSelectedItem(), event, optionIndex1Based, shares);
+                    selectedUser.name(), event.name(), optionIndex1Based, shares);
         } catch (RuntimeException notQuotable) {
             return null;
         }
@@ -726,8 +730,8 @@ public class UsersController implements MarketDataChangeListener {
                 selectedUser.name(), selectedEvent.name(), selectedOption, shares);
         try {
             marketEngine.buyShares(
-                    selectedUser,
-                    selectedEvent,
+                    selectedUser.name(),
+                    selectedEvent.name(),
                     selectedOption,
                     shares
             );
@@ -781,7 +785,7 @@ public class UsersController implements MarketDataChangeListener {
         // fund the subsidy; surface whatever it rejects.
         LOG.info("Activate event {} requested by '{}'", selectedEvent.name(), selectedUser.name());
         try {
-            marketEngine.activateEvent(selectedEvent, selectedUser);
+            marketEngine.activateEvent(selectedEvent.name(), selectedUser.name());
         } catch (RuntimeException ex) {
             LOG.warn("Activate event {} failed: {}", selectedEvent.name(), ex.getMessage());
             Dialogs.error("Could not activate event", ex);
@@ -911,7 +915,7 @@ public class UsersController implements MarketDataChangeListener {
                 selectedUser.name(), selectedEvent.name(), optionIndex1Based, side, quantity, price);
         try {
             OrderResultDTO result = marketEngine.placeOrder(
-                    selectedUser, selectedEvent, optionIndex1Based, side, quantity, price);
+                    selectedUser.name(), selectedEvent.name(), optionIndex1Based, side, quantity, price);
             orderEntryStatusLabel.setText(String.format(
                     "Filled %d, resting %d.", result.filledQuantity(), result.restingQuantity()));
         } catch (RuntimeException ex) {
@@ -934,7 +938,7 @@ public class UsersController implements MarketDataChangeListener {
 
         LOG.info("Cancel order {} requested by '{}' on event {}", selectedOrder.id(), selectedUser.name(), selectedEvent.name());
         try {
-            marketEngine.cancelOrder(selectedUser, selectedEvent, selectedOrder.id());
+            marketEngine.cancelOrder(selectedUser.name(), selectedEvent.name(), selectedOrder.id());
         } catch (RuntimeException ex) {
             LOG.warn("Cancel order {} failed: {}", selectedOrder.id(), ex.getMessage());
             Dialogs.error("Cancel Failed", ex);

@@ -7,7 +7,11 @@
         <sourceOutputDir name="target/generated-sources/annotations" />
         <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
         <outputRelativeToContentRoot value="true" />
+        <module name="guess-market-engine" />
         <module name="javafx-ui" />
+        <module name="guess-market-server" />
+        <module name="guess-market-client" />
+        <module name="guess-market-dto" />
       </profile>
     </annotationProcessing>
   </component>

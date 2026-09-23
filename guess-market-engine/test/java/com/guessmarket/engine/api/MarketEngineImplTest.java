@@ -41,11 +41,6 @@ class MarketEngineImplTest {
               <GM-method><GM-LMSR><b>100</b></GM-LMSR></GM-method>
             </GM-event>
           </GM-events>
-          <GM-users>
-            <GM-user name="mm"><initial-cash>1000</initial-cash>
-              <GM-market-maker><event id="1"/></GM-market-maker></GM-user>
-            <GM-user name="trader"><initial-cash>500</initial-cash></GM-user>
-          </GM-users>
         </Guess-Market>
         """;
 
@@ -59,7 +54,11 @@ class MarketEngineImplTest {
         xmlPath = dir.resolve("market.xml").toString();
         Files.writeString(Path.of(xmlPath), XML);
         engine = new MarketEngineImpl();
-        engine.loadXmlFile(xmlPath);
+        engine.login("mm");
+        engine.deposit("mm", 1000);
+        engine.login("trader");
+        engine.deposit("trader", 500);
+        engine.loadXmlFile(xmlPath, "mm");   // mm uploads the file, becomes MM of "Coin flip"
     }
 
     private EventDTO event() {
@@ -79,29 +78,29 @@ class MarketEngineImplTest {
 
     @Test
     void tradingIsRejectedUntilTheEventIsActivated() {
-        assertThrows(MarketException.class, () -> engine.buyShares(user("trader"), event(), 1, 10));
+        assertThrows(MarketException.class, () -> engine.buyShares(user("trader").name(), event().name(), 1, 10));
     }
 
     @Test
     void quoteEqualsTheAmountCharged() {
-        engine.activateEvent(event(), user("mm"));
-        TradeQuoteDTO quote = engine.quoteTrade(user("trader"), event(), 1, 30);
-        TradeResultDTO result = engine.buyShares(user("trader"), event(), 1, 30);
+        engine.activateEvent(event().name(), user("mm").name());
+        TradeQuoteDTO quote = engine.quoteTrade(user("trader").name(), event().name(), 1, 30);
+        TradeResultDTO result = engine.buyShares(user("trader").name(), event().name(), 1, 30);
         assertEquals(quote.total(), result.totalPaid(), 1e-9);
     }
 
     @Test
     void getActiveEventsReflectsActivation() {
         assertTrue(engine.getActiveEvents().isEmpty());
-        engine.activateEvent(event(), user("mm"));
+        engine.activateEvent(event().name(), user("mm").name());
         assertEquals(1, engine.getActiveEvents().size());
     }
 
     @Test
     void holdingsAreExposedPerUserAndPerEvent() {
-        engine.activateEvent(event(), user("mm"));
-        engine.buyShares(user("trader"), event(), 1, 20);   // 20 Heads
-        engine.buyShares(user("trader"), event(), 2, 5);    // 5 Tails
+        engine.activateEvent(event().name(), user("mm").name());
+        engine.buyShares(user("trader").name(), event().name(), 1, 20);   // 20 Heads
+        engine.buyShares(user("trader").name(), event().name(), 2, 5);    // 5 Tails
 
         // per user
         assertEquals(Map.of("Heads", 20, "Tails", 5),
@@ -115,8 +114,8 @@ class MarketEngineImplTest {
 
     @Test
     void stateRoundTripRestoresEventsUsersBalancesAndHoldings() throws MarketException {
-        engine.activateEvent(event(), user("mm"));
-        engine.buyShares(user("trader"), event(), 1, 20);
+        engine.activateEvent(event().name(), user("mm").name());
+        engine.buyShares(user("trader").name(), event().name(), 1, 20);
         double traderBalance = user("trader").balance();
 
         String statePath = dir.resolve("state.bin").toString();
@@ -149,7 +148,7 @@ class MarketEngineImplTest {
         assertTrue(engine.getAllUsers().get("mm").marketMakerEventNames().contains("New market"));
 
         // the new market maker can now open it
-        engine.activateEvent(created, user("mm"));
+        engine.activateEvent(created.name(), user("mm").name());
         assertEquals(EventStatus.ACTIVE, engine.getEventDetails("New market").eventInfo().status());
     }
 
@@ -186,7 +185,7 @@ class MarketEngineImplTest {
                 List.of("Yes", "No"), TradingMethodType.ORDERBOOK, null, 10, 5, false);
         EventDTO created = engine.createEvent(spec);
 
-        engine.activateEvent(created, user("mm"));   // subsidy = initial * d = 50, mm has 1000
+        engine.activateEvent(created.name(), user("mm").name());   // subsidy = initial * d = 50, mm has 1000
         assertEquals(EventStatus.ACTIVE, engine.getEventDetails(created.name()).eventInfo().status());
     }
 
@@ -196,12 +195,12 @@ class MarketEngineImplTest {
         assertEquals("trader", fresh.userInfo().name());
         assertEquals(1, fresh.balanceHistory().size());
         LedgerEntryDTO initial = fresh.balanceHistory().get(0);
-        assertEquals("INITIAL", initial.type());
+        assertEquals("DEPOSIT", initial.type());   // login() starts at $0; the $500 came from deposit()
         assertEquals(500.0, initial.balanceAfter(), 1e-9);
         assertNull(initial.eventName());
 
-        engine.activateEvent(event(), user("mm"));
-        engine.buyShares(user("trader"), event(), 1, 20);   // 20 Heads
+        engine.activateEvent(event().name(), user("mm").name());
+        engine.buyShares(user("trader").name(), event().name(), 1, 20);   // 20 Heads
         engine.closeEvent("Coin flip", 1);                  // Heads wins -> trader paid out
 
         UserDetailsDTO details = engine.getUserDetails("trader");
@@ -222,8 +221,8 @@ class MarketEngineImplTest {
 
     @Test
     void closeEventDeclaresTheWinnerPaysHoldersAndSweepsThePoolToTheMarketMaker() {
-        engine.activateEvent(event(), user("mm"));
-        engine.buyShares(user("trader"), event(), 1, 20);   // 20 Heads
+        engine.activateEvent(event().name(), user("mm").name());
+        engine.buyShares(user("trader").name(), event().name(), 1, 20);   // 20 Heads
         double afterBuy = user("trader").balance();
         double mmBeforeClose = user("mm").balance();
         double poolBeforeClose = engine.getEventDetails("Coin flip").eventAccountBalance();

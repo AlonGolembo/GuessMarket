@@ -66,6 +66,8 @@ public class MainController {
     // Controller State & Observable Properties
     // =========================================================================
     private MarketEngine engine;
+    /** The desktop app's single "logged in" identity - set via the Login menu action. */
+    private String currentUserName;
     private final StringProperty loadMessage = new SimpleStringProperty("");
     private final ObjectProperty<FileLoadStatus> loadStatus = new SimpleObjectProperty<>(FileLoadStatus.NONE);
     private final ObjectProperty<Task<Void>> currentTaskProperty = new SimpleObjectProperty<>();
@@ -197,14 +199,28 @@ public class MainController {
     }
 
     @FXML
+    private void handleLogin() {
+        Optional<String> name = Dialogs.prompt("Login", "Enter a unique user name", "");
+        name.ifPresent(n -> {
+            try {
+                engine.login(n);
+                currentUserName = n.trim();
+                Dialogs.info("Logged in", "Logged in as '" + currentUserName + "'.");
+            } catch (MarketException ex) {
+                LOG.warn("Login rejected: {}", ex.getMessage());
+                Dialogs.error("Could not log in", ex);
+            }
+        });
+    }
+
+    @FXML
     private void handleAddEvent() {
-        if (engine == null || !engine.isFileLoaded()) {
-            Dialogs.error("Cannot add an event", "Load a market file first.");
+        if (engine == null) {
             return;
         }
         List<String> participants = new ArrayList<>(engine.getAllUsers().keySet());
         if (participants.isEmpty()) {
-            Dialogs.error("Cannot add an event", "The loaded market has no participants to be the market maker.");
+            Dialogs.error("Cannot add an event", "No users are logged in yet - log in first.");
             return;
         }
 
@@ -244,19 +260,17 @@ public class MainController {
 
     @FXML
     private void handleLoadFile() {
+        if (currentUserName == null) {
+            Dialogs.error("Cannot upload a file", "Log in first - the uploader becomes the market maker of every event in the file.");
+            return;
+        }
+
         FileChooser fileChooser = new FileChooser();
         fileChooser.setTitle("Open XML Configuration");
         fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("XML Files", "*.xml"));
         File selectedFile = fileChooser.showOpenDialog(loadFileButton.getScene().getWindow());
 
         if (selectedFile == null) return;
-
-        // Ask before replacing an already-loaded market. This must happen here,
-        // on the FX thread - a dialog cannot be shown from the background task.
-        if (engine.isFileLoaded() && !Dialogs.confirm("Replace loaded file?",
-                "A file is already loaded. Loading this one will replace it.\nContinue?")) {
-            return;
-        }
 
         loadMessageDismissTimer.stop();
 
@@ -274,17 +288,18 @@ public class MainController {
      * Creates a background Task that loads and parses the XML file in the engine.
      */
     private Task<Void> createLoadTask(String path) {
+        String uploaderName = currentUserName;
         Task<Void> task = new Task<>() {
             @Override
             protected Void call() throws Exception {
-                LOG.info("User requested XML load: {}", path);
+                LOG.info("User '{}' requested XML upload: {}", uploaderName, path);
                 // Parsing itself is near-instant; pace the progress bar with short
                 // sleeps so the loading indicator is actually visible (~1.3s total).
                 updateProgress(0.1, 1.0);
                 Thread.sleep(450);
                 updateProgress(0.35, 1.0);
                 // Engine handles XML unmarshalling, validation, and fires onMarketDataChanged() to listeners
-                engine.loadXmlFile(path);
+                engine.loadXmlFile(path, uploaderName);
                 updateProgress(0.7, 1.0);
                 Thread.sleep(850);
                 updateProgress(1.0, 1.0);

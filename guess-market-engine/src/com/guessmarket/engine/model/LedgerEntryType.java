@@ -6,6 +6,9 @@ public enum LedgerEntryType {
     /** The user's opening cash allocation. */
     INITIAL,
 
+    /** A user voluntarily loading funds into their own account. */
+    DEPOSIT,
+
     /** Bought shares (LMSR buy, order-book fill as the buyer, or a mint). */
     PURCHASE,
 

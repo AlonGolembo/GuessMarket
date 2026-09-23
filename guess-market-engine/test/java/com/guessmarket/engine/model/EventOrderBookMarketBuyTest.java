@@ -98,7 +98,7 @@ class EventOrderBookMarketBuyTest {
     @Test
     void marketBuyRejectsNonPositiveQuantity() {
         Event e = orderBookEvent(CommissionType.ON_PURCHASE, 0, 1, 100, true);
-        e.open(user("mm", 1000, Set.of(1)));
+        e.open(user("mm", 1000, Set.of("Coin flip")));
 
         assertThrows(MarketException.class, () -> e.buy(user("t", 1000, Set.of()), 0, 0));
     }
@@ -106,7 +106,7 @@ class EventOrderBookMarketBuyTest {
     @Test
     void marketBuyRejectsAnInvalidOptionIndex() {
         Event e = orderBookEvent(CommissionType.ON_PURCHASE, 0, 1, 100, true);
-        e.open(user("mm", 1000, Set.of(1)));
+        e.open(user("mm", 1000, Set.of("Coin flip")));
 
         assertThrows(MarketException.class, () -> e.buy(user("t", 1000, Set.of()), 5, 10));
     }
@@ -116,7 +116,7 @@ class EventOrderBookMarketBuyTest {
         // Two price levels on Heads: mm's initial 100 @ 0.5, then a's resell of 20 @ 0.6.
         // Quoting for less than mm's level alone must not touch a's level at all.
         Event e = orderBookEvent(CommissionType.ON_PURCHASE, 0, 1, 100, false);
-        User mm = user("mm", 1000, Set.of(1));
+        User mm = user("mm", 1000, Set.of("Coin flip"));
         e.open(mm);
         User a = user("a", 1000, Set.of());
         e.placeOrder(a, 0, OrderSide.BID, 20, 0.5);     // a buys 20 Heads from mm
@@ -131,7 +131,7 @@ class EventOrderBookMarketBuyTest {
     @Test
     void quoteOrderBookChargesNoCommissionWhenNotOnPurchase() {
         Event e = orderBookEvent(CommissionType.ON_CLOSE, 10, 1, 100, true);
-        e.open(user("mm", 1000, Set.of(1)));
+        e.open(user("mm", 1000, Set.of("Coin flip")));
 
         TradeReceipt quoted = e.quote(0, 30);
 

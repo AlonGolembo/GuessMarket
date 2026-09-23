@@ -35,12 +35,6 @@ class GuessMarketXmlParserTest {
                   <GM-method>%s</GM-method>
                 </GM-event>
               </GM-events>
-              <GM-users>
-                <GM-user name="mm">
-                  <initial-cash>1000</initial-cash>
-                  <GM-market-maker><event id="1"/></GM-market-maker>
-                </GM-user>
-              </GM-users>
             </Guess-Market>
             """.formatted(methodXml);
     }
@@ -52,8 +46,6 @@ class GuessMarketXmlParserTest {
 
         assertEquals(1, market.events().size());
         assertEquals("Coin flip", market.events().get("Coin flip").getName());
-        assertTrue(market.users().containsKey("mm"));
-        assertTrue(market.users().get("mm").isMarketMakerFor("Coin flip"));
     }
 
     @Test
@@ -73,22 +65,26 @@ class GuessMarketXmlParserTest {
     }
 
     @Test
-    void rejectsEventWithNoMarketMaker() throws IOException {
+    void rejectsTwoEventsWithTheSameNameCaseInsensitively() throws IOException {
         String xml = """
             <Guess-Market>
               <GM-events>
-                <GM-event name="E"><id>1</id><description>d</description>
+                <GM-event name="Coin flip"><id>1</id><description>d</description>
+                  <commission type="on-close">10</commission>
+                  <GM-options><GM-option>A</GM-option><GM-option>B</GM-option></GM-options>
+                  <GM-method><GM-LMSR><b>50</b></GM-LMSR></GM-method>
+                </GM-event>
+                <GM-event name="COIN FLIP"><id>2</id><description>d</description>
                   <commission type="on-close">10</commission>
                   <GM-options><GM-option>A</GM-option><GM-option>B</GM-option></GM-options>
                   <GM-method><GM-LMSR><b>50</b></GM-LMSR></GM-method>
                 </GM-event>
               </GM-events>
-              <GM-users><GM-user name="u"><initial-cash>10</initial-cash></GM-user></GM-users>
             </Guess-Market>
             """;
         XmlValidationException ex = assertThrows(XmlValidationException.class,
-                () -> GuessMarketXmlParser.parseAndValidateXml(write("nomm.xml", xml)));
-        assertTrue(ex.getMessage().contains("market maker"));
+                () -> GuessMarketXmlParser.parseAndValidateXml(write("dup.xml", xml)));
+        assertTrue(ex.getMessage().toLowerCase().contains("duplicate event name"));
     }
 
     @Test

@@ -2,6 +2,9 @@ package com.guessmarket.ui.common;
 
 import javafx.scene.control.Alert;
 import javafx.scene.control.ButtonType;
+import javafx.scene.control.TextInputDialog;
+
+import java.util.Optional;
 
 /**
  * Modal message dialogs, shared by the controllers so error reporting looks and
@@ -10,6 +13,15 @@ import javafx.scene.control.ButtonType;
 public final class Dialogs {
 
     private Dialogs() {}
+
+    /** Prompts for a line of text; empty if the user cancelled. */
+    public static Optional<String> prompt(String title, String header, String promptText) {
+        TextInputDialog dialog = new TextInputDialog();
+        dialog.setTitle(title);
+        dialog.setHeaderText(header);
+        dialog.setContentText(promptText);
+        return dialog.showAndWait();
+    }
 
     /** Shows a blocking error dialog. */
     public static void error(String title, String message) {

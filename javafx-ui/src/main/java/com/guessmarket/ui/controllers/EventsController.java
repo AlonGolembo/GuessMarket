@@ -251,7 +251,7 @@ public class EventsController implements MarketDataChangeListener {
 
     @Override
     public void onMarketDataChanged() {
-        if (marketEngine == null || !marketEngine.isFileLoaded()) return;
+        if (marketEngine == null) return;
 
         Platform.runLater(() -> {
             EventDTO currentSelectedEvent = eventsTableView.getSelectionModel().getSelectedItem();

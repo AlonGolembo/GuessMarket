@@ -10,6 +10,7 @@ import org.junit.jupiter.api.Test;
 import java.net.URISyntaxException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -18,7 +19,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 /**
  * Loads the shipped {@code order-book-market.xml} sample (referenced from
  * README.md) and drives it through a full lifecycle, so the sample stays
- * valid and demonstrative as the format evolves.
+ * valid and demonstrative as the format evolves. The file only describes
+ * events now (users register via login), so the users here are constructed
+ * directly, matching what the sample used to carry in its own {@code GM-users}.
  */
 class OrderBookSampleXmlTest {
 
@@ -34,9 +37,9 @@ class OrderBookSampleXmlTest {
         assertEquals("Will it rain tomorrow?", event.getName());
         assertTrue(event.getTradingMethod() instanceof OrderBookMethod);
 
-        User mm = market.users().get("mm");
-        User alice = market.users().get("alice");
-        User bob = market.users().get("bob");
+        User mm = new User("mm", 1000, Set.of(event.getName()));
+        User alice = new User("alice", 500, Set.of());
+        User bob = new User("bob", 500, Set.of());
 
         event.open(mm);
         assertEquals(900.0, mm.getAccountBalance(), 1e-9);              // paid 100 pairs @ $1

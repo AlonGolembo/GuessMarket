@@ -33,7 +33,6 @@
                 <Menu mnemonicParsing="false" text="System">
                   <items>
                     <MenuItem fx:id="changeTheme" mnemonicParsing="false" onAction="#handleChangeTheme" text="Theme" />
-                    <MenuItem mnemonicParsing="false" onAction="#handleAnimations" text="Animations" />
                   </items>
                 </Menu>
                 <Menu mnemonicParsing="false" text="Help">

@@ -4,7 +4,6 @@ import com.guessmarket.dto.EventDTO;
 import com.guessmarket.dto.NewEventDTO;
 import com.guessmarket.engine.api.MarketEngine;
 import com.guessmarket.engine.exception.MarketException;
-import com.guessmarket.client.common.AnimationSettingsDialog;
 import com.guessmarket.client.common.Dialogs;
 import com.guessmarket.client.common.FileLoadStatus;
 import com.guessmarket.client.common.NewEventDialog;
@@ -192,11 +191,6 @@ public class MainController {
     private void handleChangeTheme(){
         Window currentWindow = rootPane.getScene().getWindow();
         ThemeManager.openThemeSelector(currentWindow);
-    }
-
-    @FXML
-    private void handleAnimations() {
-        AnimationSettingsDialog.show(rootPane.getScene().getWindow());
     }
 
     @FXML

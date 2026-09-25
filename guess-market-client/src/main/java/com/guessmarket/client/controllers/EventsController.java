@@ -16,15 +16,10 @@ import com.guessmarket.dto.TradingMethodType;
 import com.guessmarket.dto.UserDTO;
 import com.guessmarket.engine.api.MarketDataChangeListener;
 import com.guessmarket.engine.api.MarketEngine;
-import com.guessmarket.client.common.AnimationSettings;
 import com.guessmarket.client.common.Charts;
 import com.guessmarket.client.common.Dialogs;
 import com.guessmarket.client.common.EventFilters;
 import com.guessmarket.client.common.TradeRules;
-import javafx.animation.FadeTransition;
-import javafx.animation.Interpolator;
-import javafx.animation.ParallelTransition;
-import javafx.animation.TranslateTransition;
 import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
 import javafx.beans.property.IntegerProperty;
@@ -49,7 +44,6 @@ import javafx.scene.control.TableView;
 import javafx.scene.control.TextField;
 import javafx.scene.layout.AnchorPane;
 import javafx.scene.layout.VBox;
-import javafx.util.Duration;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -188,10 +182,6 @@ public class EventsController implements MarketDataChangeListener {
     private final ObjectProperty<EventDetailsDTO> selectedEventDetails = new SimpleObjectProperty<>();
     private final IntegerProperty selectedSharesProperty = new SimpleIntegerProperty(1);
 
-    // Trade-panel reveal animation (fade + slide-up when a new event is selected)
-    private ParallelTransition detailReveal;
-    private String lastRevealedEventName;
-
     // =========================================================================
     // Lifecycle & Initialization
     // =========================================================================
@@ -216,50 +206,11 @@ public class EventsController implements MarketDataChangeListener {
         setupPurchaseHistoryColumns();
         setupMyOpenOrdersColumns();
         setupFilters();
-        setupDetailReveal();
         setupTradingBindings();
         setupSpinners();
 
         eventsTableView.getSelectionModel().selectedItemProperty().addListener(
                 (obs, oldSelection, newSelection) -> handleEventSelected(newSelection));
-    }
-
-    /** Builds the reusable fade + slide-up transition played on the Trade panel. */
-    private void setupDetailReveal() {
-        if (eventTradeDetailsContainer == null) {
-            return;
-        }
-        FadeTransition fade = new FadeTransition(Duration.millis(220), eventTradeDetailsContainer);
-        fade.setFromValue(0.0);
-        fade.setToValue(1.0);
-        TranslateTransition slide = new TranslateTransition(Duration.millis(260), eventTradeDetailsContainer);
-        slide.setFromY(14.0);
-        slide.setToY(0.0);
-        slide.setInterpolator(Interpolator.EASE_OUT);
-        detailReveal = new ParallelTransition(fade, slide);
-    }
-
-    /** Plays the reveal only when the selection actually changed to a different event. */
-    private void revealDetailPanel(EventDTO selectedEvent) {
-        if (eventTradeDetailsContainer == null) {
-            return;
-        }
-        if (selectedEvent == null) {
-            lastRevealedEventName = null;
-            return;
-        }
-        boolean newSelection = lastRevealedEventName == null || !lastRevealedEventName.equals(selectedEvent.name());
-        lastRevealedEventName = selectedEvent.name();
-        if (newSelection && detailReveal != null && AnimationSettings.isEventPanelRevealEnabled()) {
-            detailReveal.stop();
-            eventTradeDetailsContainer.setOpacity(0.0);
-            eventTradeDetailsContainer.setTranslateY(14.0);
-            detailReveal.playFromStart();
-        } else {
-            // No animation this time - make sure an interrupted run left nothing behind.
-            eventTradeDetailsContainer.setOpacity(1.0);
-            eventTradeDetailsContainer.setTranslateY(0.0);
-        }
     }
 
     private void setupEventsTableColumns() {
@@ -628,7 +579,6 @@ public class EventsController implements MarketDataChangeListener {
         if (eventTradeDetailsContainer != null) {
             eventTradeDetailsContainer.setVisible(selectedEvent != null);
         }
-        revealDetailPanel(selectedEvent);
         if (selectedEvent == null || marketEngine == null) {
             participationList.clear();
             option1Levels.clear();

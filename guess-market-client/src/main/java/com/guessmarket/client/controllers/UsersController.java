@@ -18,6 +18,7 @@ import javafx.scene.control.*;
 import javafx.scene.layout.AnchorPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.VBox;
+import javafx.util.StringConverter;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -28,10 +29,10 @@ import java.util.Set;
 
 /**
  * Controller for the Users tab. This client represents exactly one logged-in
- * identity (see {@link #setContext}), so this tab is a pure viewer: the table
- * just lists every user in the system by name; selecting any row expands into
- * that user's details (name/balance/market-maker flag - per the spec, that is
- * everything a user may see about anyone else). Selecting myself additionally
+ * identity (see {@link #setContext}), so this tab is a pure viewer: a combo
+ * box picks any user in the system by name; picking one expands into that
+ * user's details (name/balance/market-maker flag - per the spec, that is
+ * everything a user may see about anyone else). Picking myself additionally
  * reveals my full account details (balance graph, participating events,
  * blocked warning) and lets me deposit funds. All event activation/trading/
  * closing now lives in the Events tab.
@@ -41,10 +42,9 @@ public class UsersController implements MarketDataChangeListener {
     private static final Logger LOG = LogManager.getLogger(UsersController.class);
 
     // =========================================================================
-    // FXML UI Controls - All Users Table
+    // FXML UI Controls - User Picker
     // =========================================================================
-    @FXML private TableView<UserDTO> usersTableView;
-    @FXML private TableColumn<UserDTO, String> userNameCol;
+    @FXML private ComboBox<UserDTO> usersComboBox;
 
     // =========================================================================
     // FXML UI Controls - Selected User Details (any user)
@@ -94,22 +94,26 @@ public class UsersController implements MarketDataChangeListener {
     // =========================================================================
     @FXML
     private void initialize() {
-        usersTableView.setItems(usersList);
+        usersComboBox.setItems(usersList);
         userEventsTableView.setItems(participatingEventsList);
 
-        setupUsersTableColumns();
+        usersComboBox.setConverter(new StringConverter<>() {
+            @Override
+            public String toString(UserDTO user) {
+                return user == null ? "" : user.name();
+            }
+
+            @Override
+            public UserDTO fromString(String string) {
+                return null; // Not needed for a non-editable combo box
+            }
+        });
         setupUserEventsTableColumns();
 
-        usersTableView.getSelectionModel().selectedItemProperty().addListener(
+        usersComboBox.valueProperty().addListener(
                 (obs, oldUser, newUser) -> showSelectedUser(newUser));
 
         showSelectedUser(null);
-    }
-
-    /** Configures cell value factories for the all-users table. */
-    private void setupUsersTableColumns() {
-        userNameCol.setCellValueFactory(cellData ->
-                new SimpleStringProperty(cellData.getValue().name()));
     }
 
     private static boolean isMarketMaker(UserDTO user) {
@@ -237,30 +241,33 @@ public class UsersController implements MarketDataChangeListener {
     /**
      * Callback triggered whenever the MarketEngine's data changes (a poll tick
      * that found something new, in the client-server build). Refreshes the
-     * all-users table and, if a selection exists, the details panel below it.
+     * user picker's items and, if a selection exists, the details panel below it.
+     * While the picker's dropdown is open, its items/value are left untouched -
+     * overwriting them mid-poll would fight an in-progress click or keystroke
+     * (the popup can close, or a highlighted-but-uncommitted row can be undone).
+     * The next tick after the dropdown closes catches the picker up.
      */
     @Override
     public void onMarketDataChanged() {
         if (marketEngine == null) return;
 
         Platform.runLater(() -> {
-            UserDTO currentSelection = usersTableView.getSelectionModel().getSelectedItem();
-
             Map<String, UserDTO> allUsers = marketEngine.getAllUsers();
             UserDTO me = allUsers.get(currentUserName);
             myUser.set(me);
 
-            usersList.setAll(allUsers.values());
-
             notifyIfNewlyBlocked(me);
+
+            if (usersComboBox.isShowing()) {
+                return;
+            }
+
+            UserDTO currentSelection = usersComboBox.getValue();
+            usersList.setAll(allUsers.values());
 
             if (currentSelection != null) {
                 UserDTO refreshed = allUsers.get(currentSelection.name());
-                if (refreshed != null) {
-                    usersTableView.getSelectionModel().select(refreshed);
-                } else {
-                    usersTableView.getSelectionModel().clearSelection();
-                }
+                usersComboBox.setValue(refreshed);
                 showSelectedUser(refreshed);
             }
         });

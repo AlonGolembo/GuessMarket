@@ -49,6 +49,30 @@ class GuessMarketXmlParserTest {
     }
 
     @Test
+    void parsesAnEventWithNoIdElementAtAll() throws IOException {
+        // Events are identified by name, not id - the <id> element is no
+        // longer required (or read) at all, and a file omitting it entirely
+        // must still parse cleanly.
+        String xml = """
+            <Guess-Market>
+              <GM-events>
+                <GM-event name="Coin flip">
+                  <description>heads?</description>
+                  <commission type="on-purchase">5</commission>
+                  <GM-options><GM-option>Heads</GM-option><GM-option>Tails</GM-option></GM-options>
+                  <GM-method><GM-LMSR><b>100</b></GM-LMSR></GM-method>
+                </GM-event>
+              </GM-events>
+            </Guess-Market>
+            """;
+
+        ParsedMarket market = GuessMarketXmlParser.parseAndValidateXml(write("no-id.xml", xml));
+
+        assertEquals(1, market.events().size());
+        assertEquals("Coin flip", market.events().get("Coin flip").getName());
+    }
+
+    @Test
     void rejectsTwoTradingMethodsInOneEvent() throws IOException {
         String path = write("two.xml",
                 event("<GM-LMSR><b>100</b></GM-LMSR><GM-order-book d=\"1\" initial=\"0\"/>"));

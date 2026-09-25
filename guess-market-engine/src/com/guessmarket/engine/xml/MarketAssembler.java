@@ -13,11 +13,10 @@ import java.util.Map;
 
 /**
  * Turns a raw {@link GuessMarketXml} tree into a validated {@link ParsedMarket},
- * delegating field checks to {@link EventXmlValidator} and rejecting a file that
- * repeats an event name (case-insensitively) within itself. The file still
- * assigns each {@code <GM-event>} a numeric {@code <id>} (the format is
- * unchanged), but nothing here keeps it - names are the only identity that
- * survives assembly.
+ * delegating field checks (including the case-insensitive duplicate-name
+ * rejection) to {@link EventXmlValidator}. The file may still carry a numeric
+ * {@code <id>} per {@code <GM-event>} (the element still parses if present),
+ * but nothing reads it - names are the only identity that survives assembly.
  */
 final class MarketAssembler {
 
@@ -31,13 +30,9 @@ final class MarketAssembler {
         }
 
         Map<String, Event> events = new LinkedHashMap<>();
-        HashSet<Integer> usedIds = new HashSet<>();
         HashSet<String> usedNamesLowercase = new HashSet<>();
         for (EventXml eventXml : root.getEvents()) {
-            Event event = EventXmlValidator.validate(eventXml, usedIds);
-            if (!usedNamesLowercase.add(event.getName().toLowerCase())) {
-                throw new XmlValidationException("Duplicate event name: " + event.getName() + ".");
-            }
+            Event event = EventXmlValidator.validate(eventXml, usedNamesLowercase);
             events.put(event.getName(), event);
         }
 

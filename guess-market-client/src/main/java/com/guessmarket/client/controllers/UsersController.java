@@ -2,6 +2,7 @@ package com.guessmarket.client.controllers;
 
 import com.guessmarket.dto.EventDTO;
 import com.guessmarket.dto.EventDetailsDTO;
+import com.guessmarket.dto.LedgerEntryDTO;
 import com.guessmarket.dto.UserDTO;
 import com.guessmarket.dto.UserDetailsDTO;
 import com.guessmarket.engine.api.MarketDataChangeListener;
@@ -22,6 +23,8 @@ import javafx.util.StringConverter;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -75,6 +78,17 @@ public class UsersController implements MarketDataChangeListener {
     @FXML private Label graphPlaceholderLabel;
 
     // =========================================================================
+    // FXML UI Controls - Ledger tab (self only)
+    // =========================================================================
+    @FXML private Label ledgerPlaceholderLabel;
+    @FXML private TableView<LedgerEntryDTO> ledgerTableView;
+    @FXML private TableColumn<LedgerEntryDTO, String> ledgerTimeCol;
+    @FXML private TableColumn<LedgerEntryDTO, String> ledgerTypeCol;
+    @FXML private TableColumn<LedgerEntryDTO, String> ledgerEventCol;
+    @FXML private TableColumn<LedgerEntryDTO, String> ledgerAmountCol;
+    @FXML private TableColumn<LedgerEntryDTO, String> ledgerBalanceAfterCol;
+
+    // =========================================================================
     // Controller State & Observable Collections
     // =========================================================================
     private MarketEngine marketEngine;
@@ -88,6 +102,7 @@ public class UsersController implements MarketDataChangeListener {
 
     private final ObservableList<UserDTO> usersList = FXCollections.observableArrayList();
     private final ObservableList<EventDTO> participatingEventsList = FXCollections.observableArrayList();
+    private final ObservableList<LedgerEntryDTO> ledgerList = FXCollections.observableArrayList();
 
     // =========================================================================
     // Lifecycle & Initialization
@@ -96,6 +111,7 @@ public class UsersController implements MarketDataChangeListener {
     private void initialize() {
         usersComboBox.setItems(usersList);
         userEventsTableView.setItems(participatingEventsList);
+        ledgerTableView.setItems(ledgerList);
 
         usersComboBox.setConverter(new StringConverter<>() {
             @Override
@@ -109,6 +125,7 @@ public class UsersController implements MarketDataChangeListener {
             }
         });
         setupUserEventsTableColumns();
+        setupLedgerColumns();
 
         usersComboBox.valueProperty().addListener(
                 (obs, oldUser, newUser) -> showSelectedUser(newUser));
@@ -179,6 +196,24 @@ public class UsersController implements MarketDataChangeListener {
         userEventInvolvementLabel.setText(sb.toString());
     }
 
+    /** Configures cell value factories for my Account Ledger table - one row per action. */
+    private void setupLedgerColumns() {
+        ledgerTimeCol.setCellValueFactory(cellData ->
+                new SimpleStringProperty(cellData.getValue().timestamp()));
+        ledgerTypeCol.setCellValueFactory(cellData ->
+                new SimpleStringProperty(cellData.getValue().type()));
+        ledgerEventCol.setCellValueFactory(cellData -> {
+            String eventName = cellData.getValue().eventName();
+            return new SimpleStringProperty(eventName == null ? "-" : eventName);
+        });
+        ledgerAmountCol.setCellValueFactory(cellData -> {
+            double delta = cellData.getValue().delta();
+            return new SimpleStringProperty(String.format("%s$%,.2f", delta < 0 ? "-" : "+", Math.abs(delta)));
+        });
+        ledgerBalanceAfterCol.setCellValueFactory(cellData ->
+                new SimpleStringProperty(String.format("$%,.2f", cellData.getValue().balanceAfter())));
+    }
+
     // =========================================================================
     // Selection Handling - shows minimal info for anyone, full account for self
     // =========================================================================
@@ -220,6 +255,15 @@ public class UsersController implements MarketDataChangeListener {
             renderBalanceGraph();
         } else {
             graph.getChildren().clear();
+        }
+
+        boolean showLedger = isSelf;
+        ledgerTableView.setVisible(showLedger);
+        ledgerTableView.setManaged(showLedger);
+        ledgerPlaceholderLabel.setVisible(!showLedger);
+        ledgerPlaceholderLabel.setManaged(!showLedger);
+        if (!showLedger) {
+            ledgerList.clear();
         }
     }
 
@@ -292,16 +336,18 @@ public class UsersController implements MarketDataChangeListener {
     // My Account (self only)
     // =========================================================================
     /**
-     * Refreshes the blocked flag and participating-events table from my
-     * current snapshot. The balance graph is refreshed separately in
-     * {@link #showSelectedUser}, since it only needs to redraw when the
-     * selection changes, not on every poll tick.
+     * Refreshes the blocked flag, participating-events table and ledger from my
+     * current snapshot - called on every poll tick while I'm selected, so new
+     * ledger rows (e.g. a commission payout from someone else's trade) show up
+     * live. The balance graph is refreshed separately in {@link #showSelectedUser},
+     * since it only needs to redraw when the selection changes.
      */
     private void refreshMyAccountPanel(UserDTO me) {
         if (me == null) {
             userBlockedLabel.setVisible(false);
             userBlockedLabel.setManaged(false);
             participatingEventsList.clear();
+            ledgerList.clear();
             return;
         }
 
@@ -312,6 +358,12 @@ public class UsersController implements MarketDataChangeListener {
         participatingEventsList.setAll(names.isEmpty() ? List.of() : marketEngine.getAllEvents().stream()
                 .filter(e -> names.contains(e.name()))
                 .toList());
+
+        // Oldest-first from the engine; show most recent action at the top.
+        List<LedgerEntryDTO> history = marketEngine.getUserDetails(currentUserName).balanceHistory();
+        List<LedgerEntryDTO> mostRecentFirst = new ArrayList<>(history);
+        Collections.reverse(mostRecentFirst);
+        ledgerList.setAll(mostRecentFirst);
     }
 
     /** Draws my balance-over-time chart into the Graphs sub-tab. */

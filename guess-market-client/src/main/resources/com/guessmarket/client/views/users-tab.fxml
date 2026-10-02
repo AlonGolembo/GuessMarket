@@ -139,6 +139,35 @@
                                 </VBox>
                             </content>
                         </Tab>
+                        <Tab text="Ledger">
+                            <content>
+                                <VBox spacing="4.0" VBox.vgrow="ALWAYS">
+                                    <padding>
+                                        <Insets bottom="8.0" left="8.0" right="8.0" top="8.0" />
+                                    </padding>
+                                    <children>
+                                        <Label alignment="CENTER" maxWidth="1.7976931348623157E308" text="My Account Ledger" textAlignment="CENTER">
+                                            <font>
+                                                <Font name="System Bold" size="12.0" />
+                                            </font>
+                                        </Label>
+                                        <Label fx:id="ledgerPlaceholderLabel" text="Select yourself from the drop-down to see your account ledger." wrapText="true" />
+                                        <TableView fx:id="ledgerTableView" managed="false" visible="false" VBox.vgrow="ALWAYS">
+                                            <columns>
+                                                <TableColumn fx:id="ledgerTimeCol" prefWidth="140.0" style="-fx-alignment: CENTER;" text="Time" />
+                                                <TableColumn fx:id="ledgerTypeCol" prefWidth="100.0" style="-fx-alignment: CENTER;" text="Type" />
+                                                <TableColumn fx:id="ledgerEventCol" prefWidth="140.0" style="-fx-alignment: CENTER;" text="Event" />
+                                                <TableColumn fx:id="ledgerAmountCol" prefWidth="100.0" style="-fx-alignment: CENTER;" text="Amount" />
+                                                <TableColumn fx:id="ledgerBalanceAfterCol" prefWidth="110.0" style="-fx-alignment: CENTER;" text="Balance After" />
+                                            </columns>
+                                            <columnResizePolicy>
+                                                <TableView fx:constant="CONSTRAINED_RESIZE_POLICY" />
+                                            </columnResizePolicy>
+                                        </TableView>
+                                    </children>
+                                </VBox>
+                            </content>
+                        </Tab>
                     </tabs>
                 </TabPane>
             </children>

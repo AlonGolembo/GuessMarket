@@ -11,6 +11,9 @@ import javafx.scene.control.TextField;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -27,6 +30,7 @@ public class ChatController {
 
     private static final Logger LOG = LogManager.getLogger(ChatController.class);
     private static final long POLL_INTERVAL_MILLIS = 500;
+    private static final DateTimeFormatter TIME_FORMAT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
     @FXML private ListView<String> messagesList;
     @FXML private TextField messageField;
@@ -88,7 +92,10 @@ public class ChatController {
     }
 
     private String format(ChatClient.ChatMessage message) {
-        return message.userName() + ": " + message.text();
+        String time = Instant.ofEpochMilli(message.timestampMillis())
+                .atZone(ZoneId.systemDefault())
+                .format(TIME_FORMAT);
+        return "[" + time + "] \n" + message.userName() + ": " + message.text();
     }
 
     @FXML

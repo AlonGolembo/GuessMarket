@@ -11,64 +11,30 @@ the winning option are paid.
 ## Modules
 
 The build is a single Maven reactor. Dependency direction is one-way:
-`javafx-ui → guess-market-engine → guess-market-dto`, enforced by module-info.
+`guess-market-client`/`guess-market-server` → `guess-market-engine` →
+`guess-market-dto`, enforced by module-info.
 
 | Module | Contents |
 |---|---|
 | `guess-market-dto` | Immutable record DTOs crossing the engine's API boundary. No dependencies. |
 | `guess-market-engine` | Domain model, LMSR pricing, XML loading, state persistence. The only exported package is `com.guessmarket.engine.api`. |
-| `javafx-ui` | JavaFX desktop front-end. Talks only to `engine.api` + the DTOs. |
+| `guess-market-server` | Servlet backend hosting the engine; exposes it over HTTP/JSON. |
+| `guess-market-client` | JavaFX desktop front-end. Talks to `guess-market-server` over HTTP via `HttpMarketEngine`, which implements `engine.api`. |
 
 ## Build & run
 
 ```bash
-mvn clean verify              # compile + test all modules
-mvn -pl javafx-ui javafx:run  # launch the desktop app
+mvn clean verify                  # compile + test all modules
+mvn -pl guess-market-client javafx:run  # launch the desktop client
 ```
 
-Requires JDK 25. IntelliJ: open the root `pom.xml` as a project.
+Start/deploy `guess-market-server` first — the client logs in and talks to it
+over HTTP. Requires JDK 25. IntelliJ: open the root `pom.xml` as a project.
 
 > If your machine runs antivirus HTTPS/TLS scanning (e.g. AVG), Maven on the
 > command line may fail to validate `repo.maven.apache.org`. Point it at a
 > truststore that includes the scanner's root CA, or use the IDE's Maven, which
 > is usually already configured.
-
-## Repository structure and diagrams
-
-The project is split into three modules with strict layering, shown below.
-For the full write-up these diagrams are drawn from, see `README_Exercise2.html`
-or `README_Exercise2.pdf` in the repo root.
-
-### Modules
-
-`javafx-ui` calls `guess-market-engine`, which maps its domain to DTOs;
-`javafx-ui` reads only DTO fields, never engine internals directly.
-
-<img src="docs/diagrams/1-modules.png" alt="Module dependency diagram" width="380">
-
-### `guess-market-dto`
-
-Flat, immutable record DTOs (plus a few enums) with no behaviour and no
-dependencies — the only thing that crosses the engine/UI boundary.
-
-<img src="docs/diagrams/2-dto.png" alt="DTO diagram" width="650">
-
-### `guess-market-engine`
-
-`Event` is the aggregate root, holding options, trading method, users and
-trade/ledger history; `MarketEngineImpl` is the thin facade exposed as
-`engine.api`, backed by the model, LMSR, XML and serialization support
-packages.
-
-<img src="docs/diagrams/3-engine.png" alt="Engine diagram" width="650">
-
-### `javafx-ui`
-
-`GuessMarketApp` builds the engine and wires `MainController`, which hosts
-the `EventsController`/`UsersController` tabs and shared `ui.common` helpers
-(dialogs, charts, theming, trade rules).
-
-<img src="docs/diagrams/4-ui.png" alt="UI diagram" width="650">
 
 ## Domain model
 
@@ -183,8 +149,8 @@ account as it's collected (not pooled).
 
 ## Key design choices & assumptions
 
-- Layering: three modules with `module-info` declarations; the UI sees only
-  `engine.api` + the DTOs. The engine's `model`, `lmsr`, `xml`, `mapper`,
+- Layering: separate modules with `module-info` declarations; the client sees
+  only `engine.api` + the DTOs. The engine's `model`, `lmsr`, `xml`, `mapper`,
   `serialization` internals are hidden behind the API.
 - Immutable DTOs to prevent UI-side mutation of domain state.
 - `Event` is the aggregate root; `MarketEngineImpl` delegates to it for rules.
@@ -204,7 +170,8 @@ account as it's collected (not pooled).
 
 Highlights of primary classes and responsibilities (see code for full list):
 
-- javafx-ui: `GuessMarketApp`, `MainController`, `EventsController`, `UsersController` — UI entry, window shell, and tab controllers.
+- guess-market-client: `GuessMarketApp`, `MainController`, `EventsController`, `UsersController` — UI entry, window shell, and tab controllers.
+- guess-market-server: servlets exposing the engine over HTTP/JSON.
 - guess-market-engine: `MarketEngine` / `MarketEngineImpl`, `MarketCatalog`, `MarketEventPublisher`, `Event` (aggregate root), `User`, `Account`, `TradingMethod` (sealed → `LmsrMethod`, `OrderBookMethod`), `OrderBook` / `LimitOrder`, `LmsrCalculator`, `engine.xml` readers/validators and `engine.mapper` converters.
 - guess-market-dto: flat record DTOs used across the API boundary (`EventDTO`, `EventDetailsDTO`, `UserDTO`, `UserDetailsDTO`, trade/ledger DTOs).
 
@@ -224,5 +191,4 @@ clean verify` or from your IDE.
 
 ## Further reading
 
-See `CLAUDE.md` and `ARCHITECTURE.md` for repository-specific conventions and
-in-depth architectural notes.
+See `CLAUDE.md` for repository-specific conventions.

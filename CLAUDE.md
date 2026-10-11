@@ -5,12 +5,14 @@ Guidance for working in this repository.
 ## Build
 
 - `mvn clean verify` — compile + run all tests (JUnit 5, Surefire). Single Maven
-  reactor: `guess-market-dto` → `guess-market-engine` → `javafx-ui`.
-- `mvn -pl javafx-ui javafx:run` — launch the JavaFX app.
+  reactor: `guess-market-dto` → `guess-market-engine` → `guess-market-server` /
+  `guess-market-client`.
+- `mvn -pl guess-market-client javafx:run` — launch the JavaFX client (talks to
+  `guess-market-server` over HTTP; start/deploy the server first).
 - Requires JDK 25 (`maven.compiler.release=25` in the parent POM).
 - The engine and dto modules keep sources under `src/` (not `src/main/java`);
-  each POM points Maven at that layout with `<sourceDirectory>`. `javafx-ui`
-  uses the standard layout.
+  each POM points Maven at that layout with `<sourceDirectory>`.
+  `guess-market-client`/`guess-market-server` use the standard layout.
 - IntelliJ builds via the Maven import; `*.iml`, `.idea/modules.xml` and
   `.idea/libraries/` are generated and gitignored.
 - If command-line Maven can't validate TLS to Maven Central, the machine has
@@ -19,8 +21,10 @@ Guidance for working in this repository.
 
 ## Architecture
 
-- **One-way layering**, enforced by `module-info`: `javafx-ui` sees only
-  `com.guessmarket.engine.api` + `com.guessmarket.dto`. Engine internals
+- **One-way layering**, enforced by `module-info`: `guess-market-client` sees
+  only `com.guessmarket.engine.api` + `com.guessmarket.dto` (its `GuessMarketApp`
+  talks to a running `guess-market-server` over HTTP via `HttpMarketEngine`,
+  not an in-process engine). Engine internals
   (`model`, `lmsr`, `xml`, `mapper`, `serialization`) are not exported.
 - **`Event` is the aggregate root.** All trading/lifecycle rules live in it;
   it has no plain setters. `MarketEngineImpl` is a thin facade that resolves

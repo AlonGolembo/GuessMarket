@@ -19,7 +19,6 @@
   <modules>
     <module>guess-market-dto</module>
     <module>guess-market-engine</module>
-    <module>javafx-ui</module>
     <module>guess-market-server</module>
     <module>guess-market-client</module>
   </modules>

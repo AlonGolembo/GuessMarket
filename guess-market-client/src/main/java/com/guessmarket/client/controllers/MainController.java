@@ -4,10 +4,12 @@ import com.guessmarket.dto.EventDTO;
 import com.guessmarket.dto.NewEventDTO;
 import com.guessmarket.engine.api.MarketEngine;
 import com.guessmarket.engine.exception.MarketException;
+import com.guessmarket.client.common.ChatWindow;
 import com.guessmarket.client.common.Dialogs;
 import com.guessmarket.client.common.FileLoadStatus;
 import com.guessmarket.client.common.NewEventDialog;
 import com.guessmarket.client.common.ThemeManager;
+import com.guessmarket.client.http.ChatClient;
 import javafx.animation.PauseTransition;
 import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
@@ -63,6 +65,7 @@ public class MainController {
     // Controller State & Observable Properties
     // =========================================================================
     private MarketEngine engine;
+    private ChatClient chatClient;
     /** This client's single identity for its whole run - set once at startup, before login. */
     private String currentUserName;
     private final StringProperty loadMessage = new SimpleStringProperty("");
@@ -137,8 +140,9 @@ public class MainController {
      * client logged in as (login already happened, before the window was built -
      * see {@code GuessMarketApp}), and propagates both to the child tab controllers.
      */
-    public void setContext(MarketEngine engine, String currentUserName) {
+    public void setContext(MarketEngine engine, ChatClient chatClient, String currentUserName) {
         this.engine = engine;
+        this.chatClient = chatClient;
         this.currentUserName = currentUserName;
 
         if (eventsTabController != null) {
@@ -179,6 +183,12 @@ public class MainController {
             LOG.warn("Event creation rejected: {}", ex.getMessage());
             Dialogs.error("Could not create the event", ex);
         }
+    }
+
+    @FXML
+    private void handleOpenChat() {
+        Window owner = rootPane.getScene().getWindow();
+        ChatWindow.open(owner, chatClient, currentUserName);
     }
 
     @FXML

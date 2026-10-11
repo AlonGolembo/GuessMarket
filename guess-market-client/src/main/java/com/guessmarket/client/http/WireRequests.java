@@ -26,4 +26,6 @@ final class WireRequests {
                               int quantity, double price) {}
 
     record CancelOrderRequest(String userName, String eventName, long orderId) {}
+
+    record PostChatMessageRequest(String userName, String text) {}
 }

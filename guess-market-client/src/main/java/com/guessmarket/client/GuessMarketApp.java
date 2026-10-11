@@ -2,6 +2,7 @@ package com.guessmarket.client;
 
 import com.guessmarket.client.common.Dialogs;
 import com.guessmarket.client.controllers.MainController;
+import com.guessmarket.client.http.ChatClient;
 import com.guessmarket.client.http.HttpMarketEngine;
 import com.guessmarket.engine.api.MarketEngine;
 import com.guessmarket.engine.exception.MarketException;
@@ -41,6 +42,7 @@ public class GuessMarketApp extends Application {
     public void start(Stage primaryStage) throws Exception {
         String baseUrl = System.getProperty("guessmarket.server.url", HttpMarketEngine.DEFAULT_BASE_URL);
         MarketEngine engine = new HttpMarketEngine(baseUrl);
+        ChatClient chatClient = new ChatClient(baseUrl);
 
         String currentUserName = promptForLogin(engine);
         if (currentUserName == null) {
@@ -53,7 +55,7 @@ public class GuessMarketApp extends Application {
         Parent root = loader.load();
 
         MainController mainController = loader.getController();
-        mainController.setContext(engine, currentUserName);
+        mainController.setContext(engine, chatClient, currentUserName);
 
         primaryStage.setTitle("Guess Market (client-server) — logged in as " + currentUserName);
         primaryStage.setScene(new Scene(root));

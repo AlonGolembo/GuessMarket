@@ -35,6 +35,11 @@
                     <MenuItem fx:id="changeTheme" mnemonicParsing="false" onAction="#handleChangeTheme" text="Theme" />
                   </items>
                 </Menu>
+                <Menu mnemonicParsing="false" text="Chat">
+                  <items>
+                    <MenuItem mnemonicParsing="false" onAction="#handleOpenChat" text="Open Chat" />
+                  </items>
+                </Menu>
                 <Menu mnemonicParsing="false" text="Help">
                   <items>
                     <MenuItem mnemonicParsing="false" onAction="#handleAbout" text="About" />

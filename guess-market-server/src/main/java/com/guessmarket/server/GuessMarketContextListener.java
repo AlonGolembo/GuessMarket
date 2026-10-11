@@ -19,6 +19,7 @@ import org.apache.logging.log4j.Logger;
 public class GuessMarketContextListener implements ServletContextListener {
 
     static final String ENGINE_ATTRIBUTE = "marketEngine";
+    static final String CHAT_ATTRIBUTE = "chatStore";
 
     private static final Logger LOG = LogManager.getLogger(GuessMarketContextListener.class);
 
@@ -26,6 +27,7 @@ public class GuessMarketContextListener implements ServletContextListener {
     public void contextInitialized(ServletContextEvent event) {
         MarketEngine engine = new SynchronizedMarketEngine(new MarketEngineImpl());
         event.getServletContext().setAttribute(ENGINE_ATTRIBUTE, engine);
+        event.getServletContext().setAttribute(CHAT_ATTRIBUTE, new ChatStore());
         LOG.info("Guess Market server started; one shared MarketEngine instance is live.");
     }
 }

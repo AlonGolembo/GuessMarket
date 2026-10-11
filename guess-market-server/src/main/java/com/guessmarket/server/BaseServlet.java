@@ -23,6 +23,10 @@ abstract class BaseServlet extends HttpServlet {
         return (MarketEngine) request.getServletContext().getAttribute(GuessMarketContextListener.ENGINE_ATTRIBUTE);
     }
 
+    ChatStore chatStore(HttpServletRequest request) {
+        return (ChatStore) request.getServletContext().getAttribute(GuessMarketContextListener.CHAT_ATTRIBUTE);
+    }
+
     @FunctionalInterface
     interface Action {
         void run() throws IOException;

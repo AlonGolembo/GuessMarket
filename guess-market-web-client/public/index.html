@@ -1,0 +1,312 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Guess Market</title>
+    <link rel="icon" href="favicon.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<!-- ============================ Login screen ============================ -->
+<section id="loginScreen" class="login-screen" hidden>
+    <form id="loginForm" class="login-card" autocomplete="off">
+        <h1>Guess Market</h1>
+        <p class="muted">Choose a unique user name</p>
+        <input id="loginName" type="text" maxlength="60" placeholder="User name" autofocus>
+        <button id="loginButton" type="submit" class="primary">Log in</button>
+        <p id="loginError" class="error-text" role="alert"></p>
+    </form>
+</section>
+
+<!-- ============================ Main screen ============================= -->
+<section id="mainScreen" class="main-screen" hidden>
+    <header class="app-header">
+        <h1>Guess Market</h1>
+        <div class="header-info">
+            <span>Logged in as <strong id="headerUser">-</strong></span>
+            <span class="sep">|</span>
+            <span>Balance <strong id="headerBalance">$0.00</strong></span>
+            <span id="headerBlocked" class="badge danger" hidden>Blocked</span>
+            <span id="connectionStatus" class="badge" title="Server connection">●</span>
+            <button id="themeButton" class="ghost" type="button" title="Toggle light/dark theme">Theme</button>
+            <button id="logoutButton" class="ghost" type="button">Log out</button>
+        </div>
+    </header>
+
+    <nav class="tabs" role="tablist">
+        <button class="tab active" data-tab="eventsTab" role="tab">Events</button>
+        <button class="tab" data-tab="usersTab" role="tab">Users</button>
+    </nav>
+
+    <!-- ------------------------------ Events tab ------------------------------ -->
+    <div id="eventsTab" class="tab-page">
+        <div class="filters">
+            <strong>Filters:</strong>
+            <label>Event Method
+                <select id="methodFilter">
+                    <option value="All">All</option>
+                    <option value="LMSR">LMSR</option>
+                    <option value="ORDERBOOK">ORDERBOOK</option>
+                </select>
+            </label>
+            <label>Status
+                <select id="statusFilter">
+                    <option value="All">All</option>
+                    <option value="NOT_ACTIVE">NOT_ACTIVE</option>
+                    <option value="ACTIVE">ACTIVE</option>
+                    <option value="CLOSED">CLOSED</option>
+                </select>
+            </label>
+            <label>Commission Method
+                <select id="commissionFilter">
+                    <option value="All">All</option>
+                    <option value="ON_PURCHASE">ON_PURCHASE</option>
+                    <option value="ON_CLOSE">ON_CLOSE</option>
+                </select>
+            </label>
+        </div>
+
+        <div class="events-top">
+            <!-- Left: Events List -->
+            <div class="card">
+                <h2>Events List</h2>
+                <div class="table-wrap tall">
+                    <table id="eventsTable" class="selectable sortable">
+                        <thead><tr>
+                            <th data-sort="name">Event Name</th>
+                            <th data-sort="status">Status</th>
+                            <th data-sort="tradingMethod">Event Method</th>
+                            <th data-sort="commissionType">Commission Method</th>
+                        </tr></thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+                <p id="eventsEmpty" class="placeholder">No events yet. Events uploaded by JavaFX clients appear here automatically.</p>
+            </div>
+
+            <!-- Right: read-only details, order books, participations, graphs -->
+            <div class="card">
+                <nav class="subtabs">
+                    <button class="subtab active" data-subtab="eventTradePane">Trade</button>
+                    <button class="subtab" data-subtab="eventGraphsPane">Graphs</button>
+                </nav>
+                <p id="noEventSelected" class="placeholder">Select an event from the list to see its details.</p>
+                <div id="eventTradePane" class="subtab-page">
+                    <div id="eventDetailsContainer" hidden>
+                        <h2>Event Details &amp; Trade: <span id="selectedEventTitle"></span></h2>
+                        <p id="closedSummary" class="closed-summary" hidden></p>
+                        <div id="orderBookSection" hidden>
+                            <div class="two-col">
+                                <div>
+                                    <h3 id="option1BookLabel">Option 1 Order Book</h3>
+                                    <div class="table-wrap short">
+                                        <table id="option1BookTable"><thead><tr><th>Side</th><th>Price</th><th>Amount</th></tr></thead><tbody></tbody></table>
+                                    </div>
+                                    <p id="option1Indicators" class="indicators"></p>
+                                </div>
+                                <div>
+                                    <h3 id="option2BookLabel">Option 2 Order Book</h3>
+                                    <div class="table-wrap short">
+                                        <table id="option2BookTable"><thead><tr><th>Side</th><th>Price</th><th>Amount</th></tr></thead><tbody></tbody></table>
+                                    </div>
+                                    <p id="option2Indicators" class="indicators"></p>
+                                </div>
+                            </div>
+                        </div>
+                        <h3>Participations Information</h3>
+                        <div class="table-wrap short">
+                            <table id="participationsTable"><thead><tr><th>User</th><th>Option</th><th>Shares</th></tr></thead><tbody></tbody></table>
+                        </div>
+                    </div>
+                </div>
+                <div id="eventGraphsPane" class="subtab-page" hidden>
+                    <div class="two-col">
+                        <div><h3 id="leftGraphLabel">Option 1 Price</h3><div id="leftGraph" class="chart"></div></div>
+                        <div><h3 id="rightGraphLabel">Option 2 Price</h3><div id="rightGraph" class="chart"></div></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="events-bottom" id="eventsBottom" hidden>
+            <!-- Financials & market-maker control -->
+            <div class="card">
+                <h2>Financials &amp; Control</h2>
+                <dl class="kv">
+                    <dt>Account Balance:</dt><dd id="eventBalance" class="positive">$0.00</dd>
+                    <dt>Commissions Collected:</dt><dd id="eventCommission">$0.00</dd>
+                    <dt>Commission:</dt><dd id="eventCommissionTerms">-</dd>
+                    <dt>Description:</dt><dd id="eventDescription">-</dd>
+                </dl>
+                <div class="actions">
+                    <button id="activateButton" class="primary" type="button">Activate Event (as Market Maker)</button>
+                </div>
+                <div class="actions">
+                    <select id="winningOptionSelect"><option value="">Choose Winning Option...</option></select>
+                    <button id="endEventButton" type="button" class="danger">End Event</button>
+                </div>
+                <p id="mmHint" class="muted small"></p>
+            </div>
+
+            <!-- Purchase history -->
+            <div class="card">
+                <h2>Purchase History</h2>
+                <div class="table-wrap medium">
+                    <table id="tradeHistoryTable">
+                        <thead><tr><th>Time</th><th>User</th><th>Option</th><th>Shares</th><th>Price Paid</th></tr></thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- LMSR: buy shares -->
+            <div class="card" id="buySharesSection" hidden>
+                <h2>Buy Shares (LMSR)</h2>
+                <fieldset id="buySharesFieldset">
+                    <div class="form-grid">
+                        <label for="tradeOption">Option:</label>
+                        <select id="tradeOption"></select>
+                        <label>Price (Prob %):</label>
+                        <span id="optionPrice" class="value">$0.00</span>
+                        <label for="sharesCount">Shares Quantity:</label>
+                        <input id="sharesCount" type="number" min="1" max="1000000" step="1" value="1">
+                        <label>Commission:</label>
+                        <span><span id="commissionToPay" class="value">$0.00</span> <span id="payNowOrLater" class="muted"></span></span>
+                        <label>Total Price:</label>
+                        <span id="totalPrice" class="value negative">$0.00</span>
+                    </div>
+                    <div class="actions">
+                        <button id="executeTradeButton" class="primary" type="button">Execute Purchase</button>
+                    </div>
+                </fieldset>
+                <p id="tradeDisabledHint" class="muted small"></p>
+            </div>
+
+            <!-- Order Book: place limit orders + my open orders -->
+            <div class="card" id="orderEntrySection" hidden>
+                <h2>Place a Limit Order (Order Book)</h2>
+                <fieldset id="orderEntryFieldset">
+                    <div class="form-grid">
+                        <label for="orderOption">Option:</label>
+                        <select id="orderOption"></select>
+                        <label>Side:</label>
+                        <span class="radio-row">
+                            <label><input type="radio" name="orderSide" value="BID" checked> Buy (Bid)</label>
+                            <label><input type="radio" name="orderSide" value="ASK"> Sell (Ask)</label>
+                        </span>
+                        <label for="orderPrice">Price:</label>
+                        <input id="orderPrice" type="number" min="0" step="0.01" placeholder="0.00">
+                        <label for="orderQuantity">Quantity:</label>
+                        <input id="orderQuantity" type="number" min="1" max="1000000" step="1" value="1">
+                    </div>
+                    <div class="actions">
+                        <button id="placeOrderButton" class="primary" type="button">Place Order</button>
+                        <span id="orderEntryStatus" class="muted"></span>
+                    </div>
+                    <h3>My Open Orders</h3>
+                    <div class="table-wrap short">
+                        <table id="myOrdersTable" class="selectable">
+                            <thead><tr><th>Option</th><th>Side</th><th>Price</th><th>Remaining</th></tr></thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                    <div class="actions">
+                        <button id="cancelOrderButton" type="button">Cancel Selected</button>
+                    </div>
+                </fieldset>
+                <p id="orderDisabledHint" class="muted small"></p>
+            </div>
+        </div>
+    </div>
+
+    <!-- ------------------------------ Users tab ------------------------------- -->
+    <div id="usersTab" class="tab-page" hidden>
+        <div class="filters">
+            <label><strong>User:</strong>
+                <select id="usersSelect"><option value="">Select a user...</option></select>
+            </label>
+        </div>
+
+        <div class="card">
+            <nav class="subtabs">
+                <button class="subtab active" data-subtab="userDetailsPane">User Details</button>
+                <button class="subtab" data-subtab="userGraphPane">Graphs</button>
+                <button class="subtab" data-subtab="userLedgerPane">Ledger</button>
+            </nav>
+
+            <div id="userDetailsPane" class="subtab-page">
+                <p id="noUserSelected" class="placeholder">Select a user from the drop-down to view their details.</p>
+                <div id="userInfo" hidden>
+                    <h2 id="userDetailsHeader">User Details</h2>
+                    <dl class="kv">
+                        <dt>Name:</dt><dd id="selectedUserName">-</dd>
+                        <dt>Balance:</dt><dd id="selectedUserBalance" class="positive">$0.00</dd>
+                        <dt>Market Maker?</dt><dd id="selectedUserIsMm">-</dd>
+                    </dl>
+                </div>
+                <div id="selfOnlyPanel" hidden>
+                    <div class="actions">
+                        <button id="depositButton" class="primary" type="button">Deposit Funds...</button>
+                    </div>
+                    <p id="userBlocked" class="error-text" hidden>You are blocked: your balance went negative, so you can no longer perform any action in the market.</p>
+                    <h3>Events Participation / Owner</h3>
+                    <div class="table-wrap medium">
+                        <table id="userEventsTable" class="selectable">
+                            <thead><tr><th>Event Name</th><th>Role</th><th>Shares</th></tr></thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                    <p id="userEventInvolvement" class="involvement">Select one of your events above to see your involvement in it.</p>
+                </div>
+                <div id="otherUsersPanel" hidden>
+                    <h3>All Users</h3>
+                    <div class="table-wrap medium">
+                        <table id="allUsersTable">
+                            <thead><tr><th>User</th><th>Balance</th><th>Market Maker?</th></tr></thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div id="userGraphPane" class="subtab-page" hidden>
+                <h2>My Balance</h2>
+                <p id="graphPlaceholder" class="placeholder">Select yourself from the drop-down to see your balance graph.</p>
+                <div id="balanceGraph" class="chart" hidden></div>
+            </div>
+
+            <div id="userLedgerPane" class="subtab-page" hidden>
+                <h2>My Account Ledger</h2>
+                <p id="ledgerPlaceholder" class="placeholder">Select yourself from the drop-down to see your account ledger.</p>
+                <div id="ledgerWrap" class="table-wrap tall" hidden>
+                    <table id="ledgerTable">
+                        <thead><tr><th>Time</th><th>Type</th><th>Event</th><th>Amount</th><th>Balance After</th></tr></thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ============================ Dialogs / toasts ============================ -->
+<div id="modalOverlay" class="modal-overlay" hidden>
+    <div class="modal" role="dialog" aria-modal="true">
+        <h2 id="modalTitle"></h2>
+        <p id="modalMessage"></p>
+        <input id="modalInput" type="text" hidden>
+        <div class="actions right">
+            <button id="modalCancel" type="button" hidden>Cancel</button>
+            <button id="modalOk" type="button" class="primary">OK</button>
+        </div>
+    </div>
+</div>
+<div id="toast" class="toast" hidden></div>
+
+<script src="charts.js"></script>
+<script src="api.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

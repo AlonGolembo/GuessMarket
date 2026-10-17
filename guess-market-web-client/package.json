@@ -1,0 +1,13 @@
+{
+  "name": "guess-market-web",
+  "version": "1.0.0",
+  "description": "Browser client for the Guess Market server (exercise 4 bonus)",
+  "private": true,
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js --open"
+  },
+  "engines": {
+    "node": ">=16"
+  }
+}

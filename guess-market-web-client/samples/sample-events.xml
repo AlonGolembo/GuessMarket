@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Guess-Market>
+  <GM-events>
+    <GM-event name="Coin flip">
+      <id>1</id>
+      <description>Will it land heads?</description>
+      <commission type="on-purchase">10</commission>
+      <GM-options>
+        <GM-option>Heads</GM-option>
+        <GM-option>Tails</GM-option>
+      </GM-options>
+      <GM-method>
+        <GM-LMSR><b>100</b></GM-LMSR>
+      </GM-method>
+    </GM-event>
+    <GM-event name="Will it rain tomorrow?">
+      <id>2</id>
+      <description>Order Book market over tomorrow's weather, base value $1.</description>
+      <commission type="on-close">5</commission>
+      <GM-options>
+        <GM-option>Rain</GM-option>
+        <GM-option>No rain</GM-option>
+      </GM-options>
+      <GM-method>
+        <GM-order-book d="1" initial="100" allow-mint="true"/>
+      </GM-method>
+    </GM-event>
+  </GM-events>
+</Guess-Market>
